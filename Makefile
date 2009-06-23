@@ -4,11 +4,8 @@
 LDFLAGS+=		-Wall
 OBJS=			scamper.o scamper_debug.o utils.o \
 			scamper_list.o scamper_tlv.o scamper_icmpext.o \
-			scamper_do_trace.o scamper_trace.o \
 			scamper_do_ping.o scamper_ping.o \
-			scamper_do_tracelb.o scamper_tracelb.o \
 			scamper_do_dealias.o scamper_dealias.o \
-			scamper_do_sting.o scamper_sting.o \
 			scamper_udp4.o scamper_udp6.o \
 			scamper_icmp4.o scamper_icmp6.o scamper_icmp_resp.o \
 			scamper_tcp4.o scamper_tcp6.o \
@@ -17,8 +14,7 @@ OBJS=			scamper.o scamper_debug.o utils.o \
 			scamper_fds.o scamper_linepoll.o scamper_writebuf.o \
 			scamper_privsep.o scamper_getsrc.o \
 			mjl_list.o mjl_splaytree.o mjl_heap.o \
-			scamper_file.o scamper_file_traceroute.o \
-			scamper_file_warts.o scamper_file_arts.o \
+			scamper_file.o \
 			scamper_control.o scamper_firewall.o \
 			scamper_outfiles.o scamper_addr.o scamper_probe.o \
 			scamper_target.o scamper_task.o scamper_queue.o \
