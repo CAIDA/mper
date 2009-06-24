@@ -69,7 +69,6 @@ typedef __int16 int16_t;
 #include "scamper_target.h"
 #include "scamper_outfiles.h"
 #include "scamper_sources.h"
-#include "scamper_cyclemon.h"
 
 #include "scamper_do_ping.h"
 
@@ -94,7 +93,6 @@ struct scamper_source
   int                           type;
   int                           refcnt;
   scamper_outfile_t            *sof;
-  scamper_cyclemon_t           *cyclemon;
 
   /*
    * commands:     a list of commands for the source that are queued, ready to
@@ -121,23 +119,6 @@ struct scamper_source
   int                         (*take)(void *data);
   void                        (*freedata)(void *data);
   int                         (*isfinished)(void *data);
-};
-
-/*
- * scamper_source_observer
- *
- * this structure records details of an observer interested in monitoring
- * source events.
- *
- *  func:  the callback function to use when an event occurs
- *  param: the parameter to pass to the function
- *  node:  the appropriate dlist_node in the observers dlist.
- */
-struct scamper_source_observer
-{
-  scamper_source_eventf_t  func;
-  void                    *param;
-  dlist_node_t            *node;
 };
 
 /*
@@ -186,7 +167,6 @@ typedef struct command
 } command_t;
 
 #define COMMAND_PROBE 0x00
-#define COMMAND_CYCLE 0x01
 
 /*
  * command_onhold
@@ -240,53 +220,6 @@ static int source_refcnt_dec(scamper_source_t *source)
   return source->refcnt;
 }
 
-/*
- * source_event_post_cb
- *
- * callback used by source_event_post to send an event to all the observers
- * in the observers list
- */
-static int source_event_post_cb(void *item, void *param)
-{
-  scamper_source_observer_t *observer = (scamper_source_observer_t *)item;
-  scamper_source_event_t *event = (scamper_source_event_t *)param;
-  observer->func(event, observer->param);
-  return 0;
-}
-
-/*
- * scamper_source_event_post
- *
- * send all observers notification that a particular event occured.
- */
-void scamper_source_event_post(scamper_source_t *source, int type,
-			       scamper_source_event_t *ev)
-{
-  scamper_source_event_t sse;
-  struct timeval tv;
-
-  /* check if there is actually anyone observing */
-  if(observers == NULL)
-    {
-      return;
-    }
-
-  /* if null event, then create one from scratch */
-  if(ev == NULL)
-    {
-      memset(&sse, 0, sizeof(sse));
-      ev = &sse;
-    }
-
-  gettimeofday_wrap(&tv);
-  ev->source = source;
-  ev->event = type;
-  ev->sec = tv.tv_sec;
-  dlist_foreach(observers, source_event_post_cb, ev);
-
-  return;
-}
-
 static void command_free(command_t *command)
 {
   if(command->type == COMMAND_PROBE)
@@ -299,43 +232,10 @@ static void command_free(command_t *command)
 	{
 	  command->funcs->freedata(command->data);
 	}
-
-      scamper_cyclemon_unuse((scamper_cyclemon_t *)command->param);
     }
 
   free(command);
   return;
-}
-
-/*
- * command_cycle
- *
- * given the commands list, append a cycle command to it.
- */
-static int command_cycle(scamper_source_t *source, scamper_cycle_t *cycle)
-{
-  command_t *command = NULL;
-
-  if((command = malloc_zero(sizeof(command_t))) == NULL)
-    {
-      goto err;
-    }
-
-  command->type = COMMAND_CYCLE;
-  command->data = cycle;
-
-  if(slist_tail_push(source->commands, command) == NULL)
-    {
-      goto err;
-    }
-
-  source->cycle_points++;
-
-  return 0;
-
- err:
-  if(command != NULL) command_free(command);
-  return -1;
 }
 
 /*
@@ -621,7 +521,6 @@ static int command_probe_handle(scamper_source_t *source, command_t *command,
 				scamper_task_t **task_out)
 {
   const command_func_t *funcs = command->funcs;
-  scamper_cycle_t *cycle;
   scamper_task_t *task = NULL;
 
   if((task = command_dstaddrs(funcs, command->data)) != NULL)
@@ -631,11 +530,8 @@ static int command_probe_handle(scamper_source_t *source, command_t *command,
       return 0;      
     }
 
-  /* get a pointer to the cycle for *this* task */
-  cycle = scamper_cyclemon_cycle((scamper_cyclemon_t *)command->param);
-
   /* allocate the task structure to keep everything together */
-  if((task = funcs->alloctask(command->data, source->list, cycle)) == NULL)
+  if((task = funcs->alloctask(command->data, source->list)) == NULL)
     {
       goto err;
     }
@@ -653,9 +549,6 @@ static int command_probe_handle(scamper_source_t *source, command_t *command,
       goto err;
     }
 
-  /* pass the cyclemon structure to the task */
-  task->cyclemon = scamper_cyclemon_use((scamper_cyclemon_t *)command->param);
-
   /* return to the caller the task we allocated */
   *task_out = task;
 
@@ -670,136 +563,6 @@ static int command_probe_handle(scamper_source_t *source, command_t *command,
  err:
   if(task != NULL) scamper_task_free(task);
   command_free(command);
-  return -1;
-}
-
-/*
- * command_cycle_handle
- *
- *
- */
-static int command_cycle_handle(scamper_source_t *source, command_t *command)
-{
-  scamper_source_event_t sse;
-  scamper_cycle_t *cycle = (scamper_cycle_t *)command->data;
-  scamper_file_t *file;
-  struct timeval tv;
-  char hostname[MAXHOSTNAMELEN];
-
-  /* get the hostname of the system for the cycle point */
-  if(gethostname(hostname, sizeof(hostname)) == 0)
-    {
-      cycle->hostname = strdup(hostname);
-    }
-
-  /* get a timestamp for the cycle start point */
-  gettimeofday_wrap(&tv);
-  cycle->start_time = (uint32_t)tv.tv_sec;
-
-  /* write a cycle start point to disk if there is a file to do so */
-  if(source->sof != NULL &&
-     (file = scamper_outfile_getfile(source->sof)) != NULL)
-    {
-      scamper_file_write_cycle_start(file, cycle);
-    }
-
-  /* post an event saying the cycle point just rolled around */
-  memset(&sse, 0, sizeof(sse));
-  sse.sse_cycle_cycle_id = cycle->id;
-  scamper_source_event_post(source, SCAMPER_SOURCE_EVENT_CYCLE, &sse);
-
-  command_free(command);
-  return 0;
-}
-
-/*
- * source_cycle_finish
- *
- * when the last cycle is written to disk, we can start on the next cycle.
- */
-static void source_cycle_finish(scamper_cycle_t *cycle,
-				scamper_source_t *source,
-				scamper_outfile_t *outfile)
-{
-  scamper_file_t *sf;
-  struct timeval tv;
-
-  /* timestamp when the cycle ends */
-  gettimeofday_wrap(&tv);
-  cycle->stop_time = (uint32_t)tv.tv_sec;
-
-  /* write the cycle stop record out */
-  if(outfile != NULL)
-    {
-      sf = scamper_outfile_getfile(outfile);
-      scamper_file_write_cycle_stop(sf, cycle);
-    }
-
-  if(source != NULL)
-    {
-      source->cycle_points--;
-    }
-
-  return;
-}
-
-/*
- * source_cycle
- *
- * allocate and initialise a cycle start object for the source.
- * write the cycle start to disk.
- */
-static int source_cycle(scamper_source_t *source, uint32_t cycle_id)
-{
-  scamper_cyclemon_t *cyclemon = NULL;
-  scamper_cycle_t *cycle = NULL;
-
-  /* allocate the new cycle object */
-  if((cycle = scamper_cycle_alloc(source->list)) == NULL)
-    {
-      printerror(errno, strerror, __func__, "could not alloc new cycle");
-      goto err;
-    }
-
-  /* assign the cycle id */
-  cycle->id = cycle_id;
-
-  /* allocate structure to monitor references to the new cycle */
-  if((cyclemon = scamper_cyclemon_alloc(cycle, source_cycle_finish, source,
-					source->sof)) == NULL)
-    {
-      printerror(errno, strerror, __func__, "could not alloc new cyclemon");
-      goto err;
-    }
-
-  /* append the cycle record to the source's commands list */
-  if(command_cycle(source, cycle) != 0)
-    {
-      printerror(errno, strerror, __func__, "could not insert cycle marker");
-      goto err;
-    }
-
-  /*
-   * if there is a previous cycle object associated with the source, then
-   * free that.  also free the cyclemon.
-   */
-  if(source->cycle != NULL)
-    {
-      scamper_cycle_free(source->cycle);
-    }
-  if(source->cyclemon != NULL)
-    {
-      scamper_cyclemon_unuse(source->cyclemon);
-    }
-
-  /* store the cycle and we're done */
-  source->cycle = cycle;
-  source->cyclemon = cyclemon;
-  return 0;
-
- err:
-  if(cyclemon != NULL) scamper_cyclemon_free(cyclemon);
-  if(cycle != NULL) scamper_cycle_free(cycle);
   return -1;
 }
 
@@ -960,12 +723,6 @@ int scamper_source_isfinished(scamper_source_t *source)
 void scamper_source_finished(scamper_source_t *source)
 {
   assert(scamper_source_isfinished(source) != 0);
-  if(source->cyclemon != NULL)
-    {
-      assert(scamper_cyclemon_refcnt(source->cyclemon) == 1);
-      scamper_cyclemon_unuse(source->cyclemon);
-      source->cyclemon = NULL;
-    }
   source_finished_attach(source);
   return;
 }
@@ -981,13 +738,6 @@ static void source_free(scamper_source_t *source)
 
   /* the source is now finished.  post a message saying so */
   scamper_source_event_post(source, SCAMPER_SOURCE_EVENT_FINISH, NULL);
-
-  if(source->cyclemon != NULL)
-    {
-      scamper_cyclemon_source_detach(source->cyclemon);
-      scamper_cyclemon_unuse(source->cyclemon);
-      source->cyclemon = NULL;
-    }
 
   /* pull the source out of sources management */
   source_detach(source);
@@ -1009,58 +759,6 @@ static void source_free(scamper_source_t *source)
 
   free(source);
   return;
-}
-
-/*
- * scamper_source_getname
- *
- * return the name of the source
- */
-const char *scamper_source_getname(const scamper_source_t *source)
-{
-  if(source->list == NULL) return NULL;
-  return source->list->name;
-}
-
-/*
- * scamper_source_getdescr
- *
- * return the description for the source
- */
-const char *scamper_source_getdescr(const scamper_source_t *source)
-{
-  if(source->list == NULL) return NULL;
-  return source->list->descr;
-}
-
-/*
- * scamper_source_getoutfile
- *
- * return the name of the outfile associated with the source
- */
-const char *scamper_source_getoutfile(const scamper_source_t *source)
-{
-  return scamper_outfile_getname(source->sof);
-}
-
-/*
- * scamper_source_getlistid
- *
- * return the list id for the source
- */
-uint32_t scamper_source_getlistid(const scamper_source_t *source)
-{
-  return source->list->id;
-}
-
-/*
- * scamper_source_getcycleid
- *
- * return the cycle id for the source
- */
-uint32_t scamper_source_getcycleid(const scamper_source_t *source)
-{
-  return source->cycle->id;
 }
 
 /*
@@ -1093,21 +791,8 @@ void scamper_source_setpriority(scamper_source_t *source, uint32_t priority)
   memset(&sse, 0, sizeof(sse));
   sse.sse_update_flags |= 0x04;
   sse.sse_update_priority = priority;
-  scamper_source_event_post(source, SCAMPER_SOURCE_EVENT_UPDATE, &sse);
 
   return;
-}
-
-const char *scamper_source_type_tostr(const scamper_source_t *source)
-{
-  switch(source->type)
-    {
-    case SCAMPER_SOURCE_TYPE_FILE:    return "file";
-    case SCAMPER_SOURCE_TYPE_CMDLINE: return "cmdline";
-    case SCAMPER_SOURCE_TYPE_CONTROL: return "control";
-    }
-
-  return NULL;
 }
 
 /*
@@ -1122,11 +807,6 @@ int scamper_source_getcommandcount(const scamper_source_t *source)
       return slist_count(source->commands);
     }
   return -1;
-}
-
-int scamper_source_getcyclecount(const scamper_source_t *source)
-{
-  return source->cycle_points;
 }
 
 int scamper_source_gettaskcount(const scamper_source_t *source)
@@ -1197,7 +877,6 @@ int scamper_source_command(scamper_source_t *source, const char *command)
   cmd->type  = COMMAND_PROBE;
   cmd->funcs = func;
   cmd->data  = data;
-  cmd->param = scamper_cyclemon_use(source->cyclemon);
 
   if(slist_tail_push(source->commands, cmd) == NULL)
     {
@@ -1212,17 +891,6 @@ int scamper_source_command(scamper_source_t *source, const char *command)
   if(data != NULL) func->freedata(data);
   if(cmd != NULL) free(cmd);
   return -1;
-}
-
-/*
- * scamper_source_cycle
- *
- * externally visible function to mark a new cycle point; the new cycle
- * id is one greater than the currently active cycle.
- */
-int scamper_source_cycle(scamper_source_t *source)
-{
-  return source_cycle(source, source->cycle->id + 1);
 }
 
 /*
@@ -1242,12 +910,6 @@ void scamper_source_taskdone(scamper_source_t *source, scamper_task_t *task)
 
   if(scamper_source_isfinished(source) != 0)
     {
-      if(source->cyclemon != NULL)
-	{
-	  assert(scamper_cyclemon_refcnt(source->cyclemon) == 1);
-	  scamper_cyclemon_unuse(source->cyclemon);
-	  source->cyclemon = NULL;
-	}
       source_detach(source);
     }
 
@@ -1348,11 +1010,6 @@ scamper_source_t *scamper_source_alloc(const scamper_source_params_t *ssp)
     }
 
   source->sof = scamper_outfile_use(ssp->sof);
-  if(source_cycle(source, ssp->cycle_id) != 0)
-    {
-      goto err;
-    }
-
   source->type     = ssp->type;
   source->priority = ssp->priority;
 
@@ -1366,62 +1023,6 @@ scamper_source_t *scamper_source_alloc(const scamper_source_params_t *ssp)
       if(source->tasks != NULL) dlist_free(source->tasks);
       free(source);
     }
-  return NULL;
-}
-
-/*
- * scamper_sources_observe
- *
- * something wants to monitor the status of the sources managed by scamper.
- * make a note of that.
- */
-scamper_source_observer_t *scamper_sources_observe(scamper_source_eventf_t cb,
-						   void *param)
-{
-  scamper_source_observer_t *observer = NULL;
-
-  if((observers == NULL && (observers = dlist_alloc()) == NULL) ||
-     (observer = malloc_zero(sizeof(scamper_source_observer_t))) == NULL ||
-     (observer->node = dlist_tail_push(observers, observer)) == NULL)
-    {
-      goto err;
-    }
-
-  observer->func  = cb;
-  observer->param = param;
-
-  return observer;
-
- err:
-  if(observer != NULL) scamper_sources_unobserve(observer);
-  return NULL;
-}
-
-/*
- * scamper_sources_unobserve
- *
- */
-void scamper_sources_unobserve(scamper_source_observer_t *observer)
-{
-  dlist_node_pop(observers, observer->node);
-  free(observer);
-
-  if(dlist_count(observers) == 0)
-    {
-      dlist_free(observers);
-      observers = NULL;
-    }
-
-  return;
-}
-
-/*
- * scamper_sources_get
- *
- * given a name, return the matching source -- if one exists.
- */
-scamper_source_t *scamper_sources_get(char *name)
-{
   return NULL;
 }
 
@@ -1445,7 +1046,6 @@ int scamper_sources_del(scamper_source_t *source)
       return -1;
     }
 
-  scamper_source_event_post(source, SCAMPER_SOURCE_EVENT_DELETE, NULL);
   source_free(source);
   return 0;
 }
@@ -1581,10 +1181,6 @@ int scamper_sources_gettask(scamper_task_t **task)
 		}
 	      return 0;
 
-	    case COMMAND_CYCLE:
-	      command_cycle_handle(source, command);
-	      break;
-
 	    default:
 	      return -1;
 	    }
@@ -1631,7 +1227,6 @@ int scamper_sources_add(scamper_source_t *source)
       return -1;
     }
 
-  scamper_source_event_post(source, SCAMPER_SOURCE_EVENT_ADD, NULL);
   return 0;
 }
 
