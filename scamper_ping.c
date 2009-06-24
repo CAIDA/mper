@@ -51,7 +51,6 @@ typedef unsigned __int32 uint32_t;
 #include <dmalloc.h>
 #endif
 
-#include "scamper_list.h"
 #include "scamper_addr.h"
 #include "scamper_ping.h"
 
@@ -176,9 +175,6 @@ void scamper_ping_free(scamper_ping_t *ping)
 
   if(ping->dst != NULL) scamper_addr_free(ping->dst);
   if(ping->src != NULL) scamper_addr_free(ping->src);
-
-  if(ping->cycle != NULL) scamper_cycle_free(ping->cycle);
-  if(ping->list != NULL) scamper_list_free(ping->list);
 
   free(ping);
   return;

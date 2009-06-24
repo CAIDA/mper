@@ -29,9 +29,7 @@ void *scamper_do_ping_alloc(char *str);
 int scamper_do_ping_dstaddr(void *data, void *param,
 			    int (*foreach)(struct scamper_addr *, void *));
 
-scamper_task_t *scamper_do_ping_alloctask(void *data,
-					  scamper_list_t *list,
-					  scamper_cycle_t *cycle);
+scamper_task_t *scamper_do_ping_alloctask(void *data);
 
 int scamper_do_ping_arg_validate(int argc, char *argv[], int *stop);
 

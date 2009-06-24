@@ -70,7 +70,6 @@ typedef __int16 int16_t;
 
 #include "scamper.h"
 #include "scamper_addr.h"
-#include "scamper_list.h"
 #include "scamper_ping.h"
 #include "scamper_getsrc.h"
 #include "scamper_icmp_resp.h"
@@ -80,8 +79,6 @@ typedef __int16 int16_t;
 #include "scamper_probe.h"
 #include "scamper_task.h"
 #include "scamper_queue.h"
-#include "scamper_file.h"
-#include "scamper_outfiles.h"
 #include "scamper_sources.h"
 #include "scamper_debug.h"
 #include "scamper_do_ping.h"
@@ -856,20 +853,6 @@ static void do_ping_handle_timeout(scamper_task_t *task)
 
 static void do_ping_write(scamper_task_t *task)
 {
-  const char *outfile_name;
-  scamper_outfile_t *outfile;
-  scamper_file_t *sf;
-
-  outfile_name = scamper_source_getoutfile(task->source);
-  assert(outfile_name != NULL);
-
-  if((outfile = scamper_outfiles_get(outfile_name)) != NULL)
-    {
-      sf = scamper_outfile_getfile(outfile);
-      scamper_file_write_ping(sf, (scamper_ping_t *)task->data);
-    }
-
-  return;
 }
 
 static void do_ping_free(scamper_task_t *task)
@@ -1277,9 +1260,7 @@ void *scamper_do_ping_alloc(char *str)
   return NULL;
 }
 
-scamper_task_t *scamper_do_ping_alloctask(void *data,
-					  scamper_list_t *list,
-					  scamper_cycle_t *cycle)
+scamper_task_t *scamper_do_ping_alloctask(void *data)
 {
   scamper_ping_t *ping = (scamper_ping_t *)data;
   scamper_task_t *task;
@@ -1296,10 +1277,6 @@ scamper_task_t *scamper_do_ping_alloctask(void *data,
     {
       goto err;
     }
-
-  /* now, associate the list and cycle with the ping */
-  ping->list  = scamper_list_use(list);
-  ping->cycle = scamper_cycle_use(cycle);
 
   /* determine the source address used for sending probes */
   if(ping->src == NULL)

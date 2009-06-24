@@ -69,7 +69,6 @@ typedef int mode_t;
 #endif
 
 #include "scamper_debug.h"
-#include "scamper_file.h"
 #include "scamper_privsep.h"
 #include "scamper_outfiles.h"
 #include "utils.h"

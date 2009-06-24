@@ -192,7 +192,6 @@ struct rtmsg
 
 #include "scamper.h"
 #include "scamper_addr.h"
-#include "scamper_list.h"
 #include "scamper_fds.h"
 #include "scamper_rtsock.h"
 #include "scamper_privsep.h"

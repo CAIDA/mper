@@ -50,7 +50,6 @@ typedef unsigned __int32 uint32_t;
 #include <assert.h>
 
 #include "scamper_task.h"
-#include "scamper_outfiles.h"
 #include "scamper_sources.h"
 #include "scamper_debug.h"
 #include "scamper_source_control.h"

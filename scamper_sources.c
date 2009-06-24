@@ -65,19 +65,13 @@ typedef __int16 int16_t;
 
 #include "scamper.h"
 #include "scamper_addr.h"
-#include "scamper_list.h"
 #include "scamper_task.h"
 #include "scamper_target.h"
-#include "scamper_file.h"
 #include "scamper_outfiles.h"
 #include "scamper_sources.h"
 #include "scamper_cyclemon.h"
 
-#include "scamper_do_trace.h"
 #include "scamper_do_ping.h"
-#include "scamper_do_tracelb.h"
-#include "scamper_do_dealias.h"
-#include "scamper_do_sting.h"
 
 #include "scamper_debug.h"
 
@@ -95,10 +89,6 @@ typedef __int16 int16_t;
  */
 struct scamper_source
 {
-  /* basic data collection properties to store with the source */
-  scamper_list_t               *list;
-  scamper_cycle_t              *cycle;
-
   /* properties of the source */
   uint32_t                      priority;
   int                           type;
@@ -161,7 +151,7 @@ typedef struct command_func
   char             *command;
   size_t            len;
   void           *(*allocdata)(char *);
-  scamper_task_t *(*alloctask)(void *, scamper_list_t *, scamper_cycle_t *);
+  scamper_task_t *(*alloctask)(void *);
   void            (*freedata)(void *data);
   int             (*dstaddrs)(void *data, void *param,
 			      int (*foreach)(struct scamper_addr *, void *));
@@ -169,40 +159,12 @@ typedef struct command_func
 
 static const command_func_t command_funcs[] = {
   {
-    "trace", 5,
-    scamper_do_trace_alloc,
-    scamper_do_trace_alloctask,
-    scamper_do_trace_free,
-    scamper_do_trace_dstaddr,
-  },
-  {
     "ping", 4,
     scamper_do_ping_alloc,
     scamper_do_ping_alloctask,
     scamper_do_ping_free,
     scamper_do_ping_dstaddr,
-  },
-  {
-    "tracelb", 7,
-    scamper_do_tracelb_alloc,
-    scamper_do_tracelb_alloctask,
-    scamper_do_tracelb_free,
-    scamper_do_tracelb_dstaddr,
-  },
-  {
-    "dealias", 7,
-    scamper_do_dealias_alloc,
-    scamper_do_dealias_alloctask,
-    scamper_do_dealias_free,
-    scamper_do_dealias_dstaddrs,
-  },
-  {
-    "sting", 5,
-    scamper_do_sting_alloc,
-    scamper_do_sting_alloctask,
-    scamper_do_sting_free,
-    scamper_do_sting_dstaddr,
-  },
+  }
 };
 
 static size_t command_funcc = sizeof(command_funcs) / sizeof(command_func_t);
@@ -1045,9 +1007,6 @@ static void source_free(scamper_source_t *source)
   /* release this structure's hold on the scamper_outfile */
   if(source->sof != NULL) scamper_outfile_free(source->sof);
 
-  if(source->list != NULL) scamper_list_free(source->list);
-  if(source->cycle != NULL) scamper_cycle_free(source->cycle);
-
   free(source);
   return;
 }
@@ -1370,13 +1329,6 @@ scamper_source_t *scamper_source_alloc(const scamper_source_params_t *ssp)
   source->freedata    = ssp->freedata;
   source->isfinished  = ssp->isfinished;
 
-  if((source->list = scamper_list_alloc(ssp->list_id, ssp->name, ssp->descr,
-					scamper_monitorname_get())) == NULL)
-    {
-      printerror(errno, strerror, __func__, "could not alloc source->list");
-      goto err;
-    }
-
   if((source->commands = slist_alloc()) == NULL)
     {
       printerror(errno,strerror,__func__, "could not alloc source->commands");
@@ -1409,8 +1361,6 @@ scamper_source_t *scamper_source_alloc(const scamper_source_params_t *ssp)
  err:
   if(source != NULL)
     {
-      if(source->list != NULL) scamper_list_free(source->list);
-      if(source->cycle != NULL) scamper_cycle_free(source->cycle);
       if(source->commands != NULL) slist_free(source->commands);
       if(source->onhold != NULL) dlist_free(source->onhold);
       if(source->tasks != NULL) dlist_free(source->tasks);
@@ -1472,13 +1422,7 @@ void scamper_sources_unobserve(scamper_source_observer_t *observer)
  */
 scamper_source_t *scamper_sources_get(char *name)
 {
-  scamper_source_t findme;
-  scamper_list_t   list;
-
-  list.name   = name;
-  findme.list = &list;
-
-  return (scamper_source_t *)splaytree_find(source_tree, &findme);
+  return NULL;
 }
 
 /*

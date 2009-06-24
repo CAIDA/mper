@@ -61,7 +61,6 @@ typedef __int16 int16_t;
 #include "scamper_task.h"
 #include "scamper_queue.h"
 #include "scamper_target.h"
-#include "scamper_list.h"
 #include "scamper_cyclemon.h"
 #include "scamper_outfiles.h"
 #include "scamper_sources.h"

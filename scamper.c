@@ -69,13 +69,8 @@ typedef unsigned __int32 uint32_t;
 #include "scamper.h"
 #include "scamper_debug.h"
 #include "scamper_addr.h"
-#include "scamper_list.h"
-#include "scamper_file.h"
-#include "scamper_outfiles.h"
 #include "scamper_task.h"
 #include "scamper_sources.h"
-#include "scamper_source_cmdline.h"
-#include "scamper_source_file.h"
 #include "scamper_target.h"
 #include "scamper_queue.h"
 #include "scamper_getsrc.h"
@@ -92,36 +87,21 @@ typedef unsigned __int32 uint32_t;
 #include "scamper_probe.h"
 #include "scamper_privsep.h"
 #include "scamper_control.h"
-#include "scamper_do_trace.h"
 #include "scamper_do_ping.h"
-#include "scamper_do_tracelb.h"
-#include "scamper_do_dealias.h"
-#include "scamper_do_sting.h"
 
 #include "utils.h"
 
 static uint32_t options = 0;
 #define OPT_PPS         0x00000001 /* p: */
-#define OPT_OUTFILE     0x00000002 /* o: */
-#define OPT_OUTTYPE     0x00000004 /* O: */
 #define OPT_VERSION     0x00000020 /* v: */
-#define OPT_BGP         0x00000040 /* b: */
-#define OPT_RTT         0x00000080 /* r: */
 #define OPT_HOLDTIME    0x00000100 /* H: */
 #define OPT_DAEMON      0x00000200 /* D: */
-#define OPT_IPLIST      0x00000400 /* i: */
 #define OPT_DL          0x00001000 /* P: */
 #define OPT_MONITORNAME 0x00002000 /* M: */
-#define OPT_COMMAND     0x00004000 /* c: */
 #define OPT_HELP        0x00008000 /* ?: */
 #define OPT_WINDOW      0x00010000 /* w: */
 #define OPT_DEBUGFILE   0x00020000 /* d: */
-#define OPT_LISTNAME    0x00040000 /* l: */
-#define OPT_LISTID      0x00080000 /* L: */
-#define OPT_CYCLEID     0x00100000 /* C: */
 #define OPT_FIREWALL    0x00200000 /* F: */
-#define OPT_CMDLIST     0x00400000 /* I: */
-#define OPT_FILELIST    0x00800000 /* f: */
 
 /*
  * parameters configurable by the command line:
@@ -129,29 +109,19 @@ static uint32_t options = 0;
  * command:     default command to use with scamper
  * pps:         how many probe packets to send per second
  * holdtime:    how long to hold tasks for late replies after completion
- * outfile:     where to send results by default
- * outtype:     format to use when writing results to outfile
  * daemon_port: port to use when operating as a daemon
  * monitorname: canonical name of monitor assigned by human
  * arglist:     whatever is left over after getopt processing
  * arglist_len: number of arguments left over after getopt processing
  * window:      maximum number of concurrent tasks to actively probe
  * debugfile:   place to write debugging output
- * listname:    name of list assigned by human
- * listid:      id of list assigned by human
- * cycleid:     id of cycle assigned by human
  * firewall:    scamper should use the system firewall when needed
  */
 static char  *command      = NULL;
 static int    pps          = SCAMPER_PPS_DEF;
 static int    holdtime     = SCAMPER_HOLDTIME_DEF;
-static char  *outfile      = "-";
-static char  *outtype      = "traceroute";
 static int    daemon_port  = 0;
 static char  *monitorname  = NULL;
-static char  *listname     = NULL;
-static int    listid       = -1;
-static int    cycleid      = -1;
 static char **arglist      = NULL;
 static int    arglist_len  = 0;
 static int    window       = SCAMPER_WINDOW_DEF;
@@ -172,14 +142,6 @@ static int    exit_when_done = 1;
 /* central cache of addresses that scamper is dealing with */
 scamper_addrcache_t *addrcache = NULL;
 
-typedef struct scamper_multicall
-{
-  char         *argv0;
-  char         *cmd;
-  int         (*validate)(int, char **, int *);
-  const char *(*usage)(void);
-} scamper_multicall_t;
-
 static void usage_str(char c, char *str)
 {
   fprintf(stderr, "            -%c %s\n", c, str);
@@ -197,11 +159,10 @@ static void usage(uint32_t opt_mask)
   char buf[256];
 
   fprintf(stderr,
-    "usage: scamper [-?Pv] [-c command] [-p pps] [-w window]\n"
-    "               [-M monitorname] [-l listname] [-L listid] [-C cycleid]\n"
-    "               [-o outfile] [-O outtype]\n"
+    "usage: scamper [-?Pv] [-p pps] [-w window]\n"
+    "               [-M monitorname]\n"
     "               [-H holdtime] [-d debugfile] [-F firewall]\n"
-    "               [-i addr 1..N | -I cmd 1..N | -f file 1..N | -D port]\n");
+    "               [-D port]\n");
 
   if(opt_mask == 0) return;
 
@@ -210,24 +171,11 @@ static void usage(uint32_t opt_mask)
   if((opt_mask & OPT_HELP) != 0)
     usage_str('?', "give an overview of the usage of scamper");
 
-  if((opt_mask & OPT_COMMAND) != 0)
-    {
-      (void)snprintf(buf, sizeof(buf),
-		     "command string (default: %s)", SCAMPER_COMMAND_DEF);
-      usage_str('c', buf);
-    }
-
-  if((opt_mask & OPT_CYCLEID) != 0)
-    usage_str('C', "cycle id");
-
   if((opt_mask & OPT_DEBUGFILE) != 0)
     usage_str('d', "write debugging information to the specified file");
 
   if((opt_mask & OPT_DAEMON) != 0)
     usage_str('D', "start as a daemon listening for commands on a port");
-
-  if((opt_mask & OPT_FILELIST) != 0)
-    usage_str('f', "list of files provided on the command line");
 
   if((opt_mask & OPT_FIREWALL) != 0)
     usage_str('F', "use the system firewall to install rules as necessary");
@@ -241,26 +189,8 @@ static void usage(uint32_t opt_mask)
       usage_str('H', buf);
     }
 
-  if((opt_mask & OPT_IPLIST) != 0)
-    usage_str('i', "list of IP addresses provided on the command line");
-
-  if((opt_mask & OPT_CMDLIST) != 0)
-    usage_str('I', "list of scamper commands provided on the command line");
-
-  if((opt_mask & OPT_LISTID) != 0)
-    usage_str('l', "name to assign to default list");
-
-  if((opt_mask & OPT_LISTNAME) != 0)
-    usage_str('L', "list id for default list");
-
   if((opt_mask & OPT_MONITORNAME) != 0)
     usage_str('M', "specify the canonical name of the monitor");
-
-  if((opt_mask & OPT_OUTFILE) != 0)
-    usage_str('o', "specify the file to write output to");
-
-  if((opt_mask & OPT_OUTTYPE) != 0)
-    usage_str('O', "specify the type of output [warts | traceroute]");
 
   if((opt_mask & OPT_PPS) != 0)
     {
@@ -296,125 +226,22 @@ static int set_opt(uint32_t opt, char *str, int (*setfunc)(int))
   return setfunc(l);
 }
 
-static int multicall_do(const scamper_multicall_t *mc, int argc, char *argv[])
-{
-  char *str;
-  size_t off, len, tmp;
-  int i, stop;
-
-  if(argc == 1 || mc->validate(argc, argv, &stop) != 0 || stop == argc)
-    {
-      if(mc->usage != NULL)
-	{
-	  printf("usage: scamper-%s <ip list>\n", mc->usage());
-	}
-      return -1;
-    }
-
-  /* assemble the command string */
-  len = strlen(mc->cmd) + 1;
-  for(i=1; i<stop; i++)
-    {
-      len += strlen(argv[i]) + 1;
-    }
-  if((str = malloc(len)) == NULL)
-    {
-      printerror(errno, strerror, __func__,
-		 "could not assemble %s command", mc->cmd);
-      return -1;
-    }
-  off = strlen(mc->cmd);
-  memcpy(str, mc->cmd, off);
-  str[off++] = ' ';
-  for(i=1; i<stop; i++)
-    {
-      tmp = strlen(argv[i]);
-      memcpy(str+off, argv[i], tmp);
-      off += tmp;
-      str[off++] = ' ';
-    }
-  str[off] = '\0';
-
-  /* set the command */
-  scamper_command_set(str);
-  free(str);
-
-  options |= OPT_IPLIST;
-
-  arglist     = argv + stop;
-  arglist_len = argc - stop;
-
-  return 0;
-}
-
-static int cycleid_set(const int cid)
-{
-  if(cid > 0 && cid <= 0x7fffffff)
-    {
-      cycleid = cid;
-      return 0;
-    }
-  return -1;
-}
-
-static int listid_set(const int lid)
-{
-  if(lid > 0 && lid <= 0x7fffffff)
-    {
-      listid = lid;
-      return 0;
-    }
-  return -1;
-}
-
 static int check_options(int argc, char *argv[])
 {
-  static const scamper_multicall_t multicall[] = {
-    {"scamper-trace",   "trace",
-     scamper_do_trace_arg_validate, scamper_do_trace_usage},
-    {"scamper-ping",    "ping",
-     scamper_do_ping_arg_validate, scamper_do_ping_usage},
-    {"scamper-tracelb", "tracelb",
-     scamper_do_tracelb_arg_validate, scamper_do_tracelb_usage},
-    {"scamper-dealias", "dealias",
-     scamper_do_dealias_arg_validate, scamper_do_dealias_usage},
-    {"scamper-sting",   "sting",
-     scamper_do_sting_arg_validate, scamper_do_sting_usage},
-  };
   int   i;
   long  lo;
-  char *opts = "c:C:d:D:fF:H:iIl:L:M:o:O:p:Pvw:?";
-  char *opt_cycleid = NULL, *opt_listid = NULL, *opt_listname = NULL;
+  char *opts = "d:D:F:H:M:p:Pvw:?";
   char *opt_daemon = NULL, *opt_holdtime = NULL, *opt_monitorname = NULL;
-  char *opt_pps = NULL, *opt_command = NULL, *opt_window = NULL;
+  char *opt_pps = NULL, *opt_window = NULL;
   char *opt_debugfile = NULL, *opt_firewall = NULL;
   size_t argv0 = strlen(argv[0]);
   size_t m, len;
   uint32_t o;
 
-  for(m=0; m<sizeof(multicall)/sizeof(scamper_multicall_t); m++)
-    {
-      len = strlen(multicall[m].argv0);
-      if(argv0 >= len && strcmp(argv[0]+argv0-len, multicall[m].argv0) == 0)
-	{
-	  return multicall_do(&multicall[m], argc, argv);
-	}
-    }
-
   while((i = getopt(argc, argv, opts)) != -1)
     {
       switch(i)
 	{
-	case 'c':
-	  options |= OPT_COMMAND;
-	  opt_command = optarg;
-	  break;
-
-	case 'C':
-	  options |= OPT_CYCLEID;
-	  opt_cycleid = optarg;
-	  break;
-
 	case 'd':
 	  options |= OPT_DEBUGFILE;
 	  opt_debugfile = optarg;
@@ -423,10 +250,6 @@ static int check_options(int argc, char *argv[])
 	case 'D':
 	  options |= OPT_DAEMON;
 	  opt_daemon = optarg;
-	  break;
-
-	case 'f':
-	  options |= OPT_FILELIST;
 	  break;
 
 	case 'F':
@@ -439,37 +262,9 @@ static int check_options(int argc, char *argv[])
 	  opt_holdtime = optarg;
 	  break;
 
-	case 'i':
-	  options |= OPT_IPLIST;
-	  break;
-
-	case 'I':
-	  options |= OPT_CMDLIST;
-	  break;
-
-	case 'l':
-	  options |= OPT_LISTNAME;
-	  opt_listname = optarg;
-	  break;
-
-	case 'L':
-	  options |= OPT_LISTID;
-	  opt_listid = optarg;
-	  break;
-
 	case 'M':
 	  options |= OPT_MONITORNAME;
 	  opt_monitorname = optarg;
-	  break;
-
-        case 'o':
-          options |= OPT_OUTFILE; 
-          outfile = optarg;
-          break;
-
-	case 'O':
-	  options |= OPT_OUTTYPE;
-	  outtype = optarg;
 	  break;
 
 	case 'p':
@@ -508,15 +303,6 @@ static int check_options(int argc, char *argv[])
       return -1;
     }
 
-  /*
-   * if one of -CDi is not provided, pretend that -f was for backward
-   * compatibility
-   */
-  if((options & (OPT_IPLIST | OPT_DAEMON | OPT_CMDLIST)) == 0)
-    {
-      options |= OPT_FILELIST;
-    }
-
   if(options & OPT_PPS && set_opt(OPT_PPS, opt_pps, scamper_pps_set) == -1)
     {
       usage(OPT_PPS);
@@ -550,60 +336,15 @@ static int check_options(int argc, char *argv[])
       return -1;
     }
 
-  if(options & OPT_LISTNAME && (listname = strdup(opt_listname)) == NULL)
-    {
-      printerror(errno, strerror, __func__, "could not strdup listname");
-      return -1;
-    }
-
-  if(options & OPT_LISTID &&
-     set_opt(OPT_LISTID, opt_listid, listid_set) == -1)
-    {
-      usage(OPT_LISTID);
-      return -1;
-    }
-
-  if(options & OPT_CYCLEID &&
-     set_opt(OPT_CYCLEID, opt_cycleid, cycleid_set) == -1)
-    {
-      usage(OPT_CYCLEID);
-      return -1;
-    }
-
   if(options & OPT_DEBUGFILE && (debugfile = strdup(opt_debugfile)) == NULL)
     {
       printerror(errno, strerror, __func__, "could not strdup debugfile");
       return -1;
     }
 
-  /* only one of the following should be specified */
-  o = options & (OPT_IPLIST | OPT_DAEMON | OPT_CMDLIST | OPT_FILELIST);
-  if(((o & OPT_IPLIST)   != 0 && (o & ~OPT_IPLIST)   != 0) ||
-     ((o & OPT_DAEMON)   != 0 && (o & ~OPT_DAEMON)   != 0) ||
-     ((o & OPT_CMDLIST)  != 0 && (o & ~OPT_CMDLIST)  != 0) ||
-     ((o & OPT_FILELIST) != 0 && (o & ~OPT_FILELIST) != 0))
-    {
-      usage(o);
-      return -1;
-    }
-
-  if(strcasecmp(outtype,"traceroute") != 0 && strcasecmp(outtype,"warts") != 0)
-    {
-      usage(OPT_OUTTYPE);
-      return -1;
-    }
-
   /* these are the left-over arguments */
   arglist     = argv + optind;
   arglist_len = argc - optind;
-
-  /* if one of -CDi is used, then a default command must be set */
-  if((options & (OPT_DAEMON | OPT_IPLIST | OPT_FILELIST)) != 0 &&
-     scamper_command_set((options & OPT_COMMAND) ?
-			 opt_command : SCAMPER_COMMAND_DEF) == -1)
-    {
-      return -1;
-    }
 
   if(options & OPT_DAEMON)
     {
@@ -624,33 +365,6 @@ static int check_options(int argc, char *argv[])
 	}
 
       daemon_port = lo;
-    }
-  else if(options & (OPT_IPLIST | OPT_CMDLIST))
-    {
-      /*
-       * if a list of IP addresses or commands is to be supplied, there has to
-       * be at least one left over argument.
-       */
-      if(arglist_len < 1)
-	{
-	  if(options & OPT_IPLIST)
-	    usage(OPT_IPLIST);
-	  else if(options & OPT_CMDLIST)
-	    usage(OPT_CMDLIST);
-	  return -1;
-	}
-    }
-  else
-    {
-      /*
-       * if a listfile is specified, then there may only be one left over
-       * argument, which specifies the listfile.
-       */
-      if(arglist_len != 1)
-	{
-	  usage(0);
-	  return -1;
-	}
     }
 
   return 0;
@@ -939,21 +653,8 @@ static int scamper(int argc, char *argv[])
       return -1;
     }
 
-  /*
-   * initialise the data structures necessary to keep track of output files
-   * currently being written to
-   */
-  if(scamper_outfiles_init(outfile, outtype) == -1)
-    {
-      return -1;
-    }
-
   /* initialise scamper so it is ready to traceroute and ping */
-  if(scamper_do_trace_init() != 0 ||
-     scamper_do_ping_init() != 0 ||
-     scamper_do_tracelb_init() != 0 ||
-     scamper_do_dealias_init() != 0 ||
-     scamper_do_sting_init() != 0)
+  if(scamper_do_ping_init() != 0)
     {
       return -1;
     }
@@ -963,40 +664,6 @@ static int scamper(int argc, char *argv[])
   ssp.name     = "default";
   ssp.descr    = "default";
   ssp.priority = 1;
-  ssp.sof      = scamper_outfiles_get(NULL);
-  if(options & OPT_LISTNAME)
-    ssp.name = listname;
-  if(options & OPT_LISTID)
-    ssp.list_id = listid;
-  if(options & OPT_CYCLEID)
-    ssp.cycle_id = cycleid;
-
-  /*
-   * if we have an address list of some description on the command line,
-   * read the addresses now
-   */
-  if(options & (OPT_IPLIST|OPT_CMDLIST))
-    {
-      if((source = scamper_source_cmdline_alloc(&ssp, command,
-						arglist, arglist_len)) == NULL)
-	{
-	  return -1;
-	}
-
-      scamper_sources_add(source);
-      scamper_source_free(source);
-    }
-  else if((options & OPT_DAEMON) == 0)
-    {
-      if((source = scamper_source_file_alloc(&ssp, arglist[0],
-					     command, 1, 0)) == NULL)
-	{
-	  return -1;
-	}
-
-      scamper_sources_add(source);
-      scamper_source_free(source);
-    }
 
   gettimeofday_wrap(&lastprobe);
 
@@ -1164,10 +831,7 @@ static void cleanup(void)
 
   scamper_addr2mac_cleanup();
 
-  scamper_do_trace_cleanup();
   scamper_do_ping_cleanup();
-  scamper_do_tracelb_cleanup();
-  scamper_do_dealias_cleanup();
 
   scamper_sources_cleanup();
 
@@ -1180,7 +844,6 @@ static void cleanup(void)
       scamper_control_cleanup();
     }
 
-  scamper_outfiles_cleanup();
   scamper_fds_cleanup();
 
   /* free the address cache, if one was used */

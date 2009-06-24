@@ -134,9 +134,6 @@ typedef struct scamper_ping_reply
  */
 typedef struct scamper_ping
 {
-  /* the list / cycle that this ping is in relation to */
-  scamper_list_t        *list;
-  scamper_cycle_t       *cycle;
   uint32_t               userid;
 
   /* source and destination addresses of the ping */
