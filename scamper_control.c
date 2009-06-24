@@ -101,9 +101,6 @@ typedef int socklen_t;
  */
 typedef struct client
 {
-  /* address of client connected */
-  struct sockaddr    *sa;
-
   /* node for this client in the list of connected clients */
   dlist_node_t       *node;
 
@@ -115,9 +112,6 @@ typedef struct client
   scamper_fd_t       *fdn;
   scamper_linepoll_t *lp;
   scamper_writebuf_t *wb;
-
-  /* pointer returned by the source observe code */
-  void               *observe;
 
   /* the mode the client is in */
   int                 mode;
@@ -199,12 +193,6 @@ static void client_free(client_t *client)
 
   /* remove the client from the list of clients */
   if(client->node != NULL) dlist_node_pop(client_list, client->node);
-
-  /* if we made a copy of the client's sockaddr, free it now */
-  if(client->sa != NULL) free(client->sa);
-
-  /* if we are monitoring source events, unobserve */
-  if(client->observe != NULL) scamper_sources_unobserve(client->observe);
 
   free(client);
   return;
@@ -450,12 +438,6 @@ static client_t *client_alloc(struct sockaddr *sa, socklen_t slen, int fd)
       goto cleanup;
     }
 
-  /* make a copy of the sockaddr that connected to scamper */
-  if((client->sa = memdup(sa, slen)) == NULL)
-    {
-      goto cleanup;
-    }
-
   /* add the file descriptor to the event manager */
   if((client->fdn=scamper_fd_private(fd,client_read,client,NULL,NULL)) == NULL)
     {
@@ -482,7 +464,6 @@ static client_t *client_alloc(struct sockaddr *sa, socklen_t slen, int fd)
   if(client->wb != NULL) scamper_writebuf_free(client->wb);
   if(client->lp != NULL) scamper_linepoll_free(client->lp, 0);
   if(client->node != NULL) dlist_node_pop(client_list, client->node);
-  if(client->sa != NULL) free(client->sa);
   free(client);
 
   return NULL;
