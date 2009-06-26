@@ -118,16 +118,11 @@ struct scamper_source
 /*
  * command
  *
- *  type:  COMMAND_PROBE or COMMAND_CYCLE
- *  funcs: pointer to appropriate command_func_t
  *  data:  pointer to data allocated for task
- *  param: additional parameters specific to the command's type.
  */
 typedef struct command
 {
-  const command_func_t *funcs;
-  void                 *data;
-  void                 *param;
+  scamper_ping_t       *data;
 } command_t;
 
 /*
@@ -180,16 +175,9 @@ static int source_refcnt_dec(scamper_source_t *source)
 
 static void command_free(command_t *command)
 {
-  if(command->type == COMMAND_PROBE)
+  if(command->data != NULL)
     {
-      /*
-       * the data parameter is either a scamper_trace_t or scamper_ping_t.
-       * free it.
-       */
-      if(command->data != NULL && command->funcs->freedata != NULL)
-	{
-	  command->funcs->freedata(command->data);
-	}
+      scamper_do_ping_free(command->data);
     }
 
   free(command);
@@ -457,10 +445,10 @@ static int command_dstaddrs_foreach(scamper_addr_t *addr, void *param)
   return -1;
 }
 
-static scamper_task_t *command_dstaddrs(const command_func_t *funcs,void *data)
+static scamper_task_t *command_dstaddrs(void *data)
 {
   scamper_task_t *task = NULL;
-  if(funcs->dstaddrs(data, &task, command_dstaddrs_foreach) == 0)
+  if(scamper_do_ping_dstaddr(data, &task, command_dstaddrs_foreach) == 0)
     {
       assert(task == NULL);
       return NULL;
@@ -470,18 +458,12 @@ static scamper_task_t *command_dstaddrs(const command_func_t *funcs,void *data)
   return task;
 }
 
-/*
- * command_probe_handle
- *
- *
- */
 static int command_probe_handle(scamper_source_t *source, command_t *command,
 				scamper_task_t **task_out)
 {
-  const command_func_t *funcs = command->funcs;
   scamper_task_t *task = NULL;
 
-  if((task = command_dstaddrs(funcs, command->data)) != NULL)
+  if((task = command_dstaddrs(command->data)) != NULL)
     {
       source_command_onhold(source, task, command);
       *task_out = NULL;
@@ -489,7 +471,7 @@ static int command_probe_handle(scamper_source_t *source, command_t *command,
     }
 
   /* allocate the task structure to keep everything together */
-  if((task = funcs->alloctask(command->data, source->list)) == NULL)
+  if((task = scamper_do_ping_alloctask(command->data)) == NULL)
     {
       goto err;
     }
@@ -698,37 +680,30 @@ int scamper_source_gettaskcount(const scamper_source_t *source)
  */
 int scamper_source_command(scamper_source_t *source, const char *command)
 {
-  const command_func_t *func = NULL;
   command_t *cmd = NULL;
   char *opts = NULL;
   void *data = NULL;
-  size_t i;
+  int valid = 0;
+  int len = 4;  /* == strlen("ping") */
 
-  for(i=0; i<command_funcc; i++)
+  if(strncasecmp(command, "ping", len) == 0 &&
+     isspace((int)command[len]) && command[len] != '\0')
     {
-      func = &command_funcs[i];
-      if(strncasecmp(command, func->command, func->len) == 0 &&
-	 isspace((int)command[func->len]) && command[func->len] != '\0')
-	{
-	  break;
-	}
+      valid = 1;
     }
 
-  if(i == command_funcc)
-    {
-      return -1;
-    }
+  if(valid == 0) return -1;
 
   /*
    * make a copy of the options, since the next function may modify the
    * contents of it
    */
-  if((opts = strdup(command+func->len)) == NULL)
+  if((opts = strdup(command+len)) == NULL)
     {
       goto err;
     }
 
-  if((data = func->allocdata(opts)) == NULL)
+  if((data = (scamper_ping_t *)scamper_do_ping_alloc(opts)) == NULL)
     {
       goto err;
     }
@@ -738,8 +713,6 @@ int scamper_source_command(scamper_source_t *source, const char *command)
     {
       goto err;
     }
-  cmd->type  = COMMAND_PROBE;
-  cmd->funcs = func;
   cmd->data  = data;
 
   if(slist_tail_push(source->commands, cmd) == NULL)

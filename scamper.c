@@ -234,9 +234,6 @@ static int check_options(int argc, char *argv[])
   char *opt_daemon = NULL, *opt_holdtime = NULL, *opt_monitorname = NULL;
   char *opt_pps = NULL, *opt_window = NULL;
   char *opt_debugfile = NULL, *opt_firewall = NULL;
-  size_t argv0 = strlen(argv[0]);
-  size_t m, len;
-  uint32_t o;
 
   while((i = getopt(argc, argv, opts)) != -1)
     {
@@ -542,8 +539,6 @@ static int scamper(int argc, char *argv[])
   struct timeval           lastprobe;
   struct timeval           nextprobe;
   struct timeval          *timeout;
-  scamper_source_params_t  ssp;
-  scamper_source_t        *source;
   scamper_task_t          *task;
 
   if(check_options(argc, argv) == -1)
@@ -658,12 +653,6 @@ static int scamper(int argc, char *argv[])
     {
       return -1;
     }
-
-  /* parameters for the default list */
-  memset(&ssp, 0, sizeof(ssp));
-  ssp.name     = "default";
-  ssp.descr    = "default";
-  ssp.priority = 1;
 
   gettimeofday_wrap(&lastprobe);
 

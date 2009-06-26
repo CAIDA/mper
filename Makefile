@@ -3,7 +3,7 @@
 
 LDFLAGS+=		-Wall
 OBJS=			scamper.o scamper_debug.o utils.o \
-			scamper_list.o scamper_tlv.o scamper_icmpext.o \
+			scamper_tlv.o scamper_icmpext.o \
 			scamper_do_ping.o scamper_ping.o \
 			scamper_udp4.o scamper_udp6.o \
 			scamper_icmp4.o scamper_icmp6.o scamper_icmp_resp.o \
@@ -23,7 +23,7 @@ OBJS=			scamper.o scamper_debug.o utils.o \
 HDRS=			scamper.h scamper_addr.h utils.h
 
 LIBSCAMPERFILE_OBJS=	mjl_splaytree.o utils.o scamper_addr.o \
-			scamper_list.o  scamper_tlv.o scamper_icmpext.o \
+			scamper_tlv.o scamper_icmpext.o \
 			scamper_ping.o
 
 AR=			ar cq
