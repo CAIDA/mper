@@ -88,9 +88,14 @@ struct scamper_source
 {
   /* properties of the source */
   uint32_t                      priority;
-  int                           type;
   int                           refcnt;
-  /* scamper_outfile_t            *sof; */
+
+  /* variable that indicates if no more commands are coming */
+  int                           isfinished;
+
+  /* a function and a parameter to interact with the control socket */
+  void                          (*signalmore)(void *param);
+  void                         *param;
 
   /*
    * commands:     a list of commands for the source that are queued, ready to
@@ -108,42 +113,7 @@ struct scamper_source
    */
   void                         *list_;
   void                         *list_node;
-
-  /* data and callback functions specific to the type of source this is */
-  void                         *data;
-  int                         (*take)(void *data);
-  void                        (*freedata)(void *data);
-  int                         (*isfinished)(void *data);
 };
-
-/*
- * command_funcs
- *
- * a utility struct to save passing loads of functions around individually
- * that are necessary to start a probe command.
- */
-typedef struct command_func
-{
-  char             *command;
-  size_t            len;
-  void           *(*allocdata)(char *);
-  scamper_task_t *(*alloctask)(void *);
-  void            (*freedata)(void *data);
-  int             (*dstaddrs)(void *data, void *param,
-			      int (*foreach)(struct scamper_addr *, void *));
-} command_func_t;
-
-static const command_func_t command_funcs[] = {
-  {
-    "ping", 4,
-    scamper_do_ping_alloc,
-    scamper_do_ping_alloctask,
-    scamper_do_ping_free,
-    scamper_do_ping_dstaddr,
-  }
-};
-
-static size_t command_funcc = sizeof(command_funcs) / sizeof(command_func_t);
 
 /*
  * command
@@ -156,12 +126,9 @@ static size_t command_funcc = sizeof(command_funcs) / sizeof(command_func_t);
 typedef struct command
 {
   const command_func_t *funcs;
-  uint8_t               type;
   void                 *data;
   void                 *param;
 } command_t;
-
-#define COMMAND_PROBE 0x00
 
 /*
  * command_onhold
@@ -557,12 +524,6 @@ static int command_probe_handle(scamper_source_t *source, command_t *command,
   return -1;
 }
 
-static int source_cmp(const void *a, const void *b)
-{
-  return strcasecmp(((const scamper_source_t *)b)->list->name,
-		    ((const scamper_source_t *)a)->list->name);
-}
-
 /*
  * source_flush_commands
  *
@@ -573,16 +534,6 @@ static void source_flush_commands(scamper_source_t *source)
 {
   command_onhold_t *onhold;
   command_t *command;
-
-  if(source->data != NULL)
-    {
-      source->freedata(source->data);
-    }
-
-  source->data        = NULL;
-  source->take        = NULL;
-  source->freedata    = NULL;
-  source->isfinished  = NULL;
 
   if(source->commands != NULL)
     {
@@ -681,28 +632,13 @@ int scamper_source_isfinished(scamper_source_t *source)
 
   /*
    * if the source still has commands to come, then it is not finished.
-   * the callback checks with the source-type specific code to see if there
-   * are commands to come.
    */
-  if(source->isfinished != NULL && source->isfinished(source->data) == 0)
+  if(source->isfinished == 0)
     {
       return 0;
     }
 
   return 1;
-}
-
-/*
- * scamper_source_finished
- *
- * when a source is known to be finished (say a control socket that will no
- * longer be supplying tasks)
- */
-void scamper_source_finished(scamper_source_t *source)
-{
-  assert(scamper_source_isfinished(source) != 0);
-  source_finished_attach(source);
-  return;
 }
 
 /*
@@ -713,9 +649,6 @@ void scamper_source_finished(scamper_source_t *source)
 static void source_free(scamper_source_t *source)
 {
   assert(source->refcnt == 0);
-
-  /* the source is now finished.  post a message saying so */
-  scamper_source_event_post(source, SCAMPER_SOURCE_EVENT_FINISH, NULL);
 
   /* pull the source out of sources management */
   source_detach(source);
@@ -732,44 +665,7 @@ static void source_free(scamper_source_t *source)
       source_flush_tasks(source);
     }
 
-  /* release this structure's hold on the scamper_outfile */
-  if(source->sof != NULL) scamper_outfile_free(source->sof);
-
   free(source);
-  return;
-}
-
-/*
- * scamper_source_getpriority
- *
- * return the priority value for the source
- */
-uint32_t scamper_source_getpriority(const scamper_source_t *source)
-{
-  return source->priority;
-}
-
-void scamper_source_setpriority(scamper_source_t *source, uint32_t priority)
-{
-  scamper_source_event_t sse;
-  uint32_t old_priority;
-
-  old_priority = source->priority;
-  source->priority = priority;
-
-  if(priority == 0 && old_priority > 0)
-    {
-      source_blocked_attach(source);
-    }
-  else if(priority > 0 && old_priority == 0)
-    {
-      source_active_attach(source);
-    }
-
-  memset(&sse, 0, sizeof(sse));
-  sse.sse_update_flags |= 0x04;
-  sse.sse_update_priority = priority;
-
   return;
 }
 
@@ -794,16 +690,6 @@ int scamper_source_gettaskcount(const scamper_source_t *source)
       return dlist_count(source->tasks);
     }
   return -1;
-}
-
-int scamper_source_gettype(const scamper_source_t *source)
-{
-  return source->type;
-}
-
-void *scamper_source_getdata(const scamper_source_t *source)
-{
-  return source->data;
 }
 
 /*
@@ -866,7 +752,6 @@ int scamper_source_command(scamper_source_t *source, const char *command)
 
  err:
   if(opts != NULL) free(opts);
-  if(data != NULL) func->freedata(data);
   if(cmd != NULL) free(cmd);
   return -1;
 }
@@ -945,12 +830,12 @@ void scamper_source_free(scamper_source_t *source)
  * not put into rotation -- the caller has to call scamper_sources_add
  * for that to occur.
  */
-scamper_source_t *scamper_source_alloc(const scamper_source_params_t *ssp)
+scamper_source_t *scamper_source_alloc(void (*signalmore)(void *), void *param)
 {
   scamper_source_t *source = NULL;
 
   /* make sure the caller passes some details of the source to be created */
-  if(ssp == NULL || ssp->name == NULL)
+  if(signalmore == NULL || param == NULL)
     {
       scamper_debug(__func__, "missing necessary parameters");
       goto err;
@@ -961,13 +846,14 @@ scamper_source_t *scamper_source_alloc(const scamper_source_params_t *ssp)
       printerror(errno, strerror, __func__, "could not malloc source");
       goto err;
     }
+
+  source->priority = 1;
   source->refcnt = 1;
+  source->isfinished = 0;
 
   /* data parameter and associated callbacks */
-  source->data        = ssp->data;
-  source->take        = ssp->take;
-  source->freedata    = ssp->freedata;
-  source->isfinished  = ssp->isfinished;
+  source->signalmore  = signalmore;
+  source->param       = param;
 
   if((source->commands = slist_alloc()) == NULL)
     {
@@ -986,10 +872,6 @@ scamper_source_t *scamper_source_alloc(const scamper_source_params_t *ssp)
       printerror(errno,strerror,__func__, "could not alloc source->tasks");
       goto err;
     }
-
-  source->sof = scamper_outfile_use(ssp->sof);
-  source->type     = ssp->type;
-  source->priority = ssp->priority;
 
   return source;
 
@@ -1129,9 +1011,10 @@ int scamper_sources_gettask(scamper_task_t **task)
 
       while((command = slist_head_pop(source->commands)) != NULL)
 	{
-	  if(source->take != NULL)
+	  if(scamper_source_getcommandcount(source) == 0
+	     && source->isfinished == 0)
 	    {
-	      source->take(source->data);
+	      source->signalmore(source->param);
 	    }
 
 	  switch(command->type)
@@ -1246,6 +1129,29 @@ void scamper_sources_cleanup(void)
     {
       dlist_free(finished);
       finished = NULL;
+    }
+
+  return;
+}
+
+
+/* ======================================================================== */
+
+/*
+ * scamper_source_control_finish
+ *
+ * the control socket has finished supplying commands, so make a note of
+ * that for the next time the sources code cares to look.
+ */
+void scamper_source_control_finish(scamper_source_t *source)
+{
+  if(source->isfinished != 0)
+    return;
+
+  source->isfinished = 1;
+  if(scamper_source_isfinished(source) != 0)
+    {
+      source_finished_attach(source);
     }
 
   return;

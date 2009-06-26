@@ -89,7 +89,6 @@ typedef int socklen_t;
 #include "scamper_task.h"
 #include "scamper_queue.h"
 #include "scamper_sources.h"
-#include "scamper_source_control.h"
 #include "mjl_list.h"
 #include "utils.h"
 
@@ -266,15 +265,7 @@ static void client_signalmore(void *param)
 #ifndef _WIN32
 static int command_attach(client_t *client, char *buf)
 {
-  scamper_source_params_t ssp;
-
-  /* create the source */
-  memset(&ssp, 0, sizeof(ssp));
-  ssp.priority   = 1;
-  ssp.name       = "blah";
-  ssp.sof        = client->sof;
-  if((client->source = scamper_source_control_alloc(&ssp, client_signalmore,
-						    client)) == NULL)
+  if((client->source = scamper_source_alloc(client_signalmore, client)) == NULL)
     {
       printerror(errno, strerror, __func__,
 		 "could not allocate source '%s'", sab);

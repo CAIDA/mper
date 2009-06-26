@@ -26,49 +26,11 @@
 
 typedef struct scamper_source scamper_source_t;
 
-#define SCAMPER_SOURCE_TYPE_CONTROL 3
-
-typedef struct scamper_source_params
-{
-  /*
-   *  type:     type of the source (control socket)
-   *  priority: the mix priority of this source compared to other sources.
-   *  sof:      the output file to direct results to.
-   */
-  int                type;
-  uint32_t           priority;
-  /* scamper_outfile_t *sof; */
-
-  /*
-   * these parameters are set by the scamper_source_*_alloc function
-   */
-  void              *data;
-  int              (*take)(void *data);
-  void             (*freedata)(void *data);
-  int              (*isfinished)(void *data);
-
-} scamper_source_params_t;
-
 /* functions for allocating, referencing, and dereferencing scamper sources */
-scamper_source_t *scamper_source_alloc(const scamper_source_params_t *ssp);
+scamper_source_t *scamper_source_alloc(void (*signalmore)(void *), void *param);
 scamper_source_t *scamper_source_use(scamper_source_t *source);
 void scamper_source_free(scamper_source_t *source);
 void scamper_source_abandon(scamper_source_t *source);
-
-/* take a finished source and put it in a special place */
-void scamper_source_finished(scamper_source_t *source);
-
-/* functions for getting various source properties */
-int scamper_source_gettype(const scamper_source_t *source);
-uint32_t scamper_source_getpriority(const scamper_source_t *source);
-void scamper_source_setpriority(scamper_source_t *source, uint32_t priority);
-
-/* functions for getting string representations */
-const char *scamper_source_type_tostr(const scamper_source_t *source);
-
-/* functions for dealing with source-type specific data */
-void *scamper_source_getdata(const scamper_source_t *source);
-void scamper_source_setdata(scamper_source_t *source, void *data);
 
 /* functions for getting the number of commands/cycles currently buffered */
 int scamper_source_getcommandcount(const scamper_source_t *source);
@@ -87,12 +49,11 @@ void scamper_source_taskdone(scamper_source_t *source,scamper_task_t *task);
 int scamper_sources_add(scamper_source_t *source);
 int scamper_sources_gettask(scamper_task_t **task);
 int scamper_sources_del(scamper_source_t *source);
-scamper_source_t *scamper_sources_get(char *name);
 int scamper_sources_isready(void);
 int scamper_sources_isempty(void);
-/* void scamper_sources_foreach(void *p, int (*func)(void *, scamper_source_t *)); */
 void scamper_sources_empty(void);
 int scamper_sources_init(void);
 void scamper_sources_cleanup(void);
+void scamper_source_control_finish(scamper_source_t *source);
 
 #endif /* __SCAMPER_SOURCE_H */
