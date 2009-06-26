@@ -194,6 +194,13 @@ static void client_free(client_t *client)
   /* remove the client from the list of clients */
   if(client->node != NULL) dlist_node_pop(client_list, client->node);
 
+  /* make sure the source is empty before freeing */
+  if(client->source != NULL)
+    {
+      scamper_source_abandon(client->source);
+      scamper_source_free(client->source);
+    }
+
   free(client);
   return;
 }
@@ -304,6 +311,12 @@ static int client_isdone(client_t *client)
       return 0;
     }
 
+  if(client->source != NULL && scamper_source_isfinished(client->source) == 0)
+    {
+      scamper_debug(__func__, "source not finished");
+      return 0;
+    }
+
   return 1;
 }
 
@@ -343,6 +356,13 @@ static int client_attached_cb(client_t *client, uint8_t *buf, size_t len)
   if(len == 4 && strcasecmp((char *)buf, "done") == 0)
     {
       /* mark the source as not going to supply any further tasks */
+      scamper_source_control_finish(client->source);
+      return client_send(client, "OK");
+    }
+
+  /* try the command to see if it is valid and acceptable */
+  if(scamper_source_command(client->source, (char *)buf) == 0)
+    {
       return client_send(client, "OK");
     }
 
@@ -398,6 +418,12 @@ static void client_read(const int fd, void *param)
 
   /* nothing left to do read with this fd */
   scamper_fd_read_pause(client->fdn);
+
+  if(client->source != NULL)
+    {
+      scamper_source_control_finish(client->source);
+      scamper_source_abandon(client->source);
+    }
 
   if(client_isdone(client) != 0)
     {
