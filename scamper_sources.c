@@ -208,7 +208,6 @@ static dlist_t          *finished    = NULL;
 static scamper_source_t *source_cur  = NULL;
 static uint32_t          source_cnt  = 0;
 static splaytree_t      *source_tree = NULL;
-static dlist_t          *observers   = NULL;
 
 /* forward declare */
 static void source_free(scamper_source_t *source);
