@@ -26,28 +26,18 @@
 
 typedef struct scamper_source scamper_source_t;
 
-#define SCAMPER_SOURCE_TYPE_FILE    1
-#define SCAMPER_SOURCE_TYPE_CMDLINE 2
 #define SCAMPER_SOURCE_TYPE_CONTROL 3
 
 typedef struct scamper_source_params
 {
   /*
-   *  name:     the name of the list being probed.
-   *  descr:    a description of the addresses that are stored in this source
-   *  list_id:  the list id number assigned by a human.
-   *  cycle_id: the initial cycle id to use.
-   *  type:     type of the source (file, cmdline, control socket, ...)
+   *  type:     type of the source (control socket)
    *  priority: the mix priority of this source compared to other sources.
    *  sof:      the output file to direct results to.
    */
-  char              *name;
-  char              *descr;
-  uint32_t           list_id;
-  uint32_t           cycle_id;
   int                type;
   uint32_t           priority;
-  scamper_outfile_t *sof;
+  /* scamper_outfile_t *sof; */
 
   /*
    * these parameters are set by the scamper_source_*_alloc function
@@ -69,11 +59,6 @@ void scamper_source_abandon(scamper_source_t *source);
 void scamper_source_finished(scamper_source_t *source);
 
 /* functions for getting various source properties */
-const char *scamper_source_getname(const scamper_source_t *source);
-const char *scamper_source_getdescr(const scamper_source_t *source);
-const char *scamper_source_getoutfile(const scamper_source_t *source);
-uint32_t scamper_source_getlistid(const scamper_source_t *source);
-uint32_t scamper_source_getcycleid(const scamper_source_t *source);
 int scamper_source_gettype(const scamper_source_t *source);
 uint32_t scamper_source_getpriority(const scamper_source_t *source);
 void scamper_source_setpriority(scamper_source_t *source, uint32_t priority);
@@ -87,7 +72,6 @@ void scamper_source_setdata(scamper_source_t *source, void *data);
 
 /* functions for getting the number of commands/cycles currently buffered */
 int scamper_source_getcommandcount(const scamper_source_t *source);
-int scamper_source_getcyclecount(const scamper_source_t *source);
 int scamper_source_gettaskcount(const scamper_source_t *source);
 
 /* determine if the source has finished yet */
@@ -95,7 +79,6 @@ int scamper_source_isfinished(scamper_source_t *source);
 
 /* functions for adding stuff to the source's command queue */
 int scamper_source_command(scamper_source_t *source, const char *command);
-int scamper_source_cycle(scamper_source_t *source);
 
 /* function for advising source that an active task has completed */
 void scamper_source_taskdone(scamper_source_t *source,scamper_task_t *task);
@@ -107,64 +90,9 @@ int scamper_sources_del(scamper_source_t *source);
 scamper_source_t *scamper_sources_get(char *name);
 int scamper_sources_isready(void);
 int scamper_sources_isempty(void);
-void scamper_sources_foreach(void *p, int (*func)(void *, scamper_source_t *));
+/* void scamper_sources_foreach(void *p, int (*func)(void *, scamper_source_t *)); */
 void scamper_sources_empty(void);
 int scamper_sources_init(void);
 void scamper_sources_cleanup(void);
-
-/*
- * interface to observe source events.
- *
- *
- */
-typedef struct scamper_source_event
-{
-  scamper_source_t *source;
-  time_t            sec;
-  int               event;
-
-#define SCAMPER_SOURCE_EVENT_ADD     0x01
-#define SCAMPER_SOURCE_EVENT_UPDATE  0x02
-#define SCAMPER_SOURCE_EVENT_CYCLE   0x03
-#define SCAMPER_SOURCE_EVENT_DELETE  0x04
-#define SCAMPER_SOURCE_EVENT_FINISH  0x05
-
-  union
-  {
-
-    struct sse_update
-    {
-      uint8_t flags;  /* 0x01 == autoreload, 0x02 == cycles, 0x03 = priority */
-      int     autoreload;
-      int     cycles;
-      int     priority;
-    } sseu_update;
-
-#define sse_update_flags       sse_un.sseu_update.flags
-#define sse_update_autoreload  sse_un.sseu_update.autoreload
-#define sse_update_cycles      sse_un.sseu_update.cycles
-#define sse_update_priority    sse_un.sseu_update.priority
-
-    struct sse_cycle
-    {
-      int     cycle_id;
-    } sseu_cycle;
-
-#define sse_cycle_cycle_id     sse_un.sseu_cycle.cycle_id
-
-  } sse_un;
-
-} scamper_source_event_t;
-
-typedef struct scamper_source_observer scamper_source_observer_t;
-
-typedef void (*scamper_source_eventf_t)(const scamper_source_event_t *sse,
-					void *param);
-scamper_source_observer_t *scamper_sources_observe(scamper_source_eventf_t cb,
-						   void *param);
-void scamper_sources_unobserve(scamper_source_observer_t *observer);
-
-void scamper_source_event_post(scamper_source_t *source, int type,
-			       scamper_source_event_t *ev);
 
 #endif /* __SCAMPER_SOURCE_H */

@@ -67,7 +67,6 @@ typedef __int16 int16_t;
 #include "scamper_addr.h"
 #include "scamper_task.h"
 #include "scamper_target.h"
-#include "scamper_outfiles.h"
 #include "scamper_sources.h"
 
 #include "scamper_do_ping.h"
@@ -82,8 +81,7 @@ typedef __int16 int16_t;
  * scamper_source
  *
  * this structure maintains state regarding tasks that come from a particular
- * source.  some of the state is stored in scamper_list_t and scamper_cycle_t
- * structures with the resulting data object.
+ * source.
  *
  */
 struct scamper_source
@@ -92,27 +90,24 @@ struct scamper_source
   uint32_t                      priority;
   int                           type;
   int                           refcnt;
-  scamper_outfile_t            *sof;
+  /* scamper_outfile_t            *sof; */
 
   /*
    * commands:     a list of commands for the source that are queued, ready to
    *               be passed out as tasks
-   * cycle_points: the number of cycle points in the commands list
    * onhold:       a list of commands that are on hold.
    * tasks:        a list of tasks currently active from the source.
    */
   slist_t                      *commands;
-  int                           cycle_points;
   dlist_t                      *onhold;
   dlist_t                      *tasks;
 
   /*
    * nodes to keep track of whether the source is in the active or blocked
-   * lists, and a node to keep track of the source in a splaytree
+   * lists.
    */
   void                         *list_;
   void                         *list_node;
-  splaytree_node_t             *tree_node;
 
   /* data and callback functions specific to the type of source this is */
   void                         *data;
@@ -199,15 +194,12 @@ typedef struct command_onhold
  * priority quantum) is pointed to by source_cur.  the number of tasks that
  * have been read from the current source in this rotation is held in
  * source_cnt.
- *
- * the sources are stored in a tree that is searchable by name.
  */
 static clist_t          *active      = NULL;
 static dlist_t          *blocked     = NULL;
 static dlist_t          *finished    = NULL;
 static scamper_source_t *source_cur  = NULL;
 static uint32_t          source_cnt  = 0;
-static splaytree_t      *source_tree = NULL;
 
 /* forward declare */
 static void source_free(scamper_source_t *source);
@@ -658,19 +650,6 @@ static void source_detach(scamper_source_t *source)
   assert(source->list_ == NULL);
   assert(source->list_node == NULL);
 
-  /* remove the source from the tree */
-  if(source->tree_node != NULL)
-    {
-      splaytree_remove_node(source_tree, source->tree_node);
-      source->tree_node = NULL;
-
-      /* decrement the reference count held for the source */
-      if(source_refcnt_dec(source) == 0)
-	{
-	  source_free(source);
-	}
-    }
-
   return;
 }
 
@@ -1120,18 +1099,6 @@ void scamper_sources_empty()
 }
 
 /*
- * scamper_sources_foreach
- *
- * externally accessible function for iterating over the collection of sources
- * held by scamper.
- */
-void scamper_sources_foreach(void *p, int (*func)(void *, scamper_source_t *))
-{
-  splaytree_inorder(source_tree, (splaytree_inorder_t)func, p);
-  return;
-}
-
-/*
  * scamper_sources_gettask
  *
  * pick off the next task ready to be probed.
@@ -1213,13 +1180,6 @@ int scamper_sources_gettask(scamper_task_t **task)
  */
 int scamper_sources_add(scamper_source_t *source)
 {
-  /* a reference count is used when the source is in the tree */
-  if((source->tree_node = splaytree_insert(source_tree, source)) == NULL)
-    {
-      return -1;
-    }
-  scamper_source_use(source);
-
   /* put the source in the active queue */
   if(source_active_attach(source) != 0)
     {
@@ -1251,11 +1211,6 @@ int scamper_sources_init(void)
       return -1;
     }
 
-  if((source_tree = splaytree_alloc(source_cmp)) == NULL)
-    {
-      return -1;
-    }
-
   return 0;
 }
 
@@ -1274,12 +1229,6 @@ void scamper_sources_cleanup(void)
 
   if(f != 0 || b != 0 || a != 0)
     scamper_debug(__func__, "finished %d, blocked %d, active %d", f, b, a);
-
-  if(source_tree != NULL)
-    {
-      splaytree_free(source_tree, NULL);
-      source_tree = NULL;
-    }
 
   if(blocked != NULL)
     {
