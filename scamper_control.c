@@ -146,23 +146,6 @@ typedef struct param
 static dlist_t      *client_list  = NULL;
 static scamper_fd_t *fdn          = NULL;
 
-static int command_handler(command_t *handler, int cnt, client_t *client,
-			   char *word, char *param, int *retval)
-{
-  int i;
-
-  for(i=0; i<cnt; i++)
-    {
-      if(strcasecmp(handler[i].word, word) == 0)
-	{
-	  *retval = handler[i].handler(client, param);
-	  return 0;
-	}
-    }
-
-  return -1;
-}
-
 /*
  * client_free
  *
@@ -267,16 +250,14 @@ static int command_attach(client_t *client, char *buf)
 {
   if((client->source = scamper_source_alloc(client_signalmore, client)) == NULL)
     {
-      printerror(errno, strerror, __func__,
-		 "could not allocate source '%s'", sab);
+      printerror(errno, strerror, __func__, "could not allocate source");
       goto err;
     }
 
   /* put the source into rotation */
   if(scamper_sources_add(client->source) != 0)
     {
-      printerror(errno, strerror, __func__,
-		 "could not add source '%s' to rotation", sab);
+      printerror(errno, strerror, __func__, "could not add source to rotation");
       goto err;
     }
 

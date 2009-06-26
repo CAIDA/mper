@@ -15,11 +15,9 @@ OBJS=			scamper.o scamper_debug.o utils.o \
 			scamper_privsep.o scamper_getsrc.o \
 			mjl_list.o mjl_splaytree.o mjl_heap.o \
 			scamper_control.o scamper_firewall.o \
-			scamper_outfiles.o scamper_addr.o scamper_probe.o \
+			scamper_addr.o scamper_probe.o \
 			scamper_target.o scamper_task.o scamper_queue.o \
-			scamper_cyclemon.o scamper_options.o \
-			scamper_sources.o scamper_source_cmdline.o \
-			scamper_source_control.o scamper_source_file.o
+			scamper_options.o scamper_sources.o
 
 HDRS=			scamper.h scamper_addr.h utils.h
 

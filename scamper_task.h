@@ -30,7 +30,6 @@ struct scamper_task;
 struct scamper_dl_rec;
 struct scamper_rt_rec;
 struct scamper_icmp_resp;
-struct scamper_cyclemon;
 struct scamper_targetset;
 
 typedef struct scamper_task_funcs
@@ -83,9 +82,6 @@ typedef struct scamper_task
   /* pointer to where the task came from */
   struct scamper_source    *source;
   void                     *source_task;
-
-  /* pointer to cycle monitor structure, if used */
-  struct scamper_cyclemon  *cyclemon;
 
   /* pointer to a targetset structure, if used */
   struct scamper_targetset *targetset;

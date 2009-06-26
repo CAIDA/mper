@@ -61,8 +61,6 @@ typedef __int16 int16_t;
 #include "scamper_task.h"
 #include "scamper_queue.h"
 #include "scamper_target.h"
-#include "scamper_cyclemon.h"
-#include "scamper_outfiles.h"
 #include "scamper_sources.h"
 #include "scamper_debug.h"
 #include "mjl_list.h"
@@ -173,11 +171,6 @@ void scamper_task_free(scamper_task_t *task)
 	  free(toh);
 	}
       dlist_free(task->internal);
-    }
-
-  if(task->cyclemon != NULL)
-    {
-      scamper_cyclemon_unuse(task->cyclemon);
     }
 
   if(task->targetset != NULL)

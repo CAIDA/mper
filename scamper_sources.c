@@ -68,9 +68,8 @@ typedef __int16 int16_t;
 #include "scamper_task.h"
 #include "scamper_target.h"
 #include "scamper_sources.h"
-
+#include "scamper_ping.h"
 #include "scamper_do_ping.h"
-
 #include "scamper_debug.h"
 
 #include "utils.h"
@@ -990,22 +989,15 @@ int scamper_sources_gettask(scamper_task_t **task)
 	      source->signalmore(source->param);
 	    }
 
-	  switch(command->type)
+	  if(command_probe_handle(source, command, task) != 0)
 	    {
-	    case COMMAND_PROBE:
-	      if(command_probe_handle(source, command, task) != 0)
-		{
-		  return -1;
-		}
-	      if(*task == NULL)
-		{
-		  continue;
-		}
-	      return 0;
-
-	    default:
 	      return -1;
 	    }
+	  if(*task == NULL)
+	    {
+	      continue;
+	    }
+	  return 0;
 	}
 
       /* the previous source could not supply a command */
