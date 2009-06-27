@@ -53,6 +53,8 @@ int scamper_option_dl(void);
 
 void scamper_exitwhendone(int on);
 
-#define SCAMPER_VERSION "cvs head"
+#define MPER_VERSION "0.0.1"
+#define CLIENT_PROTOCOL_MAJOR 1
+#define CLIENT_PROTOCOL_MINOR 0
 
 #endif /* __SCAMPER_H */

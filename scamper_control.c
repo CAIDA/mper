@@ -127,18 +127,6 @@ typedef struct client
 #define CLIENT_MODE_ATTACHED    1
 #define CLIENT_MODE_FLUSH       2
 
-typedef struct command
-{
-  char *word;
-  int (*handler)(client_t *client, char *param);
-} command_t;
-
-typedef struct param
-{
-  char  *word;
-  char **var;
-} param_t;
-
 /*
  * client_list: a doubly linked list of connected clients
  * fd: a scamper_fd struct that contains callback details
@@ -235,42 +223,6 @@ static void client_signalmore(void *param)
   scamper_fd_read_unpause(client->fdn);
   return;
 }
-
-/*
- * command_attach
- *
- * the client wants to receive data from measurements over their control
- * socket connection.  this routine sets sets that up by creating a socket
- * pair, passing one end to the output routines to write to, and keeping
- * the other end for it to read from.  the socketpair redirects the data to
- * this client, where it is uuencoded and sent back to the client.
- */
-#ifndef _WIN32
-static int command_attach(client_t *client, char *buf)
-{
-  if((client->source = scamper_source_alloc(client_signalmore, client)) == NULL)
-    {
-      printerror(errno, strerror, __func__, "could not allocate source");
-      goto err;
-    }
-
-  /* put the source into rotation */
-  if(scamper_sources_add(client->source) != 0)
-    {
-      printerror(errno, strerror, __func__, "could not add source to rotation");
-      goto err;
-    }
-
-  client->mode = CLIENT_MODE_ATTACHED;
-  client_send(client, "OK");
-  return 0;
-
- err:
-  client_send(client, "ERR internal error");
-  client_free(client);
-  return 0;
-}
-#endif
 
 static int client_isdone(client_t *client)
 {
@@ -415,6 +367,7 @@ static void client_read(const int fd, void *param)
 static client_t *client_alloc(struct sockaddr *sa, socklen_t slen, int fd)
 {
   client_t *client;
+  char buf[128];
 
   /* make the socket non-blocking, so a read or write will not hang scamper */
 #ifndef _WIN32
@@ -454,11 +407,32 @@ static client_t *client_alloc(struct sockaddr *sa, socklen_t slen, int fd)
     }
   scamper_writebuf_attach(client->wb,client->fdn,client,NULL,client_drained);
 
+  if((client->source = scamper_source_alloc(client_signalmore, client)) == NULL)
+    {
+      printerror(errno, strerror, __func__, "could not allocate source");
+      goto cleanup;
+    }
+
+  /* put the source into rotation */
+  if(scamper_sources_add(client->source) != 0)
+    {
+      printerror(errno, strerror, __func__, "could not add source to rotation");
+      goto cleanup;
+    }
+
   client->mode = CLIENT_MODE_ATTACHED;
 
+  snprintf(buf, sizeof(buf), "mper version=%s protocol=%d.%d", MPER_VERSION,
+	   CLIENT_PROTOCOL_MAJOR, CLIENT_PROTOCOL_MINOR);
+  client_send(client, buf);
   return client;
 
  cleanup:
+  if(client->source != NULL)
+    {
+      scamper_source_abandon(client->source);
+      scamper_source_free(client->source);
+    }
   if(client->wb != NULL) scamper_writebuf_free(client->wb);
   if(client->lp != NULL) scamper_linepoll_free(client->lp, 0);
   if(client->node != NULL) dlist_node_pop(client_list, client->node);

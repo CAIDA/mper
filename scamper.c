@@ -150,7 +150,7 @@ static void usage_str(char c, char *str)
 
 static void version(void)
 {
-  fprintf(stderr, "scamper version %s\n", SCAMPER_VERSION);
+  fprintf(stderr, "mper version %s\n", MPER_VERSION);
   return;
 }
 
