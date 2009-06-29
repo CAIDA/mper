@@ -1,0 +1,53 @@
+#!/usr/bin/ruby
+
+#############################################################################
+## Generates the base64-decoding table for mapping an encoded 'digit' into
+## the 6-bit value it represents.
+##
+## --------------------------------------------------------------------------
+## Copyright (C) 2009 Young Hyun
+##
+## This program is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+## 
+## This program is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+## 
+## You should have received a copy of the GNU General Public License
+## along with this program; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#############################################################################
+
+require 'enumerator'
+
+encode_tbl = []
+"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/".each_byte do
+  |c|
+  encode_tbl << c
+end
+
+decode_tbl = [ 64 ] * 256
+encode_tbl.each_with_index do |c, i|
+  decode_tbl[c] = i
+end
+#p decode_tbl
+
+puts <<EOF
+/*
+** A base64-decoding table for mapping an encoded 'digit' into the 6-bit
+** value it represents.  A non-base64 character maps to 64 (this works for
+** the full unsigned 8-bit range, including NUL).
+*/
+EOF
+puts "static const unsigned char decode_tbl[256] =\n{"
+
+decode_tbl.each_slice(16) do |values|
+  puts "  " + values.map { |x| sprintf "%2d", (x || 255) }.join(", ") + ","
+end
+
+puts "};"

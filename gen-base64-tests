@@ -1,0 +1,79 @@
+#!/usr/bin/ruby
+
+#############################################################################
+## Generates test cases for mper_base64.c.
+##
+## --------------------------------------------------------------------------
+## Copyright (C) 2009 The Regents of the University of California.
+##
+## This program is free software; you can redistribute it and/or modify
+## it under the terms of the GNU General Public License as published by
+## the Free Software Foundation; either version 2 of the License, or
+## (at your option) any later version.
+## 
+## This program is distributed in the hope that it will be useful,
+## but WITHOUT ANY WARRANTY; without even the implied warranty of
+## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+## GNU General Public License for more details.
+## 
+## You should have received a copy of the GNU General Public License
+## along with this program; if not, write to the Free Software
+## Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+##
+#############################################################################
+
+def print_tests(t)
+  puts "\n  /* === encode === */"
+  t.each do |d, e|
+    printf "  test_encode((unsigned char *)%p, %d, base64_buf, %p);\n",
+      d, d.length, e
+  end
+
+  puts "\n  /* === decode === */"
+  t.each do |d, e|
+    printf "  test_decode(%p, data_buf, (unsigned char *)%p, %d);\n",
+      e, d, d.length
+  end
+end
+
+t = [["Hello, World!\n","SGVsbG8sIFdvcmxkIQo="],
+     ["\t","CQ=="],
+     ["\n","Cg=="],
+     ["\f","DA=="],
+     ["\r","DQ=="],
+     ["a","YQ=="],
+     ["aa","YWE="],
+     ["aaa","YWFh"]]
+
+print_tests t
+
+t2 = []
+
+100.times do
+  x = []
+  len = rand(22) + 1
+  len.times do
+    x << rand(256)
+  end
+  s = x.pack("C*")
+  d = [ s ].pack("m").gsub!(/\s/, "")
+  t2 << [s, d]
+end
+
+# Test high incidence of NULs in data to encode.
+50.times do
+  x = []
+  len = rand(22) + 1
+  len.times do
+    if rand(3) < 2  # 2/3 probability of NUL
+      x << 0
+    else
+      x << rand(256)
+    end
+  end
+  s = x.pack("C*")
+  d = [ s ].pack("m").gsub!(/\s/, "")
+  t2 << [s, d]
+end
+
+print_tests t2
