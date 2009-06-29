@@ -132,8 +132,8 @@ base64_decode(const char *src, unsigned char *dst)
   unsigned char *dst_start = dst;
   unsigned char v1, v2, v3, v4;
 
-  for (;;) {
-    v1 = decode_tbl[*src++];  if (v1 == 64) return 0; /* catches *src=='\0' */
+  while (*src != '\0') {
+    v1 = decode_tbl[*src++];  if (v1 == 64) return 0;
     v2 = decode_tbl[*src++];  if (v2 == 64) return 0;
     *dst++ = (v1 << 2) | (v2 >> 4);
 
@@ -162,6 +162,7 @@ base64_decode(const char *src, unsigned char *dst)
 
 
 /*==========================================================================*/
+
 #ifdef TEST_BASE64
 #include <stdlib.h>
 #include <string.h>
@@ -183,6 +184,31 @@ test_str_encode(const char *s, char *buf, const char *expect)
 }
 
 
+void
+test_str_decode(const char *s, char *buf, const char *expect)
+{
+  size_t len = base64_decode(s, (unsigned char *)buf);
+  printf("'%s' => '%s' (%d)", s, buf, len);
+  if (*s == '\0') {
+    if (len == 0) {
+      printf(" OK\n");
+    }
+    else {
+      printf(" FAILED: expected len == 0 for empty src\n");
+    }
+  }
+  else if (len == 0) {
+    printf(" FAILED: malformed input (len == 0)\n");
+  }
+  else if (strcmp(buf, expect) == 0) {
+    printf(" OK\n");
+  }
+  else {
+    printf(" FAILED: expected '%s'\n", expect);
+  }
+}
+
+
 int
 main(int argc, char *argv[])
 {
@@ -190,10 +216,19 @@ main(int argc, char *argv[])
   char base64_buf[3000+1];
 
   /* Wikipedia samples */
+  printf("=== encode ===\n");
+  test_str_encode("", base64_buf, "");
   test_str_encode("leasure.", base64_buf, "bGVhc3VyZS4=");
   test_str_encode("easure.", base64_buf, "ZWFzdXJlLg==");
   test_str_encode("asure.", base64_buf, "YXN1cmUu");
   test_str_encode("sure.", base64_buf, "c3VyZS4=");
+
+  printf("\n=== decode ===\n");
+  test_str_decode("", base64_buf, "");
+  test_str_decode("bGVhc3VyZS4=", base64_buf, "leasure.");
+  test_str_decode("ZWFzdXJlLg==", base64_buf, "easure.");
+  test_str_decode("YXN1cmUu", base64_buf, "asure.");
+  test_str_decode("c3VyZS4=", base64_buf, "sure.");
 
   return 0;
 }
