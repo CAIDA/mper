@@ -121,6 +121,14 @@ base64_encode(const unsigned char *src, size_t len, char *dst)
 /*
 ** Decodes {src} into {dst}, returning the number of bytes written to {dst}.
 **
+** If the input is malformed in any way, this returns 0.  This also returns
+** 0 if {src} is an empty string, so be careful of the minor ambiguity in
+** 0.  This decoder is strict about the input and will abort on
+**
+**   * embedded whitespace or any other non-base64 character,
+**   * extra padding characters ('='), and
+**   * anything beyond the padding.
+**
 ** There must be {strlen(src) * 3/4} bytes available at {dst} (which will
 ** NOT be NUL-terminated).  The contents of {src} must be a single long line
 ** of base64 'digits'; there must not be embedded whitespace or a trailing
