@@ -160,7 +160,7 @@ base64_decode(const char *src, unsigned char *dst)
 	else return 0;
       }
       else {  /* 3 bytes: A[6:2], B[4:4], C[2:6] */
-	v4 = decode_tbl[*src++];
+	v4 = decode_tbl[*src++];  if (v4 == 64) return 0;
 	*dst++ = (v3 << 6) | v4;
       }
     }
