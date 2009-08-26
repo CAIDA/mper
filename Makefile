@@ -18,16 +18,6 @@ OBJS=			scamper.o scamper_debug.o utils.o \
 			scamper_target.o scamper_task.o scamper_queue.o \
 			scamper_options.o scamper_sources.o 
 
-HDRS=			scamper.h scamper_addr.h utils.h
-
-LIBSCAMPERFILE_OBJS=	mjl_splaytree.o utils.o scamper_addr.o \
-			scamper_tlv.o scamper_icmpext.o \
-			scamper_ping.o
-
-AR=			ar cq
-
-MANS=			scamper.1
-
 .if defined(WITH_DEBUG)
 CFLAGS=			-pipe -g
 .else
@@ -60,16 +50,12 @@ CFLAGS+=		-DWITHOUT_PRIVSEP
 CFLAGS+=		-DWITHOUT_DEBUGFILE
 .endif
 
-PROGS=			scamper
+PROGS=			mper
 
 all:			${PROGS}
 
-scamper:		${OBJS}	
-			${CC} -o scamper ${LDFLAGS} ${OBJS}
-
-libscamperfile.a:	${LIBSCAMPERFILE_OBJS}
-			rm -f $@
-			${AR} $@ ${LIBSCAMPERFILE_OBJS}
+mper:			${OBJS}	
+			${CC} -o mper ${LDFLAGS} ${OBJS}
 
 .if defined(WITH_LISTDEBUG)
 mjl_list.o:		mjl_list.c mjl_list.h
@@ -86,19 +72,10 @@ mjl_heap.o:		mjl_heap.c mjl_heap.h
 			${CC} ${CFLAGS} -DMJLHEAP_DEBUG -c mjl_heap.c
 .endif
 
-scamper.1.ps:		scamper.1
-			groff -mandoc scamper.1 -t > $@
-
 wc:
 			wc -l $(OBJS:%.o=%.c) $(OBJS:%.o=%.h) | sort -n
 
 clean:
-			rm -f scamper ${OBJS} ${PROGS} *~ \
-				$(PROGS:%=%.o) $(PROGS:%=.core) \
-				libscamperfile.a TODO~ \
-				$(MANS:%=%~) $(MANS:%=%.ps)
-
-install:		scamper
-			mv scamper scamper.bin
-			install -m 4755 -o root scamper.bin scamper
-			rm -f scamper.bin
+			rm -f ${OBJS} ${PROGS} *~ \
+				$(PROGS:%=%.o) $(PROGS:%=%.core) \
+				TODO~
