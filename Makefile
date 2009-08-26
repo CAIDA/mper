@@ -16,7 +16,8 @@ OBJS=			scamper.o scamper_debug.o utils.o \
 			scamper_control.o scamper_firewall.o \
 			scamper_addr.o scamper_probe.o \
 			scamper_target.o scamper_task.o scamper_queue.o \
-			scamper_options.o scamper_sources.o 
+			scamper_options.o scamper_sources.o \
+			mper_base64.o mper_keywords.o
 
 .if defined(WITH_DEBUG)
 CFLAGS=			-pipe -g
@@ -56,6 +57,9 @@ all:			${PROGS}
 
 mper:			${OBJS}	
 			${CC} -o mper ${LDFLAGS} ${OBJS}
+
+mper_keywords.c:	mper_keywords.gperf
+			gperf mper_keywords.gperf >mper_keywords.c
 
 .if defined(WITH_LISTDEBUG)
 mjl_list.o:		mjl_list.c mjl_list.h
