@@ -143,8 +143,8 @@ base64_decode(const char *src, unsigned char *dst)
   unsigned char v1, v2, v3, v4;
 
   while (*src != '\0') {
-    v1 = decode_tbl[*src++];  if (v1 == 64) return 0;
-    v2 = decode_tbl[*src++];  if (v2 == 64) return 0;
+    v1 = decode_tbl[(unsigned char)*src++];  if (v1 == 64) return 0;
+    v2 = decode_tbl[(unsigned char)*src++];  if (v2 == 64) return 0;
     *dst++ = (v1 << 2) | (v2 >> 4);
 
     if (*src == '=') {  /* 1 byte: A[6:2], 0[4:_], == */
@@ -152,7 +152,7 @@ base64_decode(const char *src, unsigned char *dst)
       else return 0;
     }
     else {
-      v3 = decode_tbl[*src++];  if (v3 == 64) return 0;
+      v3 = decode_tbl[(unsigned char)*src++];  if (v3 == 64) return 0;
       *dst++ = (v2 << 4) | (v3 >> 2);
 
       if (*src == '=') {  /* 2 bytes: A[6:2], B[4:4], 0[2:_], = */
@@ -160,7 +160,7 @@ base64_decode(const char *src, unsigned char *dst)
 	else return 0;
       }
       else {  /* 3 bytes: A[6:2], B[4:4], C[2:6] */
-	v4 = decode_tbl[*src++];  if (v4 == 64) return 0;
+	v4 = decode_tbl[(unsigned char)*src++];  if (v4 == 64) return 0;
 	*dst++ = (v3 << 6) | v4;
       }
     }
