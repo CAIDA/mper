@@ -129,7 +129,7 @@ base64_encode(const unsigned char *src, size_t len, char *dst)
 **   * extra padding characters ('='), and
 **   * anything beyond the padding.
 **
-** There must be {strlen(src) * 3/4} bytes available at {dst} (which will
+** No more than {strlen(src) * 3/4} bytes are needed in {dst} (which will
 ** NOT be NUL-terminated).  The contents of {src} must be a single long line
 ** of base64 'digits'; there must not be embedded whitespace or a trailing
 ** newline.  This input format is different than RFC 1421, which specifies
