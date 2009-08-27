@@ -35,9 +35,10 @@ typedef enum {
 
 typedef enum {
   KT_NONE,
-  KT_INT,
+  KT_UINT,
   KT_FLOAT,
-  KT_BASE64,
+  KT_STR,
+  KT_BLOB,
   KT_SYMBOL,
   KT_ADDRESS,
   KT_PREFIX

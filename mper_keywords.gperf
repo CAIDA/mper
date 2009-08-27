@@ -40,8 +40,8 @@ ping, KC_PING_CMD, KT_NONE
 #
 # options
 dest, KC_DEST_OPT, KT_ADDRESS
-ttl, KC_TTL_OPT, KT_INT
+ttl, KC_TTL_OPT, KT_UINT
 meth, KC_METH_OPT, KT_SYMBOL
-dport, KC_DPORT_OPT, KT_INT
+dport, KC_DPORT_OPT, KT_UINT
 %%
 /* functions */
