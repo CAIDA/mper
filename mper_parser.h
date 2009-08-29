@@ -53,4 +53,6 @@ typedef struct {
 #define cw_prefixstr   value_un.u_prefixstr
 #define cw_timeval     value_un.u_timeval
 
+control_word_t *parse_control_message(const char *message, size_t *length_out);
+
 #endif /* __MPER_PARSER_H__ */
