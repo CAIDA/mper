@@ -188,6 +188,7 @@ parse_reqnum(char *command)
 static char *
 parse_command_name(char *name)
 {
+  const struct keyword *keyword;
   char *s = name;
 
   if (*s == '\0') {
@@ -200,7 +201,7 @@ parse_command_name(char *name)
     if (*s == '\0' || *s == ' ') {  /* note: command may not have options */
       if (*s == ' ') *s++ = '\0';
 
-      const keyword_t *keyword = in_word_set(name, strlen(name));
+      keyword = in_word_set(name, strlen(name));
       if (keyword && keyword->code > KC_CMD_MIN && keyword->code < KC_CMD_MAX) {
 	memset(&words[1], 0, sizeof(control_word_t));
 	words[1].cw_name = name;
@@ -268,6 +269,7 @@ parse_option(char *name, size_t word_index)
 static char *
 parse_option_name(char *name, size_t word_index)
 {
+  const struct keyword *keyword;
   char *s = name;
 
   if (*s == '_' || isalpha(*s)) {
@@ -276,7 +278,7 @@ parse_option_name(char *name, size_t word_index)
     if (*s == '=') {
       *s++ = '\0';
 
-      const keyword_t *keyword = in_word_set(name, strlen(name));
+      keyword = in_word_set(name, strlen(name));
       if (keyword && keyword->code > KC_OPT_MIN && keyword->code < KC_OPT_MAX) {
 	memset(&words[word_index], 0, sizeof(control_word_t));
 	words[word_index].cw_name = name;
