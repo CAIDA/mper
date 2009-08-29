@@ -25,23 +25,29 @@
 #define __MPER_KEYWORDS_H__
 
 typedef enum {
-  KC_NONE,
+  KC_NONE=0,
+  KC_ERROR,     /* pseudo code representing a parse error */
+  KC_REQNUM,    /* pseudo code representing the numeric request number */
+  KC_CMD_MIN,
   KC_PING_CMD,
+  KC_CMD_MAX,
+  KC_OPT_MIN,
   KC_DEST_OPT,
   KC_TTL_OPT,
   KC_METH_OPT,
-  KC_DPORT_OPT
+  KC_DPORT_OPT,
+  KC_OPT_MAX
 } keyword_code;
 
 typedef enum {
-  KT_NONE,
+  KT_NONE=0,
   KT_UINT,
-  KT_FLOAT,
   KT_STR,
   KT_BLOB,
   KT_SYMBOL,
   KT_ADDRESS,
-  KT_PREFIX
+  KT_PREFIX,
+  KT_TIMEVAL
 } keyword_type;
 
 struct keyword
@@ -50,6 +56,8 @@ struct keyword
   keyword_code code;
   keyword_type type;
 };
+
+extern const char* keyword_type_names[];
 
 const struct keyword *in_word_set(const char *str, unsigned int len);
 

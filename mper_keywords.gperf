@@ -30,6 +30,17 @@
 #include <string.h>
 
 #include "mper_keywords.h"
+
+const char* keyword_type_names[] = {
+  "<none>",
+  "integer",
+  "string",
+  "blob",
+  "symbol",
+  "IP address",
+  "IP prefix",
+  "timeval"
+};
 %}
 
 struct keyword;
