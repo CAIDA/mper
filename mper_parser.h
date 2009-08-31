@@ -1,5 +1,5 @@
 /*
-** Routines to parse client commands received on the control socket.
+** Routines to parse client/server messages received on the control socket.
 **
 ** --------------------------------------------------------------------------
 ** Author: Young Hyun
@@ -53,6 +53,18 @@ typedef struct {
 #define cw_prefixstr   value_un.u_prefixstr
 #define cw_timeval     value_un.u_timeval
 
-control_word_t *parse_control_message(const char *message, size_t *length_out);
+/*
+** Parses a control message and returns a pointer to {*length_out} number of
+** control word structures.
+**
+** On parse error, this sets {*length_out} to 0 and stores the error message
+** in the cw_str field of the first control word structure.
+** (Note: This function never returns NULL.)
+*/
+const control_word_t *
+parse_control_message(const char *message, size_t *length_out);
+
+/* Prints out control word structures to stderr. */
+void dump_parsed_message(const control_word_t *control_words, size_t length);
 
 #endif /* __MPER_PARSER_H__ */

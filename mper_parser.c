@@ -59,6 +59,10 @@ static char *parse_address_octet(char *value);
 static char *parse_address_dot(char *value);
 static char *parse_prefix_length(char *value);
 static char *parse_timeval_option_value(char *value, size_t word_index);
+void dump_parsed_message(const control_word_t *control_words, size_t length);
+static const char *get_type_name(keyword_type type);
+static void print_escaped(const unsigned char *s, size_t len);
+
 
 /* ====================================================================== */
 /*
@@ -84,7 +88,7 @@ static char *parse_timeval_option_value(char *value, size_t word_index);
 
 
 /* ====================================================================== */
-control_word_t *
+const control_word_t *
 parse_control_message(const char *message, size_t *length_out)
 {
   char *s = message_buf;
@@ -626,4 +630,144 @@ static char *
 parse_timeval_option_value(char *value, size_t word_index)
 {
   return NULL;  /* NOT IMPLEMENTED */
+}
+
+
+/* ====================================================================== */
+#define DUMP_ASSERT(expr) \
+  do { \
+    if (!(expr)) {				       \
+      fprintf(stderr, "ASSERTION FAILED in %s:%d: %s\n",	\
+	      __FILE__, __LINE__, #expr);			\
+      exit(1);							\
+    } \
+  } while (0)
+
+void
+dump_parsed_message(const control_word_t *control_words, size_t length)
+{
+  size_t i;
+
+  if (length == 0) {  /* parse error */
+    DUMP_ASSERT(control_words->cw_code == KC_ERROR);
+    fprintf(stderr, "PARSE ERROR: %s\n", control_words->cw_str);
+  }
+  else {
+    DUMP_ASSERT(length >= 2);
+    DUMP_ASSERT(control_words[0].cw_code == KC_REQNUM);
+    DUMP_ASSERT(control_words[1].cw_code > KC_CMD_MIN
+		&& control_words[1].cw_code < KC_CMD_MAX);
+
+    fprintf(stderr, "Control message: %lu/0x%08lx %s\n",
+	    (unsigned long)control_words[0].cw_uint,
+	    (unsigned long)control_words[0].cw_uint,
+	    control_words[1].cw_name);
+
+    if (length >= 3) {
+      for (i = 2; i < length; i++) {
+	DUMP_ASSERT(control_words[i].cw_code > KC_OPT_MIN
+		    && control_words[i].cw_code < KC_OPT_MAX);
+	fprintf(stderr, "\t%s : %s = ", control_words[i].cw_name,
+		get_type_name(control_words[i].cw_type));
+
+	switch (control_words[i].cw_type) {
+	case KT_NONE:
+	  fprintf(stderr, "<none>\n");
+	  break;
+
+	case KT_UINT:
+	  fprintf(stderr, "%lu\n", (unsigned long)control_words[i].cw_uint);
+	  break;
+
+	case KT_STR:
+	  { size_t l = strlen(control_words[i].cw_str);
+	    if (control_words[i].cw_len != l) {
+	      fprintf(stderr, "(WARN: cw_len=%lu does not equal strlen=%lu; embedded NULs in string?) ", control_words[i].cw_len, l);
+	    }
+	    else {
+	      fprintf(stderr, "(len=%lu) ", control_words[i].cw_len);
+	    }
+
+	    fputc('"', stderr);
+	    print_escaped((unsigned char *)control_words[i].cw_str,
+			  control_words[i].cw_len);
+	    fprintf(stderr, "\"\n");
+	  }
+	  break;
+
+	case KT_BLOB:
+	  fprintf(stderr, "(len=%lu) ", control_words[i].cw_len);
+	  fputc('|', stderr);
+	  print_escaped(control_words[i].cw_blob, control_words[i].cw_len);
+	  fprintf(stderr, "|\n");
+	  break;
+
+	case KT_SYMBOL:
+	  fprintf(stderr, "%s\n", control_words[i].cw_sym);
+	  break;
+
+	case KT_ADDRESS:
+	  fprintf(stderr, "%s\n", control_words[i].cw_addrstr);
+	  break;
+
+	case KT_PREFIX:
+	  fprintf(stderr, "%s\n", control_words[i].cw_prefixstr);
+	  break;
+
+	case KT_TIMEVAL:
+	  fprintf(stderr, "%ld sec, %ld usec\n",
+		  (long)control_words[i].cw_timeval.tv_sec,
+		  (long)control_words[i].cw_timeval.tv_usec);
+	  break;
+
+	default: DUMP_ASSERT(0);
+	}
+      }
+    }
+  }
+}
+
+
+static const char *
+get_type_name(keyword_type type)
+{
+  static char buf[128];
+
+  if (type >= KT_NONE && type <= KT_TYPE_MAX) {
+    return keyword_type_names[type];
+  }
+  else {
+    sprintf(buf, "<invalid type %d>", type);
+    return buf;
+  }
+}
+
+
+/*
+** If {len} > 0, then print exactly {len} bytes, even if there are NUL
+** characters.  Otherwise, print up to the first NUL character.
+*/
+static void
+print_escaped(const unsigned char *s, size_t len)
+{
+  if (len == 0) len = strlen((const char *)s);
+
+  for (; len > 0; len--, s++) {
+    switch (*s) {
+    case '\\': printf("\\\\"); break;
+    case '\t': printf("\\t"); break;
+    case '\v': printf("\\v"); break;
+    case '\f': printf("\\f"); break;
+    case '\r': printf("\\r"); break;
+    case '\n': printf("\\n"); break;
+    default:
+      if (isprint(*s)) {
+	fputc(*s, stderr);
+      }
+      else {
+	fprintf(stderr, "\\x%02X", *s);
+      }
+      break;
+    }
+  }
 }

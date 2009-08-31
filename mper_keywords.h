@@ -47,7 +47,8 @@ typedef enum {
   KT_SYMBOL,
   KT_ADDRESS,
   KT_PREFIX,
-  KT_TIMEVAL
+  KT_TIMEVAL,
+  KT_TYPE_MAX
 } keyword_type;
 
 struct keyword
