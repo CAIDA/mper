@@ -171,7 +171,7 @@ parse_reqnum(char *message)
     }
     else {
       sprintf(message_buf, "illegal character in request num at pos %d",
-	      (int)(message_buf - s));
+	      (int)(s - message_buf));
       return NULL;
     }
   }
@@ -215,20 +215,20 @@ parse_command_name(char *name)
       }
       else {
 	sprintf(message_buf, "invalid command name at pos %d",
-		(int)(message_buf - name));
+		(int)(name - message_buf));
 	return NULL;
       }
     }
     else {
       sprintf(message_buf, "illegal character in command name at pos %d",
-	      (int)(message_buf - s));
+	      (int)(s - message_buf));
       return NULL;
     }
   }
   else {
     sprintf(message_buf,
 	    "expected command name but found illegal character at pos %d",
-	    (int)(message_buf - s));
+	    (int)(s - message_buf));
     return NULL;
   }
 }
@@ -247,7 +247,7 @@ parse_option(char *name, size_t word_index)
   switch (*s) {
   case '\0':
     sprintf(message_buf, "missing option value at pos %d",
-	    (int)(message_buf - s));
+	    (int)(s - message_buf));
     return NULL;
 
   case '0': case '1': case '2': case '3': case '4': case '5': case '6':
@@ -261,7 +261,7 @@ parse_option(char *name, size_t word_index)
 
   default:
     sprintf(message_buf, "invalid option value at pos %d",
-	    (int)(message_buf - s));
+	    (int)(s - message_buf));
     return NULL;
   }
 }
@@ -292,20 +292,20 @@ parse_option_name(char *name, size_t word_index)
       }
       else {
 	sprintf(message_buf, "invalid option name at pos %d",
-		(int)(message_buf - name));
+		(int)(name - message_buf));
 	return NULL;
       }
     }
     else {
       sprintf(message_buf, "illegal character in option name at pos %d",
-	      (int)(message_buf - s));
+	      (int)(s - message_buf));
       return NULL;
     }
   }
   else {
     sprintf(message_buf,
 	    "expected option name but found illegal character at pos %d",
-	    (int)(message_buf - s));
+	    (int)(s - message_buf));
     return NULL;
   }
 }
@@ -321,7 +321,7 @@ type_check_option(keyword_type actual_type, const char *value,
   if (actual_type != expected_type) {
     sprintf(message_buf,
 	 "value at pos %d has wrong type for option '%s': expected %s, got %s",
-	    (int)(message_buf - value), words[word_index].cw_name, 
+	    (int)(value - message_buf), words[word_index].cw_name, 
 	    keyword_type_names[expected_type],
 	    keyword_type_names[actual_type]);
     return 0;
@@ -339,7 +339,7 @@ type_check_base64_option(const char *value, size_t word_index)
   if (expected_type != KT_STR && expected_type != KT_BLOB) {
     sprintf(message_buf,
       "value at pos %d has wrong type for option '%s': expected %s, got %s/%s",
-	    (int)(message_buf - value), words[word_index].cw_name, 
+	    (int)(value - message_buf), words[word_index].cw_name, 
 	    keyword_type_names[expected_type],
 	    keyword_type_names[KT_STR], keyword_type_names[KT_BLOB]);
     return 0;
@@ -371,7 +371,7 @@ parse_integer_option_value(char *value, size_t word_index)
   }
   else {
     sprintf(message_buf, "illegal character in %s option value at pos %d",
-	    keyword_type_names[KT_UINT], (int)(message_buf - s));
+	    keyword_type_names[KT_UINT], (int)(s - message_buf));
     return NULL;
   }
 }
@@ -395,7 +395,7 @@ parse_base64_option_value(char *value, size_t word_index)
   if (*s == '\0' || *s == ' ') {
     sprintf(message_buf, "incomplete %s/%s option value at pos %d",
 	    keyword_type_names[KT_STR], keyword_type_names[KT_BLOB],
-	    (int)(message_buf - s));
+	    (int)(s - message_buf));
     return NULL;
   }
   else if (isalnum(*s) || *s == '+' || *s == '/') {  /* can't start with '=' */
@@ -420,7 +420,7 @@ parse_base64_option_value(char *value, size_t word_index)
       else {
 	sprintf(message_buf,
 		"malformed base64 encoding of option value at pos %d",
-		(int)(message_buf - value));
+		(int)(value - message_buf));
 	return NULL;
       }
     }
@@ -430,7 +430,7 @@ parse_base64_option_value(char *value, size_t word_index)
 
   sprintf(message_buf, "illegal character in %s/%s option value at pos %d",
 	  keyword_type_names[KT_STR], keyword_type_names[KT_BLOB],
-	  (int)(message_buf - s));
+	  (int)(s - message_buf));
   return NULL;
 }
 
@@ -450,7 +450,7 @@ parse_symbol_option_value(char *value, size_t word_index)
   ++s;
   if (*s == '\0' || *s == ' ') {
     sprintf(message_buf, "incomplete %s option value at pos %d",
-	    keyword_type_names[KT_SYMBOL], (int)(message_buf - s));
+	    keyword_type_names[KT_SYMBOL], (int)(s - message_buf));
     return NULL;
   }
   else if (*s == '_' || isalpha(*s)) {
@@ -467,7 +467,7 @@ parse_symbol_option_value(char *value, size_t word_index)
   /* else fall through */
 
   sprintf(message_buf, "illegal character in %s option value at pos %d",
-	  keyword_type_names[KT_SYMBOL], (int)(message_buf - s));
+	  keyword_type_names[KT_SYMBOL], (int)(s - message_buf));
   return NULL;
 }
 
@@ -488,7 +488,7 @@ parse_address_option_value(char *value, size_t word_index)
   if (*s == '\0' || *s == ' ') {
     sprintf(message_buf, "incomplete %s/%s option value at pos %d",
 	    keyword_type_names[KT_ADDRESS], keyword_type_names[KT_PREFIX],
-	    (int)(message_buf - s));
+	    (int)(s - message_buf));
     return NULL;
   }
   else if (isdigit(*s)) {
@@ -510,7 +510,7 @@ parse_address_option_value(char *value, size_t word_index)
       ++s;
       if (*s == '\0') {
 	sprintf(message_buf, "incomplete %s option value at pos %d",
-		keyword_type_names[KT_PREFIX], (int)(message_buf - s));
+		keyword_type_names[KT_PREFIX], (int)(s - message_buf));
 	return NULL;
       }
       else if (isdigit(*s)) {
@@ -531,7 +531,7 @@ parse_address_option_value(char *value, size_t word_index)
 
   sprintf(message_buf, "illegal character in %s/%s option value at pos %d",
 	  keyword_type_names[KT_ADDRESS], keyword_type_names[KT_PREFIX],
-	  (int)(message_buf - s));
+	  (int)(s - message_buf));
   return NULL;
 }
 
@@ -569,7 +569,7 @@ parse_address_octet(char *octet)
 
   sprintf(message_buf, "invalid %s/%s option value at pos %d; octet is out of range or has leading zeros",
 	  keyword_type_names[KT_ADDRESS], keyword_type_names[KT_PREFIX],
-	  (int)(message_buf - octet));
+	  (int)(octet - message_buf));
   return NULL;
 }
 
@@ -585,7 +585,7 @@ parse_address_dot(char *dot)
     sprintf(message_buf,
 	    "illegal character in %s/%s option value at pos %d; expected '.'",
 	    keyword_type_names[KT_ADDRESS], keyword_type_names[KT_PREFIX],
-	    (int)(message_buf - dot));
+	    (int)(dot - message_buf));
     return NULL;
   }
 }
@@ -615,7 +615,7 @@ parse_prefix_length(char *number)
   /* else len > 2: fall through */
 
   sprintf(message_buf, "invalid %s option value at pos %d; prefix length is out of range or has leading zeros",
-	  keyword_type_names[KT_PREFIX], (int)(message_buf - number));
+	  keyword_type_names[KT_PREFIX], (int)(number - message_buf));
   return NULL;
 }
 
