@@ -279,7 +279,12 @@ parse_option_name(char *name, size_t word_index)
   if (*s == '_' || isalpha(*s)) {
     while (*s && (*s == '_' || isalnum(*s))) ++s;
 
-    if (*s == '=') {
+    if (*s == '\0' || *s == ' ') {
+      sprintf(message_buf, "missing option value at pos %d; expected '='",
+	      (int)(s - message_buf));
+      return NULL;
+    }
+    else if (*s == '=') {
       *s++ = '\0';
 
       keyword = in_word_set(name, strlen(name));
@@ -508,8 +513,9 @@ parse_address_option_value(char *value, size_t word_index)
     }
     else if (*s == '/') {  /* prefix */
       ++s;
-      if (*s == '\0') {
-	sprintf(message_buf, "incomplete %s option value at pos %d",
+      if (*s == '\0' || *s == ' ') {
+	sprintf(message_buf,
+		"incomplete %s option value at pos %d; expected prefix length",
 		keyword_type_names[KT_PREFIX], (int)(s - message_buf));
 	return NULL;
       }
@@ -548,29 +554,43 @@ parse_address_octet(char *octet)
   char *s = octet;
   size_t len;
 
-  /* assert(isdigit(*s)); */
-  while (*s && isdigit(*s)) ++s;
-
-  len = s - octet;
-  if (len == 1) return s;
-  else if (len == 2) {
-    if (*octet != '0') return s;
-    /* else fall through */
+  if (*s == '\0' || *s == ' ') {
+    sprintf(message_buf,
+	    "incomplete %s/%s option value at pos %d; expected next octet",
+	    keyword_type_names[KT_ADDRESS], keyword_type_names[KT_PREFIX],
+	    (int)(s - message_buf));
+    return NULL;
   }
-  else if (len == 3) {
-    if (*octet == '1') return s;
-    else if (*octet == '2') {
-      if (octet[1] <= '4' || (octet[1] == '5' && octet[2] <= '5')) return s;
+  else if (isdigit(*s)) {
+    while (*s && isdigit(*s)) ++s;
+
+    len = s - octet;
+    if (len == 1) return s;
+    else if (len == 2) {
+      if (*octet != '0') return s;
       /* else fall through */
     }
-    /* else fall through */
-  }
-  /* else len > 3: fall through */
+    else if (len == 3) {
+      if (*octet == '1') return s;
+      else if (*octet == '2') {
+	if (octet[1] <= '4' || (octet[1] == '5' && octet[2] <= '5')) return s;
+	/* else fall through */
+      }
+      /* else fall through */
+    }
+    /* else len > 3: fall through */
 
-  sprintf(message_buf, "invalid %s/%s option value at pos %d; octet is out of range or has leading zeros",
-	  keyword_type_names[KT_ADDRESS], keyword_type_names[KT_PREFIX],
-	  (int)(octet - message_buf));
-  return NULL;
+    sprintf(message_buf, "invalid %s/%s option value at pos %d; octet is out of range or has leading zeros",
+	    keyword_type_names[KT_ADDRESS], keyword_type_names[KT_PREFIX],
+	    (int)(octet - message_buf));
+    return NULL;
+  }
+  else {
+    sprintf(message_buf, "illegal character in %s/%s option value at pos %d",
+	    keyword_type_names[KT_ADDRESS], keyword_type_names[KT_PREFIX],
+	    (int)(s - message_buf));
+    return NULL;
+  }
 }
 
 
@@ -580,7 +600,16 @@ parse_address_octet(char *octet)
 static char *
 parse_address_dot(char *dot)
 {
-  if (*dot == '.') return dot + 1;
+  if (*dot == '\0' || *dot == ' ') {
+    sprintf(message_buf,
+	    "incomplete %s/%s option value at pos %d; expected '.'",
+	    keyword_type_names[KT_ADDRESS], keyword_type_names[KT_PREFIX],
+	    (int)(dot - message_buf));
+    return NULL;
+  }
+  else if (*dot == '.') {
+    return dot + 1;
+  }
   else {
     sprintf(message_buf,
 	    "illegal character in %s/%s option value at pos %d; expected '.'",
@@ -667,55 +696,50 @@ dump_parsed_message(const control_word_t *control_words, size_t length)
       for (i = 2; i < length; i++) {
 	DUMP_ASSERT(control_words[i].cw_code > KC_OPT_MIN
 		    && control_words[i].cw_code < KC_OPT_MAX);
-	fprintf(stderr, "\t%s : %s = ", control_words[i].cw_name,
+	fprintf(stderr, "\t%s : %s", control_words[i].cw_name,
 		get_type_name(control_words[i].cw_type));
 
 	switch (control_words[i].cw_type) {
 	case KT_NONE:
-	  fprintf(stderr, "<none>\n");
+	  fprintf(stderr, " = <none>\n");
 	  break;
 
 	case KT_UINT:
-	  fprintf(stderr, "%lu\n", (unsigned long)control_words[i].cw_uint);
+	  fprintf(stderr, " = %lu\n", (unsigned long)control_words[i].cw_uint);
 	  break;
 
 	case KT_STR:
-	  { size_t l = strlen(control_words[i].cw_str);
-	    if (control_words[i].cw_len != l) {
-	      fprintf(stderr, "(WARN: cw_len=%lu does not equal strlen=%lu; embedded NULs in string?) ", control_words[i].cw_len, l);
-	    }
-	    else {
-	      fprintf(stderr, "(len=%lu) ", control_words[i].cw_len);
-	    }
-
-	    fputc('"', stderr);
-	    print_escaped((unsigned char *)control_words[i].cw_str,
-			  control_words[i].cw_len);
-	    fprintf(stderr, "\"\n");
+	  fprintf(stderr, "[%lu]", control_words[i].cw_len);
+	  if (strlen(control_words[i].cw_str) != control_words[i].cw_len) {
+	      fprintf(stderr, " (WARN: strlen=%lu)",
+		      strlen(control_words[i].cw_str));
 	  }
+	  fprintf(stderr, " = ");
+	  print_escaped((unsigned char *)control_words[i].cw_str,
+			control_words[i].cw_len);
+	  fprintf(stderr, "\"\n");
 	  break;
 
 	case KT_BLOB:
-	  fprintf(stderr, "(len=%lu) ", control_words[i].cw_len);
-	  fputc('|', stderr);
+	  fprintf(stderr, "[%lu] = |", control_words[i].cw_len);
 	  print_escaped(control_words[i].cw_blob, control_words[i].cw_len);
 	  fprintf(stderr, "|\n");
 	  break;
 
 	case KT_SYMBOL:
-	  fprintf(stderr, "%s\n", control_words[i].cw_sym);
+	  fprintf(stderr, " = %s\n", control_words[i].cw_sym);
 	  break;
 
 	case KT_ADDRESS:
-	  fprintf(stderr, "%s\n", control_words[i].cw_addrstr);
+	  fprintf(stderr, " = %s\n", control_words[i].cw_addrstr);
 	  break;
 
 	case KT_PREFIX:
-	  fprintf(stderr, "%s\n", control_words[i].cw_prefixstr);
+	  fprintf(stderr, " = %s\n", control_words[i].cw_prefixstr);
 	  break;
 
 	case KT_TIMEVAL:
-	  fprintf(stderr, "%ld sec, %ld usec\n",
+	  fprintf(stderr, " = %ld sec, %ld usec\n",
 		  (long)control_words[i].cw_timeval.tv_sec,
 		  (long)control_words[i].cw_timeval.tv_usec);
 	  break;
@@ -754,12 +778,12 @@ print_escaped(const unsigned char *s, size_t len)
 
   for (; len > 0; len--, s++) {
     switch (*s) {
-    case '\\': printf("\\\\"); break;
-    case '\t': printf("\\t"); break;
-    case '\v': printf("\\v"); break;
-    case '\f': printf("\\f"); break;
-    case '\r': printf("\\r"); break;
-    case '\n': printf("\\n"); break;
+    case '\\': fprintf(stderr, "\\\\"); break;
+    case '\t': fprintf(stderr, "\\t"); break;
+    case '\v': fprintf(stderr, "\\v"); break;
+    case '\f': fprintf(stderr, "\\f"); break;
+    case '\r': fprintf(stderr, "\\r"); break;
+    case '\n': fprintf(stderr, "\\n"); break;
     default:
       if (isprint(*s)) {
 	fputc(*s, stderr);
