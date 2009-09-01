@@ -134,9 +134,19 @@ test_parse_control_message(void)
   pass("1234 ping junkpref=@1.2.3.4/32", 3);
 
   /* test type checking */
-
+  fail("1234 ping ttl=:foo");
+  fail("1234 ping ttl=$SGVsbG8sIFdvcmxkIQ==");
+  fail("1234 ping dest=$SGVsbG8sIFdvcmxkIQ==");
+  fail("1234 ping dest=255");
+  fail("1234 ping meth=123456");
+  fail("1234 ping meth=@1.2.3.4/0");
+  fail("1234 ping junkpref=@1.2.3.4");
+  fail("1234 ping junkpref=:hey");
+  fail("1234 ping pkt=555");
+  fail("1234 ping pkt=:hi");
 
   /* test parsing of options in different positions */
+  pass("1234 ping dport=1234 ttl=5 pkt=$SGVsbG8sIFdvcmxkIQ== meth=:__123456 dest=@255.199.99.249 junkpref=@1.2.3.4/13", 8);
 }
 
 
