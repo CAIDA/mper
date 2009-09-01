@@ -28,10 +28,15 @@ typedef enum {
   KC_NONE=0,
   KC_ERROR,     /* pseudo code representing a parse error */
   KC_REQNUM,    /* pseudo code representing the numeric request number */
+
   KC_CMD_MIN,
   KC_PING_CMD,
   KC_CMD_MAX,
+
   KC_OPT_MIN,
+  KC_JUNKSTR_OPT,
+  KC_JUNKPREF_OPT,
+  KC_PKT_OPT,
   KC_DEST_OPT,
   KC_TTL_OPT,
   KC_METH_OPT,

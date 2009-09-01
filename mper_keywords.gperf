@@ -50,6 +50,9 @@ struct keyword;
 ping, KC_PING_CMD, KT_NONE
 #
 # options
+junkstr, KC_JUNKSTR_OPT, KT_STR
+junkpref, KC_JUNKPREF_OPT, KT_PREFIX
+pkt, KC_PKT_OPT, KT_BLOB
 dest, KC_DEST_OPT, KT_ADDRESS
 ttl, KC_TTL_OPT, KT_UINT
 meth, KC_METH_OPT, KT_SYMBOL
