@@ -59,6 +59,9 @@ static char *parse_address_octet(char *value);
 static char *parse_address_dot(char *value);
 static char *parse_prefix_length(char *value);
 static char *parse_timeval_option_value(char *value, size_t word_index);
+static char *parse_timeval_sec(char *number, size_t word_index);
+static char *parse_timeval_usec(char *number, size_t word_index);
+
 void dump_parsed_message(const control_word_t *control_words, size_t length);
 static const char *get_type_name(keyword_type type);
 static void print_escaped(const unsigned char *s, size_t len);
@@ -659,14 +662,90 @@ parse_prefix_length(char *number)
 
 /* ---------------------------------------------------------------------- */
 /*
-** Syntax: T[0-9]+:[0-9]+
+** Syntax: T[0-9]+:[0-9]+   (both sec and usec must be positive)
 **
 ** The caller should guarantee that {*value != '\0'}.
 */
 static char *
 parse_timeval_option_value(char *value, size_t word_index)
 {
-  return NULL;  /* NOT IMPLEMENTED */
+  char *s = value;
+
+  /* assert(*s == 'T'); */
+  ++s;
+  if ((s = parse_timeval_sec(s, word_index)) == NULL) return NULL;
+  if ((s = parse_timeval_usec(s, word_index)) == NULL) return NULL;
+  if (!type_check_option(KT_TIMEVAL, value, word_index)) return NULL;
+  return s;
+}
+
+
+/*
+** Parses the tv_sec field of a timeval value and the following ':' delimiter.
+*/
+static char *
+parse_timeval_sec(char *number, size_t word_index)
+{
+  char *s = number;
+
+  if (*s == '\0' || *s == ' ') {
+    sprintf(message_buf, "incomplete %s option value at pos %d",
+	    keyword_type_names[KT_TIMEVAL], (int)(s - message_buf));
+    return NULL;
+  }
+  else if (isdigit(*s)) {
+    while (*s && isdigit(*s)) ++s;
+
+    if (*s == '\0' || *s == ' ') {
+      sprintf(message_buf, "incomplete %s option value at pos %d; expected ':'",
+	      keyword_type_names[KT_TIMEVAL], (int)(s - message_buf));
+      return NULL;
+    }
+    else if (*s == ':') {
+      *s++ = '\0';
+      words[word_index].cw_timeval.tv_sec = (time_t)strtol(number, NULL, 10);
+      return s;
+    }
+    /* else fall through */
+  }
+  /* else fall through */
+
+  sprintf(message_buf, "illegal character in %s option value at pos %d",
+	  keyword_type_names[KT_TIMEVAL], (int)(s - message_buf));
+  return NULL;
+}
+
+
+/*
+** Parses the tv_usec field of a timeval value.
+** The caller should have advanced {number} past the ':' delimiter.
+*/
+static char *
+parse_timeval_usec(char *number, size_t word_index)
+{
+  char *s = number;
+
+  if (*s == '\0' || *s == ' ') {
+    sprintf(message_buf, "incomplete %s option value at pos %d; missing usec",
+	    keyword_type_names[KT_TIMEVAL], (int)(s - message_buf));
+    return NULL;
+  }
+  else if (isdigit(*s)) {
+    while (*s && isdigit(*s)) ++s;
+
+    if (*s == '\0' || *s == ' ') {
+      if (*s == ' ') *s++ = '\0';
+      words[word_index].cw_timeval.tv_usec =
+	(suseconds_t)strtol(number, NULL, 10);
+      return s;
+    }
+    /* else fall through */
+  }
+  /* else fall through */
+
+  sprintf(message_buf, "illegal character in %s option value at pos %d",
+	  keyword_type_names[KT_TIMEVAL], (int)(s - message_buf));
+  return NULL;
 }
 
 
@@ -765,7 +844,7 @@ get_type_name(keyword_type type)
 {
   static char buf[128];
 
-  if (type >= KT_NONE && type <= KT_TYPE_MAX) {
+  if (type >= KT_NONE && type < KT_TYPE_MAX) {
     return keyword_type_names[type];
   }
   else {

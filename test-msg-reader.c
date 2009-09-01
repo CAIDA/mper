@@ -1,5 +1,5 @@
 /*
-** Tests mper_parser and mper_keywords.
+** Tests mper_msg_reader and mper_keywords.
 **
 ** --------------------------------------------------------------------------
 ** Author: Young Hyun
@@ -70,11 +70,13 @@ test_parse_control_message(void)
   fail("1234 pi-ng");
   pass("1234 ping", 2);
   fail("1234 dest");
+
   fail("1234 ping ^xyz");
   fail("1234 ping xyz");
   fail("1234 ping pi^g=5");
   fail("1234 ping ^pi=5");
   fail("1234 ping ping=5");
+
   pass("1234 ping ttl=5", 3);
   fail("1234 ping ttl= 1234");
   fail("1234 ping ttl=-1234");
@@ -82,6 +84,7 @@ test_parse_control_message(void)
   fail("1234 ping ttl=^@$T");
   fail("1234 ping ttl=123_4");
   fail("1234 ping ttl=123.4");
+
   fail("1234 ping pkt=$");
   fail("1234 ping pkt=$ ");
   fail("1234 ping pkt=$=");
@@ -92,9 +95,11 @@ test_parse_control_message(void)
   pass("1234 ping pkt=$SGVsbG8sCgpXb3JsZCE=", 3);  /* "Hello,\n\nWorld!" */
   pass("1234 ping pkt=$SGVsbG8sAFdvcmxkIQ==", 3);  /* "Hello,\0World!" */
   fail("1234 ping pkt=$SGVsbG8sIFdvcmxkIQ=");
+
   pass("1234 ping junkstr=$SGVsbG8sIFdvcmxkIQ==", 3);  /* "Hello, World!" */
   pass("1234 ping junkstr=$SGVsbG8sCgpXb3JsZCE=", 3);  /* "Hello,\n\nWorld!" */
   pass("1234 ping junkstr=$SGVsbG8sAFdvcmxkIQ==", 3);  /* "Hello,\0World!" */
+
   fail("1234 ping meth=:");
   fail("1234 ping meth=: ");
   fail("1234 ping meth=:123");
@@ -102,6 +107,7 @@ test_parse_control_message(void)
   pass("1234 ping meth=:__123456", 3);
   pass("1234 ping meth=:ab-cd_f-234", 3);
   fail("1234 ping meth=:ab-cd_f-234@");
+
   fail("1234 ping dest=@");
   fail("1234 ping dest=@ ");
   fail("1234 ping dest=@.");
@@ -118,6 +124,7 @@ test_parse_control_message(void)
   fail("1234 ping dest=@256.2.3.4");
   fail("1234 ping dest=@1111.2.3.4");
   pass("1234 ping dest=@255.199.99.249", 3);
+
   fail("1234 ping junkpref=@1.2.3/");
   fail("1234 ping junkpref=@1.2.3./");
   fail("1234 ping junkpref=@1.2.3.4/");
@@ -133,6 +140,16 @@ test_parse_control_message(void)
   pass("1234 ping junkpref=@1.2.3.4/13", 3);
   pass("1234 ping junkpref=@1.2.3.4/32", 3);
 
+  fail("1234 ping tx=T");
+  fail("1234 ping tx=T ");
+  fail("1234 ping tx=T^234");
+  fail("1234 ping tx=T234");
+  fail("1234 ping tx=T234.");
+  fail("1234 ping tx=T234:");
+  fail("1234 ping tx=T234: ");
+  fail("1234 ping tx=T234:567x");
+  pass("1234 ping tx=T234:567", 3);
+
   /* test type checking */
   fail("1234 ping ttl=:foo");
   fail("1234 ping ttl=$SGVsbG8sIFdvcmxkIQ==");
@@ -144,9 +161,13 @@ test_parse_control_message(void)
   fail("1234 ping junkpref=:hey");
   fail("1234 ping pkt=555");
   fail("1234 ping pkt=:hi");
+  fail("1234 ping pkt=T123:456");
+  fail("1234 ping tx=123");
+  fail("1234 ping tx=$SGVsbG8sIFdvcmxkIQ==");
 
   /* test parsing of options in different positions */
   pass("1234 ping dport=1234 ttl=5 pkt=$SGVsbG8sIFdvcmxkIQ== meth=:__123456 dest=@255.199.99.249 junkpref=@1.2.3.4/13", 8);
+  pass("1234 ping meth=:__123456 dport=1234 junkpref=@1.2.3.4/13 ttl=5 dest=@255.199.99.249 pkt=$SGVsbG8sIFdvcmxkIQ==", 8);
 }
 
 
