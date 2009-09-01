@@ -324,9 +324,13 @@ type_check_option(keyword_type actual_type, const char *value,
   keyword_type expected_type = words[word_index].cw_type;
 
   if (actual_type != expected_type) {
+    char name[MPER_MSG_KEYWORD_MAXLEN + 1];
+    strncpy(name, words[word_index].cw_name, MPER_MSG_KEYWORD_MAXLEN);
+    name[MPER_MSG_KEYWORD_MAXLEN] = '\0';
+
     sprintf(message_buf,
 	 "value at pos %d has wrong type for option '%s': expected %s, got %s",
-	    (int)(value - message_buf), words[word_index].cw_name, 
+	    (int)(value - message_buf), name, 
 	    keyword_type_names[expected_type],
 	    keyword_type_names[actual_type]);
     return 0;
@@ -342,9 +346,13 @@ type_check_base64_option(const char *value, size_t word_index)
   keyword_type expected_type = words[word_index].cw_type;
 
   if (expected_type != KT_STR && expected_type != KT_BLOB) {
+    char name[MPER_MSG_KEYWORD_MAXLEN + 1];
+    strncpy(name, words[word_index].cw_name, MPER_MSG_KEYWORD_MAXLEN);
+    name[MPER_MSG_KEYWORD_MAXLEN] = '\0';
+
     sprintf(message_buf,
       "value at pos %d has wrong type for option '%s': expected %s, got %s/%s",
-	    (int)(value - message_buf), words[word_index].cw_name, 
+	    (int)(value - message_buf), name, 
 	    keyword_type_names[expected_type],
 	    keyword_type_names[KT_STR], keyword_type_names[KT_BLOB]);
     return 0;

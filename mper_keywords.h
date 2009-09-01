@@ -24,6 +24,8 @@
 #ifndef __MPER_KEYWORDS_H__
 #define __MPER_KEYWORDS_H__
 
+#define MPER_MSG_KEYWORD_MAXLEN 25  /* max length of a command or option name */
+
 typedef enum {
   KC_NONE=0,
   KC_ERROR,     /* pseudo code representing a parse error */
