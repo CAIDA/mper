@@ -17,7 +17,7 @@ OBJS=			scamper.o scamper_debug.o utils.o \
 			scamper_addr.o scamper_probe.o \
 			scamper_target.o scamper_task.o scamper_queue.o \
 			scamper_options.o scamper_sources.o \
-			mper_base64.o mper_keywords.o mper_parser.o
+			mper_base64.o mper_keywords.o mper_msg_reader.o
 
 .if defined(WITH_DEBUG)
 CFLAGS=			-pipe -g
@@ -51,12 +51,15 @@ CFLAGS+=		-DWITHOUT_PRIVSEP
 CFLAGS+=		-DWITHOUT_DEBUGFILE
 .endif
 
-PROGS=			mper
+PROGS=			mper test-msg-reader
 
 all:			${PROGS}
 
 mper:			${OBJS}	
 			${CC} -o mper ${LDFLAGS} ${OBJS}
+
+test-msg-reader:		mper_base64.o mper_keywords.o mper_msg_reader.o test-msg-reader.o
+			${CC} -o $@ ${LDFLAGS} mper_base64.o mper_keywords.o mper_msg_reader.o test-msg-reader.o
 
 mper_keywords.c:	mper_keywords.gperf
 			gperf mper_keywords.gperf >mper_keywords.c
@@ -82,4 +85,4 @@ wc:
 clean:
 			rm -f ${OBJS} ${PROGS} *~ \
 				$(PROGS:%=%.o) $(PROGS:%=%.core) \
-				TODO~
+				test-msg-reader.o TODO~

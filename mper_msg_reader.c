@@ -29,7 +29,7 @@
 #include <sys/time.h>
 
 #include "mper_keywords.h"
-#include "mper_parser.h"
+#include "mper_msg_reader.h"
 #include "mper_base64.h"
 
 #define MAX_WORDS 32

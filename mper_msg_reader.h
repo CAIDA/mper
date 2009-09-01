@@ -20,8 +20,8 @@
 ** Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#ifndef __MPER_PARSER_H__
-#define __MPER_PARSER_H__
+#ifndef __MPER_MSG_READER_H__
+#define __MPER_MSG_READER_H__
 
 /*
 ** All pointers are to static memory.
@@ -67,4 +67,4 @@ parse_control_message(const char *message, size_t *length_out);
 /* Prints out control word structures to stderr. */
 void dump_parsed_message(const control_word_t *control_words, size_t length);
 
-#endif /* __MPER_PARSER_H__ */
+#endif /* __MPER_MSG_READER_H__ */
