@@ -57,5 +57,7 @@ dest, KC_DEST_OPT, KT_ADDRESS
 ttl, KC_TTL_OPT, KT_UINT
 meth, KC_METH_OPT, KT_SYMBOL
 dport, KC_DPORT_OPT, KT_UINT
+tx, KC_TX_OPT, KT_TIMEVAL
+rx, KC_RX_OPT, KT_TIMEVAL
 %%
 /* functions */

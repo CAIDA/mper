@@ -43,6 +43,8 @@ typedef enum {
   KC_TTL_OPT,
   KC_METH_OPT,
   KC_DPORT_OPT,
+  KC_TX_OPT,
+  KC_RX_OPT,
   KC_OPT_MAX
 } keyword_code;
 
