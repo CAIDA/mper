@@ -48,9 +48,9 @@ typedef struct {
     uint32_t u_uint;
     const char *u_str;
     const unsigned char *u_blob; /* same pointer as u_str but different type */
-    const char *u_sym;
-    const char *u_addrstr;
-    const char *u_prefixstr;
+    const char *u_symbol;
+    const char *u_address;
+    const char *u_prefix;
     struct timeval u_timeval;
   } value_un;
 
@@ -60,9 +60,9 @@ typedef struct {
 #define cw_uint        value_un.u_uint
 #define cw_str         value_un.u_str
 #define cw_blob        value_un.u_blob
-#define cw_sym         value_un.u_sym
-#define cw_addrstr     value_un.u_addrstr
-#define cw_prefixstr   value_un.u_prefixstr
+#define cw_symbol      value_un.u_symbol
+#define cw_address     value_un.u_address
+#define cw_prefix      value_un.u_prefix
 #define cw_timeval     value_un.u_timeval
 
 #endif /* __MPER_MSG_H__ */

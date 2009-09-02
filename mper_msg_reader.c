@@ -481,7 +481,7 @@ parse_symbol_option_value(char *value, size_t word_index)
     if (*s == '\0' || *s == ' ') {
       if (*s == ' ') *s++ = '\0';
       if (!type_check_option(KT_SYMBOL, value, word_index)) return NULL;
-      words[word_index].cw_sym = value + 1;  /* exclude leading ':' */
+      words[word_index].cw_symbol = value + 1;  /* exclude leading ':' */
       return s;
     }
     /* else fall through */
@@ -525,7 +525,7 @@ parse_address_option_value(char *value, size_t word_index)
     if (*s == '\0' || *s == ' ') {
       if (*s == ' ') *s++ = '\0';
       if (!type_check_option(KT_ADDRESS, value, word_index)) return NULL;
-      words[word_index].cw_addrstr = value + 1;  /* exclude leading '@' */
+      words[word_index].cw_address = value + 1;  /* exclude leading '@' */
       return s;
     }
     else if (*s == '/') {  /* prefix */
@@ -541,7 +541,7 @@ parse_address_option_value(char *value, size_t word_index)
 	if (*s == '\0' || *s == ' ') {
 	  if (*s == ' ') *s++ = '\0';
 	  if (!type_check_option(KT_PREFIX, value, word_index)) return NULL;
-	  words[word_index].cw_prefixstr = value + 1;  /* exclude leading '@' */
+	  words[word_index].cw_prefix = value + 1;  /* exclude leading '@' */
 	  return s;
 	}
 	/* else fall through */
@@ -820,15 +820,15 @@ dump_parsed_message(const control_word_t *control_words, size_t length)
 	  break;
 
 	case KT_SYMBOL:
-	  fprintf(stderr, " = %s\n", control_words[i].cw_sym);
+	  fprintf(stderr, " = %s\n", control_words[i].cw_symbol);
 	  break;
 
 	case KT_ADDRESS:
-	  fprintf(stderr, " = %s\n", control_words[i].cw_addrstr);
+	  fprintf(stderr, " = %s\n", control_words[i].cw_address);
 	  break;
 
 	case KT_PREFIX:
-	  fprintf(stderr, " = %s\n", control_words[i].cw_prefixstr);
+	  fprintf(stderr, " = %s\n", control_words[i].cw_prefix);
 	  break;
 
 	case KT_TIMEVAL:

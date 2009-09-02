@@ -54,6 +54,7 @@ main(int argc, char *argv[])
 {
   if (argc == 1) {
     test_parse_control_message();
+    fprintf(stderr, "\n\n=== ALL PASSED ===\n");
   }
   else if (argc == 2) {
     test(argv[1], NULL);
@@ -305,9 +306,9 @@ pass(const char *message, size_t expected_length, ...)
 	w.cw_len = va_arg(ap, size_t);
 	break;
 
-      case KT_SYMBOL: w.cw_sym = va_arg(ap, const char *); break;
-      case KT_ADDRESS: w.cw_addrstr = va_arg(ap, const char *); break;
-      case KT_PREFIX: w.cw_prefixstr = va_arg(ap, const char *); break;
+      case KT_SYMBOL: w.cw_symbol = va_arg(ap, const char *); break;
+      case KT_ADDRESS: w.cw_address = va_arg(ap, const char *); break;
+      case KT_PREFIX: w.cw_prefix = va_arg(ap, const char *); break;
 
       case KT_TIMEVAL:
 	w.cw_timeval.tv_sec = va_arg(ap, time_t);
@@ -356,15 +357,15 @@ check_value(const control_word_t *value, const control_word_t *expected,
     break;
 
   case KT_SYMBOL:
-    if (strcmp(value->cw_sym, expected->cw_sym) == 0) return;
+    if (strcmp(value->cw_symbol, expected->cw_symbol) == 0) return;
     break;
 
   case KT_ADDRESS:
-    if (strcmp(value->cw_addrstr, expected->cw_addrstr) == 0) return;
+    if (strcmp(value->cw_address, expected->cw_address) == 0) return;
     break;
 
   case KT_PREFIX:
-    if (strcmp(value->cw_prefixstr, expected->cw_prefixstr) == 0) return;
+    if (strcmp(value->cw_prefix, expected->cw_prefix) == 0) return;
     break;
 
   case KT_TIMEVAL:
