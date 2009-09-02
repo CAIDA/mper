@@ -25,6 +25,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <stdarg.h>
 #include <sys/time.h>
 
 #include "mper_keywords.h"
@@ -34,13 +35,18 @@
 
 int echo_message = 1;  /* whether to echo the message in test() */
 
+/* ====================================================================== */
+
 static void test_parse_control_message(void);
+static void pass(const char *message, size_t expected_length, ...);
 static const char *create_long_msg(const char *start, const char *end,
 				   size_t length);
+static void pass_long_base64(size_t encoded_length);
 static const char *create_long_base64(size_t length);
-static void pass(const char *message, size_t expected_length);
+static void check_value(const control_word_t *value,
+			const control_word_t *expected, size_t i);
 static void fail(const char *message);
-static size_t test(const char *message);
+static size_t test(const char *message, const control_word_t **words_out);
 
 /* ====================================================================== */
 int
@@ -50,7 +56,7 @@ main(int argc, char *argv[])
     test_parse_control_message();
   }
   else if (argc == 2) {
-    test(argv[1]);
+    test(argv[1], NULL);
   }
   else {
     fprintf(stderr, "usage: test-parser [<message>]\n");
@@ -83,7 +89,7 @@ test_parse_control_message(void)
   fail("1234 ping ^pi=5");
   fail("1234 ping ping=5");
 
-  pass("1234 ping ttl=5", 3);
+  pass("1234 ping ttl=5", 3, KT_UINT, 5);
   fail("1234 ping ttl= 1234");
   fail("1234 ping ttl=-1234");
   fail("1234 ping ttl=___");
@@ -91,27 +97,40 @@ test_parse_control_message(void)
   fail("1234 ping ttl=123_4");
   fail("1234 ping ttl=123.4");
 
+  /* $ ruby -e 'p [ "Hello, World!" ].pack("m0")' */
   fail("1234 ping pkt=$");
   fail("1234 ping pkt=$ ");
   fail("1234 ping pkt=$=");
   fail("1234 ping pkt=$!@#$");
   fail("1234 ping pkt=$abcdef^^1234ABC");
   fail("1234 ping pkt=$abcdef^^1234ABC");
-  pass("1234 ping pkt=$SGVsbG8sIFdvcmxkIQ==", 3);  /* "Hello, World!" */
-  pass("1234 ping pkt=$SGVsbG8sCgpXb3JsZCE=", 3);  /* "Hello,\n\nWorld!" */
-  pass("1234 ping pkt=$SGVsbG8sAFdvcmxkIQ==", 3);  /* "Hello,\0World!" */
-  fail("1234 ping pkt=$SGVsbG8sIFdvcmxkIQ=");
 
-  pass("1234 ping junkstr=$SGVsbG8sIFdvcmxkIQ==", 3);  /* "Hello, World!" */
-  pass("1234 ping junkstr=$SGVsbG8sCgpXb3JsZCE=", 3);  /* "Hello,\n\nWorld!" */
-  pass("1234 ping junkstr=$SGVsbG8sAFdvcmxkIQ==", 3);  /* "Hello,\0World!" */
+  pass("1234 ping pkt=$SGVsbG8sIFdvcmxkIQ==", 3,
+       KT_BLOB, "Hello, World!", 13);
+
+  pass("1234 ping pkt=$SGVsbG8sCgpXb3JsZCE=", 3,
+       KT_BLOB, "Hello,\n\nWorld!", 14);
+
+  pass("1234 ping pkt=$SGVsbG8sAFdvcmxkIQ==", 3,
+       KT_BLOB, "Hello,\0World!", 13);
+
+  fail("1234 ping pkt=$SGVsbG8sIFdvcmxkIQ=");  /* malformed base64 encoding */
+
+  pass("1234 ping junkstr=$SGVsbG8sIFdvcmxkIQ==", 3,
+       KT_STR, "Hello, World!", 13);
+
+  pass("1234 ping junkstr=$SGVsbG8sCgpXb3JsZCE=", 3,
+       KT_STR, "Hello,\n\nWorld!", 14);
+
+  pass("1234 ping junkstr=$SGVsbG8sAFdvcmxkIQ==", 3,
+       KT_STR, "Hello,\0World!", 13);
 
   fail("1234 ping meth=:");
   fail("1234 ping meth=: ");
   fail("1234 ping meth=:123");
   fail("1234 ping meth=:^!@");
-  pass("1234 ping meth=:__123456", 3);
-  pass("1234 ping meth=:ab-cd_f-234", 3);
+  pass("1234 ping meth=:__123456", 3, KT_SYMBOL, "__123456");
+  pass("1234 ping meth=:ab-cd_f-234", 3, KT_SYMBOL, "ab-cd_f-234");
   fail("1234 ping meth=:ab-cd_f-234@");
 
   fail("1234 ping dest=@");
@@ -129,7 +148,7 @@ test_parse_control_message(void)
   fail("1234 ping dest=@300.2.3.4");
   fail("1234 ping dest=@256.2.3.4");
   fail("1234 ping dest=@1111.2.3.4");
-  pass("1234 ping dest=@255.199.99.249", 3);
+  pass("1234 ping dest=@255.199.99.249", 3, KT_ADDRESS, "255.199.99.249");
 
   fail("1234 ping junkpref=@1.2.3/");
   fail("1234 ping junkpref=@1.2.3./");
@@ -142,9 +161,9 @@ test_parse_control_message(void)
   fail("1234 ping junkpref=@1.2.3.4/33");
   fail("1234 ping junkpref=@1.2.3.4/34");
   fail("1234 ping junkpref=@1.2.3.4/45");
-  pass("1234 ping junkpref=@1.2.3.4/0", 3);
-  pass("1234 ping junkpref=@1.2.3.4/13", 3);
-  pass("1234 ping junkpref=@1.2.3.4/32", 3);
+  pass("1234 ping junkpref=@1.2.3.4/0", 3, KT_PREFIX, "1.2.3.4/0");
+  pass("1234 ping junkpref=@1.2.3.4/13", 3, KT_PREFIX, "1.2.3.4/13");
+  pass("1234 ping junkpref=@1.2.3.4/32", 3, KT_PREFIX, "1.2.3.4/32");
 
   fail("1234 ping tx=T");
   fail("1234 ping tx=T ");
@@ -154,7 +173,13 @@ test_parse_control_message(void)
   fail("1234 ping tx=T234:");
   fail("1234 ping tx=T234: ");
   fail("1234 ping tx=T234:567x");
-  pass("1234 ping tx=T234:567", 3);
+  pass("1234 ping tx=T234:567", 3, KT_TIMEVAL, (time_t)234, (suseconds_t)567);
+
+  /* test non-interference of multiple str/blobs */
+  pass("1234 ping pkt=$SGVsbG8s junkstr=$IFdvcmxkIQ==", 4,
+       KT_BLOB, "Hello,", 6, KT_STR, " World!", 7);
+  pass("1234 ping junkstr=$IFdvcmxkIQ== pkt=$SGVsbG8s", 4,
+       KT_STR, " World!", 7, KT_BLOB, "Hello,", 6);
 
   /* test type checking */
   fail("1234 ping ttl=:foo");
@@ -172,13 +197,20 @@ test_parse_control_message(void)
   fail("1234 ping tx=$SGVsbG8sIFdvcmxkIQ==");
 
   /* test parsing of options in different positions */
-  pass("1234 ping dport=1234 ttl=5 pkt=$SGVsbG8sIFdvcmxkIQ== meth=:__123456 dest=@255.199.99.249 junkpref=@1.2.3.4/13", 8);
-  pass("1234 ping meth=:__123456 dport=1234 junkpref=@1.2.3.4/13 ttl=5 dest=@255.199.99.249 pkt=$SGVsbG8sIFdvcmxkIQ==", 8);
+  pass("1234 ping dport=1234 ttl=5 pkt=$SGVsbG8sIFdvcmxkIQ== meth=:__123456 dest=@255.199.99.249 junkpref=@1.2.3.4/13", 8,
+       KT_UINT, 1234, KT_UINT, 5, KT_BLOB, "Hello, World!", 13,
+       KT_SYMBOL, "__123456", KT_ADDRESS, "255.199.99.249",
+       KT_PREFIX, "1.2.3.4/13");
+
+  pass("1234 ping meth=:__123456 dport=1234 junkpref=@1.2.3.4/13 ttl=5 dest=@255.199.99.249 pkt=$SGVsbG8sIFdvcmxkIQ==", 8,
+       KT_SYMBOL, "__123456", KT_UINT, 1234, KT_PREFIX, "1.2.3.4/13",
+       KT_UINT, 5, KT_ADDRESS, "255.199.99.249", KT_BLOB, "Hello, World!", 13);
 
   /* test length limits */
   echo_message = 0;
   pass(create_long_msg("1234 ping tx=T234:567", "ttl=5",
-		       MPER_MSG_MAX_MESSAGE_SIZE), 4);
+		       MPER_MSG_MAX_MESSAGE_SIZE), 4,
+       KT_TIMEVAL, (time_t)234, (suseconds_t)567, KT_UINT, 5);
   fail(create_long_msg("1234 ping tx=T234:567", "ttl=5",
 		       MPER_MSG_MAX_MESSAGE_SIZE + 1));
   fail(create_long_msg("1234 ping tx=T234:567", "ttl=5",
@@ -186,7 +218,7 @@ test_parse_control_message(void)
   fail(create_long_msg("1234 ping tx=T234:567", "ttl=5",
 		       MPER_MSG_MAX_MESSAGE_SIZE + 512));
 
-  pass(create_long_base64(MPER_MSG_MAX_ENCODED_VALUE_SIZE), 3);
+  pass_long_base64(MPER_MSG_MAX_ENCODED_VALUE_SIZE);
   fail(create_long_base64(MPER_MSG_MAX_ENCODED_VALUE_SIZE + 4));
   fail(create_long_base64(MPER_MSG_MAX_ENCODED_VALUE_SIZE + 512));
   echo_message = 1;
@@ -199,13 +231,26 @@ create_long_msg(const char *start, const char *end, size_t length)
 {
   static char msgbuf[MPER_MSG_MAX_MESSAGE_SIZE + 1024];
 
-  size_t padlen = length - strlen(end);
-  sprintf(msgbuf, "%-*s%s", (int)padlen, start, end);
+  size_t fieldlen = length - strlen(end);
+  sprintf(msgbuf, "%-*s%s", (int)fieldlen, start, end);
   return msgbuf;
 }
 
 
 /* ---------------------------------------------------------------------- */
+static void
+pass_long_base64(size_t encoded_length)
+{
+  static char raw_value[MPER_MSG_MAX_RAW_VALUE_SIZE + 512];
+  size_t raw_length = 3 * (encoded_length / 4);
+
+  memset(raw_value, '.', raw_length);
+  raw_value[raw_length] = '\0';
+
+  pass(create_long_base64(encoded_length), 3, KT_BLOB, raw_value, raw_length);
+}
+
+
 static const char *
 create_long_base64(size_t encoded_length)
 {
@@ -225,9 +270,11 @@ create_long_base64(size_t encoded_length)
 
 /* ====================================================================== */
 static void
-pass(const char *message, size_t expected_length)
+pass(const char *message, size_t expected_length, ...)
 {
-  size_t length = test(message);
+  va_list ap;
+  const control_word_t *words;
+  size_t length = test(message, &words);
 
   if (length == 0) {
     fprintf(stderr, "FAIL: parsing failed on well-formed input\n");
@@ -238,8 +285,100 @@ pass(const char *message, size_t expected_length)
     exit(1);
   }
   else {
+    control_word_t w;
+    size_t i;
+
+    va_start(ap, expected_length);
+    for (i = 2; i < expected_length; i++) {
+      memset(&w, 0, sizeof(w));
+      w.cw_type = va_arg(ap, keyword_type);
+      switch (w.cw_type) {
+      case KT_UINT: w.cw_uint = va_arg(ap, uint32_t); break;
+
+      case KT_STR:
+	w.cw_str = va_arg(ap, const char *);
+	w.cw_len = va_arg(ap, size_t);
+	break;
+
+      case KT_BLOB:
+	w.cw_blob = va_arg(ap, const unsigned char *);
+	w.cw_len = va_arg(ap, size_t);
+	break;
+
+      case KT_SYMBOL: w.cw_sym = va_arg(ap, const char *); break;
+      case KT_ADDRESS: w.cw_addrstr = va_arg(ap, const char *); break;
+      case KT_PREFIX: w.cw_prefixstr = va_arg(ap, const char *); break;
+
+      case KT_TIMEVAL:
+	w.cw_timeval.tv_sec = va_arg(ap, time_t);
+	w.cw_timeval.tv_usec = va_arg(ap, suseconds_t);
+	break;
+
+      default: fprintf(stderr, "ASSERTION FAILURE at %s:%d",
+		       __FILE__, __LINE__); exit(1);
+      }
+
+      check_value(&words[i], &w, i);
+    }
+    va_end(ap);
+
     fprintf(stderr, "ok\n");
   }
+}
+
+
+static void
+check_value(const control_word_t *value, const control_word_t *expected,
+	    size_t i)
+{
+  if (value->cw_type != expected->cw_type) {
+    fprintf(stderr, "FAIL: '%s' option at index %d has wrong type: expected %s, got %s\n",
+	    value->cw_name, (int)i, keyword_type_names[expected->cw_type],
+	    keyword_type_names[value->cw_type]);
+    exit(1);
+  }
+
+  switch (value->cw_type) {
+  case KT_UINT:
+    if (value->cw_uint == expected->cw_uint) return;
+    break;
+
+  case KT_STR:
+    if (value->cw_len == expected->cw_len
+	&& memcmp(value->cw_str, expected->cw_str, expected->cw_len) == 0)
+      return;
+    break;
+
+  case KT_BLOB:
+    if (value->cw_len == expected->cw_len
+	&& memcmp(value->cw_blob, expected->cw_blob, expected->cw_len) == 0)
+      return;
+    break;
+
+  case KT_SYMBOL:
+    if (strcmp(value->cw_sym, expected->cw_sym) == 0) return;
+    break;
+
+  case KT_ADDRESS:
+    if (strcmp(value->cw_addrstr, expected->cw_addrstr) == 0) return;
+    break;
+
+  case KT_PREFIX:
+    if (strcmp(value->cw_prefixstr, expected->cw_prefixstr) == 0) return;
+    break;
+
+  case KT_TIMEVAL:
+    if (value->cw_timeval.tv_sec == expected->cw_timeval.tv_sec
+	&& value->cw_timeval.tv_usec == expected->cw_timeval.tv_usec) return;
+    break;
+
+  default: fprintf(stderr, "ASSERTION FAILURE at %s:%d",
+		   __FILE__, __LINE__); exit(1);
+  }
+
+  fprintf(stderr, "FAIL: '%s' option at index %d has wrong value\n",
+	  value->cw_name, (int)i);
+  exit(1);
 }
 
 
@@ -247,7 +386,7 @@ pass(const char *message, size_t expected_length)
 static void
 fail(const char *message)
 {
-  if (test(message)) {
+  if (test(message, NULL)) {
     fprintf(stderr, "FAIL: parsing succeeded on malformed input\n");
     exit(1);
   }
@@ -259,7 +398,7 @@ fail(const char *message)
 
 /* ====================================================================== */
 static size_t
-test(const char *message)
+test(const char *message, const control_word_t **words_out)
 {
   const control_word_t *words;
   size_t length;
@@ -275,5 +414,7 @@ test(const char *message)
     if (length == 0) fprintf(stderr, "PARSE ERROR: %s\n", words->cw_str);
     else fprintf(stderr, "parsing succeeded\n");
   }
+
+  if (words_out) *words_out = words;
   return length;
 }
