@@ -28,10 +28,16 @@
 #include <sys/time.h>
 
 #include "mper_keywords.h"
+#include "mper_msg.h"
 #include "mper_msg_reader.h"
 #include "mper_base64.h"
 
+int echo_message = 1;  /* whether to echo the message in test() */
+
 static void test_parse_control_message(void);
+static const char *create_long_msg(const char *start, const char *end,
+				   size_t length);
+static const char *create_long_base64(size_t length);
 static void pass(const char *message, size_t expected_length);
 static void fail(const char *message);
 static size_t test(const char *message);
@@ -168,6 +174,52 @@ test_parse_control_message(void)
   /* test parsing of options in different positions */
   pass("1234 ping dport=1234 ttl=5 pkt=$SGVsbG8sIFdvcmxkIQ== meth=:__123456 dest=@255.199.99.249 junkpref=@1.2.3.4/13", 8);
   pass("1234 ping meth=:__123456 dport=1234 junkpref=@1.2.3.4/13 ttl=5 dest=@255.199.99.249 pkt=$SGVsbG8sIFdvcmxkIQ==", 8);
+
+  /* test length limits */
+  echo_message = 0;
+  pass(create_long_msg("1234 ping tx=T234:567", "ttl=5",
+		       MPER_MSG_MAX_MESSAGE_SIZE), 4);
+  fail(create_long_msg("1234 ping tx=T234:567", "ttl=5",
+		       MPER_MSG_MAX_MESSAGE_SIZE + 1));
+  fail(create_long_msg("1234 ping tx=T234:567", "ttl=5",
+		       MPER_MSG_MAX_MESSAGE_SIZE + 2));
+  fail(create_long_msg("1234 ping tx=T234:567", "ttl=5",
+		       MPER_MSG_MAX_MESSAGE_SIZE + 512));
+
+  pass(create_long_base64(MPER_MSG_MAX_ENCODED_VALUE_SIZE), 3);
+  fail(create_long_base64(MPER_MSG_MAX_ENCODED_VALUE_SIZE + 4));
+  fail(create_long_base64(MPER_MSG_MAX_ENCODED_VALUE_SIZE + 512));
+  echo_message = 1;
+}
+
+
+/* ---------------------------------------------------------------------- */
+static const char *
+create_long_msg(const char *start, const char *end, size_t length)
+{
+  static char msgbuf[MPER_MSG_MAX_MESSAGE_SIZE + 1024];
+
+  size_t padlen = length - strlen(end);
+  sprintf(msgbuf, "%-*s%s", (int)padlen, start, end);
+  return msgbuf;
+}
+
+
+/* ---------------------------------------------------------------------- */
+static const char *
+create_long_base64(size_t encoded_length)
+{
+  static char msgbuf[MPER_MSG_MAX_MESSAGE_SIZE + 1];
+  static char encodebuf[MPER_MSG_MAX_ENCODED_VALUE_SIZE + 1024];
+  size_t raw_length = 3 * (encoded_length / 4);
+
+  fprintf(stderr, "\ncreating blob: %d bytes encoded, %d bytes decoded\n",
+	  (int)encoded_length, (int)raw_length);
+  memset(msgbuf, '.', sizeof(msgbuf));
+  base64_encode((const unsigned char *)msgbuf, raw_length, encodebuf);
+  strcpy(msgbuf, "1234 ping pkt=$");
+  strcat(msgbuf, encodebuf);
+  return msgbuf;
 }
 
 
@@ -212,8 +264,16 @@ test(const char *message)
   const control_word_t *words;
   size_t length;
 
-  fprintf(stderr, "\n>> %s\n", message);
-  words = parse_control_message(message, &length);
-  dump_parsed_message(words, length);
+  if (echo_message) {
+    fprintf(stderr, "\n>> %s\n", message);
+    words = parse_control_message(message, &length);
+    dump_parsed_message(words, length);
+  }
+  else {
+    fprintf(stderr, "\n>> ### %d-byte message\n", (int)strlen(message));
+    words = parse_control_message(message, &length);
+    if (length == 0) fprintf(stderr, "PARSE ERROR: %s\n", words->cw_str);
+    else fprintf(stderr, "parsing succeeded\n");
+  }
   return length;
 }

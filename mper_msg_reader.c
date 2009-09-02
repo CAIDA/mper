@@ -29,17 +29,14 @@
 #include <sys/time.h>
 
 #include "mper_keywords.h"
+#include "mper_msg.h"
 #include "mper_msg_reader.h"
 #include "mper_base64.h"
 
-#define MAX_WORDS 32
-#define MAX_ENCODED_SIZE 4096  /* allows 3072 bytes to be encoded */
-#define MAX_MESSAGE_SIZE 8192
-
 /* message_buf is also used to return error messages to the user */
-static char message_buf[MAX_MESSAGE_SIZE + 1];  /* + NUL-term */
-static control_word_t words[MAX_WORDS];
-static unsigned char decode_buf[MAX_ENCODED_SIZE + 1];  /* + NUL-term */
+static char message_buf[MPER_MSG_MAX_MESSAGE_SIZE + 1];  /* + NUL-term */
+static control_word_t words[MPER_MSG_MAX_WORDS];
+static unsigned char decode_buf[MPER_MSG_MAX_RAW_VALUE_SIZE + 1]; /* + NUL*/
 
 /* ====================================================================== */
 
@@ -104,7 +101,7 @@ parse_control_message(const char *message, size_t *length_out)
   while (*s && *s == ' ') ++s;
   if ((s = parse_command_name(s)) == NULL) RETURN_ERROR;
 
-  for (length = 2; length < MAX_WORDS; length++) {
+  for (length = 2; length < MPER_MSG_MAX_WORDS; length++) {
     while (*s && *s == ' ') ++s;
 
     if (*s == '\0') {
@@ -116,9 +113,9 @@ parse_control_message(const char *message, size_t *length_out)
     }
   }
 
-  /* assert(length >= MAX_WORDS); */
+  /* assert(length >= MPER_MSG_MAX_WORDS); */
   sprintf(message_buf, "message has too many options; max options = %d",
-	  MAX_WORDS - 2);
+	  MPER_MSG_MAX_WORDS - 2);
   RETURN_ERROR;
 }
 
@@ -129,9 +126,9 @@ copy_message(const char *message)
 {
   const char *s = message;
   char *d = message_buf;
-  char *dend = &message_buf[MAX_MESSAGE_SIZE];
+  char *dend = &message_buf[MPER_MSG_MAX_MESSAGE_SIZE];
 
-  while (*s && d <= dend) {
+  while (*s && d < dend) {
     *d++ = *s++;
   }
 
@@ -140,7 +137,8 @@ copy_message(const char *message)
     return 1;
   }
   else {
-    sprintf(message_buf, "message too long; max length = %d", MAX_MESSAGE_SIZE);
+    sprintf(message_buf, "message too long; max length = %d",
+	    MPER_MSG_MAX_MESSAGE_SIZE);
     return 0;
   }
 }
@@ -418,6 +416,13 @@ parse_base64_option_value(char *value, size_t word_index)
     while (*s && (isalnum(*s) || *s == '+' || *s == '/' || *s == '=')) ++s;
 
     if (*s == '\0' || *s == ' ') {
+      if (s - (value + 1) > MPER_MSG_MAX_ENCODED_VALUE_SIZE) {
+	sprintf(message_buf, "%s/%s option value at pos %d is too long in encoded form; %d bytes of base64 encoding > %d max bytes of encoding",
+		keyword_type_names[KT_STR], keyword_type_names[KT_BLOB],
+		(int)(s - message_buf), (int)(s - (value + 1)),
+		MPER_MSG_MAX_ENCODED_VALUE_SIZE);
+	return NULL;
+      }
       if (*s == ' ') *s++ = '\0';
 
       decode_len = base64_decode(value + 1, decode_buf);
