@@ -65,14 +65,6 @@ static void print_escaped(const unsigned char *s, size_t len);
 
 
 /* ====================================================================== */
-/*
-** Base64 encoding produces strings that are at least 1 byte longer than
-** the input string, since every 3 bytes of input become 4 bytes of output
-** and since the output is always a multiple of 4 output bytes (by being
-** padded out if the input length is 1 or 2 mod 3).  Hence, we can always
-** decode a base64 string in the same amount of space as the input string
-** and still have space to NUL-terminate the decoded string.
-*/
 
 /* This macro assumes the error message has been written to message_buf. */
 #define RETURN_ERROR \
@@ -87,7 +79,6 @@ static void print_escaped(const unsigned char *s, size_t len);
   } while (0)
 
 
-/* ====================================================================== */
 const control_word_t *
 parse_control_message(const char *message, size_t *length_out)
 {
@@ -396,6 +387,15 @@ parse_integer_option_value(char *value, size_t word_index)
 ** Syntax: $[a-zA-Z0-9+/=]+  (the base64 decoder performs a stricter check)
 **
 ** The caller should guarantee that {*value != '\0'}.
+**
+** We decode a str/blob in place, which is always safe since the encoded
+** form of a str/blob will always be longer than the decoded form.  In
+** particular, base64 encoding produces strings that are at least 1 byte
+** longer than the input string, since every 3 bytes of input become 4
+** bytes of output and since the output is always rounded up to the next
+** multiple of 4 output bytes.  Hence, we can always decode a base64 string
+** in the same amount of space as the input string and still have space to
+** NUL-terminate the decoded string.
 */
 static char *
 parse_base64_option_value(char *value, size_t word_index)
@@ -428,12 +428,13 @@ parse_base64_option_value(char *value, size_t word_index)
       decode_len = base64_decode(value + 1, decode_buf);
       if (decode_len > 0) {
 	if (!type_check_base64_option(value, word_index)) return NULL;
+	memcpy(value + 1, decode_buf, decode_len);
 	if (expected_type == KT_STR) {
-	  words[word_index].cw_str = (const char *)decode_buf;
-	  decode_buf[decode_len] = '\0';
+	  words[word_index].cw_str = value + 1;
+	  *(value + 1 + decode_len) = '\0';
 	}
 	else {
-	  words[word_index].cw_blob = decode_buf;
+	  words[word_index].cw_blob = (const unsigned char *)value + 1;
 	}
 	words[word_index].cw_len = decode_len;
 	return s;
@@ -806,7 +807,7 @@ dump_parsed_message(const control_word_t *control_words, size_t length)
 	      fprintf(stderr, " (WARN: strlen=%lu)",
 		      strlen(control_words[i].cw_str));
 	  }
-	  fprintf(stderr, " = ");
+	  fprintf(stderr, " = \"");
 	  print_escaped((unsigned char *)control_words[i].cw_str,
 			control_words[i].cw_len);
 	  fprintf(stderr, "\"\n");
