@@ -51,15 +51,23 @@ CFLAGS+=		-DWITHOUT_PRIVSEP
 CFLAGS+=		-DWITHOUT_DEBUGFILE
 .endif
 
-PROGS=			mper test-msg-reader
+PROGS=			mper test-msg-reader test-msg-writer
 
 all:			${PROGS}
 
 mper:			${OBJS}	
 			${CC} -o mper ${LDFLAGS} ${OBJS}
 
-test-msg-reader:		mper_base64.o mper_keywords.o mper_msg_reader.o test-msg-reader.o
-			${CC} -o $@ ${LDFLAGS} mper_base64.o mper_keywords.o mper_msg_reader.o test-msg-reader.o
+test-msg-reader:	mper_base64.o mper_keywords.o mper_msg_reader.o \
+			test-msg-reader.o
+			${CC} -o $@ ${LDFLAGS} mper_base64.o mper_keywords.o \
+				mper_msg_reader.o test-msg-reader.o
+
+test-msg-writer:	mper_base64.o mper_keywords.o mper_msg_reader.o \
+			mper_msg_writer.o test-msg-writer.o
+			${CC} -o $@ ${LDFLAGS} mper_base64.o mper_keywords.o \
+				mper_msg_reader.o mper_msg_writer.o \
+				test-msg-writer.o
 
 mper_keywords.c:	mper_keywords.gperf
 			gperf mper_keywords.gperf >mper_keywords.c
@@ -85,4 +93,4 @@ wc:
 clean:
 			rm -f ${OBJS} ${PROGS} *~ \
 				$(PROGS:%=%.o) $(PROGS:%=%.core) \
-				test-msg-reader.o TODO~
+				test-msg-reader.o test-msg-writer.o TODO~
