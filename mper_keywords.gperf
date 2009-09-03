@@ -31,6 +31,27 @@
 
 #include "mper_keywords.h"
 
+const char* keyword_code_names[] = {
+  "<NONE>",
+  "<ERROR>",
+  "<REQNUM>",
+  "<CMD_MIN>",
+  "ping",
+  "<CMD_MAX>",
+  "<OPT_MIN>",
+  "txt",
+  "pkt",
+  "dest",
+  "net",
+  "ttl",
+  "meth",
+  "sport",
+  "dport",
+  "tx",
+  "rx",
+  "<OPT_MAX>",
+};
+
 const char* keyword_type_names[] = {
   "<none>",
   "integer",
@@ -50,12 +71,13 @@ struct keyword;
 ping, KC_PING_CMD, KT_NONE
 #
 # options
-junkstr, KC_JUNKSTR_OPT, KT_STR
-junkpref, KC_JUNKPREF_OPT, KT_PREFIX
+txt, KC_TXT_OPT, KT_STR
 pkt, KC_PKT_OPT, KT_BLOB
 dest, KC_DEST_OPT, KT_ADDRESS
+net, KC_NET_OPT, KT_PREFIX
 ttl, KC_TTL_OPT, KT_UINT
 meth, KC_METH_OPT, KT_SYMBOL
+sport, KC_DPORT_OPT, KT_UINT
 dport, KC_DPORT_OPT, KT_UINT
 tx, KC_TX_OPT, KT_TIMEVAL
 rx, KC_RX_OPT, KT_TIMEVAL

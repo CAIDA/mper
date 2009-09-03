@@ -36,12 +36,13 @@ typedef enum {
   KC_CMD_MAX,
 
   KC_OPT_MIN,
-  KC_JUNKSTR_OPT,
-  KC_JUNKPREF_OPT,
+  KC_TXT_OPT,
   KC_PKT_OPT,
   KC_DEST_OPT,
+  KC_NET_OPT,
   KC_TTL_OPT,
   KC_METH_OPT,
+  KC_SPORT_OPT,
   KC_DPORT_OPT,
   KC_TX_OPT,
   KC_RX_OPT,
@@ -67,6 +68,7 @@ struct keyword
   keyword_type type;
 };
 
+extern const char* keyword_code_names[];
 extern const char* keyword_type_names[];
 
 const struct keyword *in_word_set(const char *str, unsigned int len);

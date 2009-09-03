@@ -117,13 +117,13 @@ test_parse_control_message(void)
 
   fail("1234 ping pkt=$SGVsbG8sIFdvcmxkIQ=");  /* malformed base64 encoding */
 
-  pass("1234 ping junkstr=$SGVsbG8sIFdvcmxkIQ==", 3,
+  pass("1234 ping txt=$SGVsbG8sIFdvcmxkIQ==", 3,
        KT_STR, "Hello, World!", 13);
 
-  pass("1234 ping junkstr=$SGVsbG8sCgpXb3JsZCE=", 3,
+  pass("1234 ping txt=$SGVsbG8sCgpXb3JsZCE=", 3,
        KT_STR, "Hello,\n\nWorld!", 14);
 
-  pass("1234 ping junkstr=$SGVsbG8sAFdvcmxkIQ==", 3,
+  pass("1234 ping txt=$SGVsbG8sAFdvcmxkIQ==", 3,
        KT_STR, "Hello,\0World!", 13);
 
   fail("1234 ping meth=:");
@@ -151,20 +151,20 @@ test_parse_control_message(void)
   fail("1234 ping dest=@1111.2.3.4");
   pass("1234 ping dest=@255.199.99.249", 3, KT_ADDRESS, "255.199.99.249");
 
-  fail("1234 ping junkpref=@1.2.3/");
-  fail("1234 ping junkpref=@1.2.3./");
-  fail("1234 ping junkpref=@1.2.3.4/");
-  fail("1234 ping junkpref=@1.2.3.4/ ");
-  fail("1234 ping junkpref=@1.2.3.4/.");
-  fail("1234 ping junkpref=@1.2.3.4/0000");
-  fail("1234 ping junkpref=@1.2.3.4/01");
-  fail("1234 ping junkpref=@1.2.3.4/001");
-  fail("1234 ping junkpref=@1.2.3.4/33");
-  fail("1234 ping junkpref=@1.2.3.4/34");
-  fail("1234 ping junkpref=@1.2.3.4/45");
-  pass("1234 ping junkpref=@1.2.3.4/0", 3, KT_PREFIX, "1.2.3.4/0");
-  pass("1234 ping junkpref=@1.2.3.4/13", 3, KT_PREFIX, "1.2.3.4/13");
-  pass("1234 ping junkpref=@1.2.3.4/32", 3, KT_PREFIX, "1.2.3.4/32");
+  fail("1234 ping net=@1.2.3/");
+  fail("1234 ping net=@1.2.3./");
+  fail("1234 ping net=@1.2.3.4/");
+  fail("1234 ping net=@1.2.3.4/ ");
+  fail("1234 ping net=@1.2.3.4/.");
+  fail("1234 ping net=@1.2.3.4/0000");
+  fail("1234 ping net=@1.2.3.4/01");
+  fail("1234 ping net=@1.2.3.4/001");
+  fail("1234 ping net=@1.2.3.4/33");
+  fail("1234 ping net=@1.2.3.4/34");
+  fail("1234 ping net=@1.2.3.4/45");
+  pass("1234 ping net=@1.2.3.4/0", 3, KT_PREFIX, "1.2.3.4/0");
+  pass("1234 ping net=@1.2.3.4/13", 3, KT_PREFIX, "1.2.3.4/13");
+  pass("1234 ping net=@1.2.3.4/32", 3, KT_PREFIX, "1.2.3.4/32");
 
   fail("1234 ping tx=T");
   fail("1234 ping tx=T ");
@@ -177,9 +177,9 @@ test_parse_control_message(void)
   pass("1234 ping tx=T234:567", 3, KT_TIMEVAL, (time_t)234, (suseconds_t)567);
 
   /* test non-interference of multiple str/blobs */
-  pass("1234 ping pkt=$SGVsbG8s junkstr=$IFdvcmxkIQ==", 4,
+  pass("1234 ping pkt=$SGVsbG8s txt=$IFdvcmxkIQ==", 4,
        KT_BLOB, "Hello,", 6, KT_STR, " World!", 7);
-  pass("1234 ping junkstr=$IFdvcmxkIQ== pkt=$SGVsbG8s", 4,
+  pass("1234 ping txt=$IFdvcmxkIQ== pkt=$SGVsbG8s", 4,
        KT_STR, " World!", 7, KT_BLOB, "Hello,", 6);
 
   /* test type checking */
@@ -189,8 +189,8 @@ test_parse_control_message(void)
   fail("1234 ping dest=255");
   fail("1234 ping meth=123456");
   fail("1234 ping meth=@1.2.3.4/0");
-  fail("1234 ping junkpref=@1.2.3.4");
-  fail("1234 ping junkpref=:hey");
+  fail("1234 ping net=@1.2.3.4");
+  fail("1234 ping net=:hey");
   fail("1234 ping pkt=555");
   fail("1234 ping pkt=:hi");
   fail("1234 ping pkt=T123:456");
@@ -198,12 +198,12 @@ test_parse_control_message(void)
   fail("1234 ping tx=$SGVsbG8sIFdvcmxkIQ==");
 
   /* test parsing of options in different positions */
-  pass("1234 ping dport=1234 ttl=5 pkt=$SGVsbG8sIFdvcmxkIQ== meth=:__123456 dest=@255.199.99.249 junkpref=@1.2.3.4/13", 8,
+  pass("1234 ping dport=1234 ttl=5 pkt=$SGVsbG8sIFdvcmxkIQ== meth=:__123456 dest=@255.199.99.249 net=@1.2.3.4/13", 8,
        KT_UINT, 1234, KT_UINT, 5, KT_BLOB, "Hello, World!", 13,
        KT_SYMBOL, "__123456", KT_ADDRESS, "255.199.99.249",
        KT_PREFIX, "1.2.3.4/13");
 
-  pass("1234 ping meth=:__123456 dport=1234 junkpref=@1.2.3.4/13 ttl=5 dest=@255.199.99.249 pkt=$SGVsbG8sIFdvcmxkIQ==", 8,
+  pass("1234 ping meth=:__123456 dport=1234 net=@1.2.3.4/13 ttl=5 dest=@255.199.99.249 pkt=$SGVsbG8sIFdvcmxkIQ==", 8,
        KT_SYMBOL, "__123456", KT_UINT, 1234, KT_PREFIX, "1.2.3.4/13",
        KT_UINT, 5, KT_ADDRESS, "255.199.99.249", KT_BLOB, "Hello, World!", 13);
 
