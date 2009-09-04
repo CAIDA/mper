@@ -61,7 +61,8 @@ static const unsigned char decode_tbl[256] =
 
 
 /*
-** Encodes {len} bytes at {src} into {dst}.
+** Encodes {len} bytes at {src} into {dst}, and returns the number of base64
+** bytes written to {dst} (not counting terminating NUL).
 **
 ** There must be {4 * round[(len + 1) / 3] + 1} bytes available at {dst},
 ** which will be NUL-terminated.  This outputs a single long line.  Thus,
@@ -69,9 +70,11 @@ static const unsigned char decode_tbl[256] =
 ** with RFC 1421, which requires the encoded output to be split into lines of
 ** exactly 64 printable characters each (except the last line).
 */
-void
+size_t
 base64_encode(const unsigned char *src, size_t len, char *dst)
 {
+  char *dst_start = dst;
+
   while (len > 0) {
     if (len >= 3) {  /* A[6:2], B[4:4], C[2:6] */
       unsigned char i, j, k, l;
@@ -115,11 +118,12 @@ base64_encode(const unsigned char *src, size_t len, char *dst)
   }
 
   *dst = '\0';
+  return dst - dst_start;
 }
 
 
 /*
-** Decodes {src} into {dst}, returning the number of bytes written to {dst}.
+** Decodes {src} into {dst}, and returns the number of bytes written to {dst}.
 **
 ** If the input is malformed in any way, this returns 0.  This also returns
 ** 0 if {src} is an empty string, so be careful of the minor ambiguity in

@@ -23,7 +23,7 @@
 #ifndef __MPER_BASE64_H__
 #define __MPER_BASE64_H__
 
-void base64_encode(const unsigned char *src, size_t len, char *dst);
+size_t base64_encode(const unsigned char *src, size_t len, char *dst);
 size_t base64_decode(const char *src, unsigned char *dst);
 
 #endif /* __MPER_BASE64_H__ */
