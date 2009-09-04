@@ -69,8 +69,24 @@ test-msg-writer:	mper_base64.o mper_keywords.o mper_msg_reader.o \
 				mper_msg_reader.o mper_msg_writer.o \
 				test-msg-writer.o
 
-mper_keywords.c:	mper_keywords.gperf
+mper_keywords.c:	mper_keywords.h mper_keywords.gperf
 			gperf mper_keywords.gperf >mper_keywords.c
+
+mper_msg_reader.o:	mper_keywords.h mper_base64.h mper_msg.h \
+			mper_msg_reader.h mper_msg_reader.c
+			${CC} ${CFLAGS} -c mper_msg_reader.c
+
+mper_msg_writer.o:	mper_keywords.h mper_base64.h mper_msg.h \
+			mper_msg_writer.h mper_msg_writer.c
+			${CC} ${CFLAGS} -c mper_msg_writer.c
+
+test-msg-reader.o:      mper_keywords.h mper_msg.h mper_msg_reader.h \
+			test-msg-reader.c
+			${CC} ${CFLAGS} -c test-msg-reader.c
+
+test-msg-writer.o:      mper_keywords.h mper_msg.h mper_msg_reader.h \
+			mper_msg_writer.h test-msg-writer.c
+			${CC} ${CFLAGS} -c test-msg-writer.c
 
 ifdef WITH_LISTDEBUG
 mjl_list.o:		mjl_list.c mjl_list.h
