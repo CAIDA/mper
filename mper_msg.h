@@ -33,7 +33,7 @@
 **       MPER_MSG_MAX_RAW_VALUE_SIZE + 1 bytes long.
 */
 
-#define MPER_MSG_MAX_WORDS 32
+#define MPER_MSG_MAX_WORDS 64
 #define MPER_MSG_MAX_RAW_VALUE_SIZE 3072   /* max input for base64 encoding */
 #define MPER_MSG_MAX_ENCODED_VALUE_SIZE 4096  /* decodes to max of 3072 bytes */
 #define MPER_MSG_MAX_MESSAGE_SIZE 8192
