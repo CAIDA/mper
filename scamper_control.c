@@ -61,8 +61,10 @@ typedef int socklen_t;
 
 #ifndef _WIN32
 #include <sys/socket.h>
+#include <sys/un.h>
 #include <sys/time.h>
 #include <netinet/in.h>
+#include <netinet/tcp.h>  /* for TCP_NODELAY */
 #include <unistd.h>
 #endif
 
@@ -466,35 +468,86 @@ static void control_accept(const int fd, void *param)
   return;
 }
 
-int scamper_control_init(int port)
+int scamper_control_init(int port, int use_tcp)
 {
   struct sockaddr_in sin;
   struct in_addr     in;
   int                fd = -1, opt;
+#ifndef _WIN32
+  struct sockaddr_un sun;
+  int path_len;
 
-  /* open the TCP socket we are going to listen on */
-  if((fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1)
+  if(use_tcp)
+#endif
     {
-      printerror(errno, strerror, __func__, "could not create TCP socket");
-      return -1;
-    }
+      /* open the TCP socket we are going to listen on */
+      if((fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1)
+        {
+	  printerror(errno, strerror, __func__, "could not create TCP socket");
+	  return -1;
+	}
 
-  opt = 1;
-  if(setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (char *)&opt, sizeof(opt)) != 0)
-    {
-      printerror(errno, strerror, __func__, "could not set SO_REUSEADDR");
-      goto cleanup;
-    }
+      opt = 1;
+      if(setsockopt(fd, IPPROTO_TCP, TCP_NODELAY,
+		    (char *)&opt, sizeof(opt)) != 0)
+        {
+	  printerror(errno, strerror, __func__, "could not set TCP_NODELAY");
+	  goto cleanup;
+	}
 
-  /* bind the socket to loopback on the specified port */
-  in.s_addr = htonl(INADDR_LOOPBACK);
-  sockaddr_compose((struct sockaddr *)&sin, AF_INET, &in, port);
-  if(bind(fd, (struct sockaddr *)&sin, sizeof(sin)) == -1)
-    {
-      printerror(errno, strerror, __func__,
-		 "could not bind to loopback port %d", port);
-      goto cleanup;
+      opt = 1;
+      if(setsockopt(fd, SOL_SOCKET, SO_REUSEADDR,
+		    (char *)&opt, sizeof(opt)) != 0)
+        {
+	  printerror(errno, strerror, __func__, "could not set SO_REUSEADDR");
+	  goto cleanup;
+	}
+
+      /* bind the socket to loopback on the specified port */
+      in.s_addr = htonl(INADDR_LOOPBACK);
+      sockaddr_compose((struct sockaddr *)&sin, AF_INET, &in, port);
+      if(bind(fd, (struct sockaddr *)&sin, sizeof(sin)) == -1)
+        {
+	  printerror(errno, strerror, __func__,
+		     "could not bind to loopback port %d", port);
+	  goto cleanup;
+	}
+
+      scamper_debug(__func__, "listening on tcp port %d", port);
     }
+#ifndef _WIN32
+  else
+    {
+      if((fd = socket(AF_LOCAL, SOCK_STREAM, 0)) == -1)
+        {
+	  printerror(errno, strerror, __func__, "could not create unix socket");
+	  return -1;
+	}
+
+      memset(&sun, 0, sizeof(sun));
+      sun.sun_family = AF_LOCAL;
+      path_len = snprintf(sun.sun_path, sizeof(sun.sun_path),
+			  "/tmp/mper.%d", port);
+      if(path_len >= sizeof(sun.sun_path))
+        {
+	  printerror(errno, NULL, __func__,
+	      "INTERNAL ERROR: unix domain socket path too long for port %d",
+		     port);
+	  goto cleanup;
+	}
+
+      (void)unlink(sun.sun_path);
+      if(bind(fd, (struct sockaddr *)&sun, SUN_LEN(&sun)) == -1)
+        {
+	  printerror(errno, strerror, __func__,
+		     "could not bind to unix domain socket %s", sun.sun_path);
+	  goto cleanup;
+	}
+
+      scamper_debug(__func__, "listening on unix domain socket %s",
+		    sun.sun_path);
+    }
+#endif
 
   /* tell the system we want to listen for new clients on this socket */
   if(listen(fd, -1) == -1)

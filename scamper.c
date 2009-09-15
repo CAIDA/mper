@@ -102,6 +102,7 @@ static uint32_t options = 0;
 #define OPT_WINDOW      0x00010000 /* w: */
 #define OPT_DEBUGFILE   0x00020000 /* d: */
 #define OPT_FIREWALL    0x00200000 /* F: */
+#define OPT_USE_TCP     0x00400000 /* T */
 
 /*
  * parameters configurable by the command line:
@@ -116,6 +117,7 @@ static uint32_t options = 0;
  * window:      maximum number of concurrent tasks to actively probe
  * debugfile:   place to write debugging output
  * firewall:    scamper should use the system firewall when needed
+ * use_tcp:     use a TCP server socket instead of a Unix domain socket
  */
 static char  *command      = NULL;
 static int    pps          = SCAMPER_PPS_DEF;
@@ -127,6 +129,7 @@ static int    arglist_len  = 0;
 static int    window       = SCAMPER_WINDOW_DEF;
 static char  *debugfile    = NULL;
 static char  *firewall     = NULL;
+static int   use_tcp       = 0;
 
 /*
  * parameters calculated by scamper at run time:
@@ -162,7 +165,7 @@ static void usage(uint32_t opt_mask)
     "usage: scamper [-?Pv] [-p pps] [-w window]\n"
     "               [-M monitorname]\n"
     "               [-H holdtime] [-d debugfile] [-F firewall]\n"
-    "               [-D port]\n");
+    "               [-D port] [-T]\n");
 
   if(opt_mask == 0) return;
 
@@ -230,7 +233,7 @@ static int check_options(int argc, char *argv[])
 {
   int   i;
   long  lo;
-  char *opts = "d:D:F:H:M:p:Pvw:?";
+  char *opts = "d:D:F:H:M:p:PTvw:?";
   char *opt_daemon = NULL, *opt_holdtime = NULL, *opt_monitorname = NULL;
   char *opt_pps = NULL, *opt_window = NULL;
   char *opt_debugfile = NULL, *opt_firewall = NULL;
@@ -271,6 +274,11 @@ static int check_options(int argc, char *argv[])
 
 	case 'P':
 	  options |= OPT_DL;
+	  break;
+
+	case 'T':
+	  options |= OPT_USE_TCP;
+	  use_tcp = 1;
 	  break;
 
 	case 'v':
@@ -363,6 +371,10 @@ static int check_options(int argc, char *argv[])
 
       daemon_port = lo;
     }
+
+#ifdef _WIN32
+  use_tcp = 1;  /* unix domain sockets not supported */
+#endif
 
   return 0;
 }
@@ -598,7 +610,7 @@ static int scamper(int argc, char *argv[])
    */
   if(options & OPT_DAEMON)
     {
-      if(scamper_control_init(daemon_port) == -1)
+      if(scamper_control_init(daemon_port, use_tcp) == -1)
 	{
 	  return -1;
 	}

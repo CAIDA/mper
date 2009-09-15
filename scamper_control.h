@@ -24,7 +24,7 @@
 #ifndef __SCAMPER_CONTROL_H
 #define __SCAMPER_CONTROL_H
 
-int scamper_control_init(int port);
+int scamper_control_init(int port, int use_tcp);
 void scamper_control_cleanup(void);
 
 #endif
