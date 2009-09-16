@@ -70,7 +70,6 @@ typedef unsigned __int32 uint32_t;
 #include "scamper_debug.h"
 #include "scamper_addr.h"
 #include "scamper_task.h"
-#include "scamper_sources.h"
 #include "scamper_target.h"
 #include "scamper_queue.h"
 #include "scamper_getsrc.h"

@@ -27,4 +27,18 @@
 int scamper_control_init(int port, int use_tcp);
 void scamper_control_cleanup(void);
 
+typedef struct scamper_source scamper_source_t;
+
+void scamper_source_free(scamper_source_t *source);
+
+/* function for advising source that an active task has completed */
+void scamper_source_taskdone(scamper_source_t *source,scamper_task_t *task);
+
+/* functions for managing a collection of sources */
+int scamper_sources_gettask(scamper_task_t **task);
+int scamper_sources_init(void);
+void scamper_sources_cleanup(void);
+int scamper_sources_isready(void);
+int scamper_sources_isempty(void);
+
 #endif

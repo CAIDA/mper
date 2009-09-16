@@ -79,7 +79,7 @@ typedef __int16 int16_t;
 #include "scamper_probe.h"
 #include "scamper_task.h"
 #include "scamper_queue.h"
-#include "scamper_sources.h"
+#include "scamper_control.h"
 #include "scamper_debug.h"
 #include "scamper_do_ping.h"
 #include "scamper_options.h"
@@ -853,6 +853,22 @@ static void do_ping_handle_timeout(scamper_task_t *task)
 
 static void do_ping_write(scamper_task_t *task)
 {
+#if 0
+  const char *outfile_name;
+  scamper_outfile_t *outfile;
+  scamper_file_t *sf;
+
+  outfile_name = scamper_source_getoutfile(task->source);
+  assert(outfile_name != NULL);
+
+  if((outfile = scamper_outfiles_get(outfile_name)) != NULL)
+    {
+      sf = scamper_outfile_getfile(outfile);
+      scamper_file_write_ping(sf, (scamper_ping_t *)task->data);
+    }
+
+  return;
+#endif
 }
 
 static void do_ping_free(scamper_task_t *task)

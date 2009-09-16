@@ -17,7 +17,7 @@ OBJS=			scamper.o scamper_debug.o utils.o \
 			scamper_control.o scamper_firewall.o \
 			scamper_addr.o scamper_probe.o \
 			scamper_target.o scamper_task.o scamper_queue.o \
-			scamper_options.o scamper_sources.o \
+			scamper_options.o \
 			mper_base64.o mper_keywords.o mper_msg_reader.o
 
 UNAME := $(shell uname)
