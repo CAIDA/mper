@@ -69,82 +69,82 @@ test_create_control_message(void)
 
   INIT_CMESSAGE(words, 1234, PING);
   words[1].cw_code = KC_TXT_OPT;
-  fail(CMSG_LEN(0));
+  fail(CMESSAGE_LEN(0));
 
   INIT_CMESSAGE(words, 1234, PING);
-  pass(CMSG_LEN(0), "1234 ping");
+  pass(CMESSAGE_LEN(0), "1234 ping");
 
   INIT_CMESSAGE(words, 1234, PING);
   words[2].cw_code = KC_PING_CMD;
-  fail(CMSG_LEN(1));
+  fail(CMESSAGE_LEN(1));
 
   /*    uint */
   INIT_CMESSAGE(words, 1234, PING);
   SET_UINT_CWORD(words, 1, TTL, 5);
-  pass(CMSG_LEN(1), "1234 ping ttl=5");
+  pass(CMESSAGE_LEN(1), "1234 ping ttl=5");
 
   /*    blob */
   INIT_CMESSAGE(words, 1234, PING);
   SET_BLOB_CWORD(words, 1, PKT, (const unsigned char *)"Hello, World!", 0);
-  fail(CMSG_LEN(1));  /* cw_len of 0 is illegal */
+  fail(CMESSAGE_LEN(1));  /* cw_len of 0 is illegal */
 
   words[2].cw_len = 13;
-  pass(CMSG_LEN(1), "1234 ping pkt=$SGVsbG8sIFdvcmxkIQ==");
+  pass(CMESSAGE_LEN(1), "1234 ping pkt=$SGVsbG8sIFdvcmxkIQ==");
 
   INIT_CMESSAGE(words, 1234, PING);
   SET_BLOB_CWORD(words, 1, PKT, (const unsigned char *)"Hello,\n\nWorld!", 14);
-  pass(CMSG_LEN(1), "1234 ping pkt=$SGVsbG8sCgpXb3JsZCE=");
+  pass(CMESSAGE_LEN(1), "1234 ping pkt=$SGVsbG8sCgpXb3JsZCE=");
 
   INIT_CMESSAGE(words, 1234, PING);
   SET_BLOB_CWORD(words, 1, PKT, (const unsigned char *)"Hello,\0World!", 13);
-  pass(CMSG_LEN(1), "1234 ping pkt=$SGVsbG8sAFdvcmxkIQ==");
+  pass(CMESSAGE_LEN(1), "1234 ping pkt=$SGVsbG8sAFdvcmxkIQ==");
 
   /*    str */
   INIT_CMESSAGE(words, 1234, PING);
   SET_STR_CWORD(words, 1, TXT, "Hello, World!", 13);
-  pass(CMSG_LEN(1), "1234 ping txt=$SGVsbG8sIFdvcmxkIQ==");
+  pass(CMESSAGE_LEN(1), "1234 ping txt=$SGVsbG8sIFdvcmxkIQ==");
 
   INIT_CMESSAGE(words, 1234, PING);
   SET_STR_CWORD(words, 1, TXT, "Hello,\n\nWorld!", 14);
-  pass(CMSG_LEN(1), "1234 ping txt=$SGVsbG8sCgpXb3JsZCE=");
+  pass(CMESSAGE_LEN(1), "1234 ping txt=$SGVsbG8sCgpXb3JsZCE=");
 
   INIT_CMESSAGE(words, 1234, PING);
   SET_STR_CWORD(words, 1, TXT, "Hello,\0World!", 13);
-  pass(CMSG_LEN(1), "1234 ping txt=$SGVsbG8sAFdvcmxkIQ==");
+  pass(CMESSAGE_LEN(1), "1234 ping txt=$SGVsbG8sAFdvcmxkIQ==");
 
   /*    symbol */
   INIT_CMESSAGE(words, 1234, PING);
   SET_SYMBOL_CWORD(words, 1, METH, "__123456");
-  pass(CMSG_LEN(1), "1234 ping meth=:__123456");
+  pass(CMESSAGE_LEN(1), "1234 ping meth=:__123456");
 
   INIT_CMESSAGE(words, 1234, PING);
   SET_SYMBOL_CWORD(words, 1, METH, "ab-cd_f-234");
-  pass(CMSG_LEN(1), "1234 ping meth=:ab-cd_f-234");
+  pass(CMESSAGE_LEN(1), "1234 ping meth=:ab-cd_f-234");
 
   /*    address and prefix */
   INIT_CMESSAGE(words, 1234, PING);
   SET_ADDRESS_CWORD(words, 1, DEST, "255.199.99.249");
-  pass(CMSG_LEN(1), "1234 ping dest=@255.199.99.249");
+  pass(CMESSAGE_LEN(1), "1234 ping dest=@255.199.99.249");
 
   INIT_CMESSAGE(words, 1234, PING);
   SET_PREFIX_CWORD(words, 1, NET, "1.2.3.4/5");
-  pass(CMSG_LEN(1), "1234 ping net=@1.2.3.4/5");
+  pass(CMESSAGE_LEN(1), "1234 ping net=@1.2.3.4/5");
 
   /*    timeval */
   INIT_CMESSAGE(words, 1234, PING);
   SET_TIMEVAL2_CWORD(words, 1, TX, 234, 567);
-  pass(CMSG_LEN(1), "1234 ping tx=T234:567");
+  pass(CMESSAGE_LEN(1), "1234 ping tx=T234:567");
 
   /* test non-interference of multiple str/blobs */
   INIT_CMESSAGE(words, 1234, PING);
   SET_BLOB_CWORD(words, 1, PKT, (const unsigned char *)"Hello,", 6);
   SET_STR_CWORD(words, 2, TXT, " World!", 7);
-  pass(CMSG_LEN(2), "1234 ping pkt=$SGVsbG8s txt=$IFdvcmxkIQ==");
+  pass(CMESSAGE_LEN(2), "1234 ping pkt=$SGVsbG8s txt=$IFdvcmxkIQ==");
 
   INIT_CMESSAGE(words, 1234, PING);
   SET_STR_CWORD(words, 1, TXT, " World!", 7);
   SET_BLOB_CWORD(words, 2, PKT, (const unsigned char *)"Hello,", 6);
-  pass(CMSG_LEN(2), "1234 ping txt=$IFdvcmxkIQ== pkt=$SGVsbG8s");
+  pass(CMESSAGE_LEN(2), "1234 ping txt=$IFdvcmxkIQ== pkt=$SGVsbG8s");
 
   /* test options in different positions */
   INIT_CMESSAGE(words, 1234, PING);
@@ -154,7 +154,7 @@ test_create_control_message(void)
   SET_SYMBOL_CWORD(words, 4, METH, "__123456");
   SET_ADDRESS_CWORD(words, 5, DEST, "255.199.99.249");
   SET_PREFIX_CWORD(words, 6, NET, "1.2.3.4/13");
-  pass(CMSG_LEN(6), "1234 ping dport=1234 ttl=5 pkt=$SGVsbG8sIFdvcmxkIQ== meth=:__123456 dest=@255.199.99.249 net=@1.2.3.4/13");
+  pass(CMESSAGE_LEN(6), "1234 ping dport=1234 ttl=5 pkt=$SGVsbG8sIFdvcmxkIQ== meth=:__123456 dest=@255.199.99.249 net=@1.2.3.4/13");
 
   INIT_CMESSAGE(words, 1234, PING);
   SET_SYMBOL_CWORD(words, 1, METH, "__123456");
@@ -163,7 +163,7 @@ test_create_control_message(void)
   SET_UINT_CWORD(words, 4, TTL, 5);
   SET_ADDRESS_CWORD(words, 5, DEST, "255.199.99.249");
   SET_BLOB_CWORD(words, 6, PKT, (const unsigned char *)"Hello, World!", 13);
-  pass(CMSG_LEN(6), "1234 ping meth=:__123456 dport=1234 net=@1.2.3.4/13 ttl=5 dest=@255.199.99.249 pkt=$SGVsbG8sIFdvcmxkIQ==");
+  pass(CMESSAGE_LEN(6), "1234 ping meth=:__123456 dport=1234 net=@1.2.3.4/13 ttl=5 dest=@255.199.99.249 pkt=$SGVsbG8sIFdvcmxkIQ==");
 }
 
 

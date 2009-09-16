@@ -56,9 +56,9 @@
 **                 the '_OPT' suffix.  This is for increased readability.
 **                 So use 'TTL' instead of 'KC_TTL_OPT' in the third argument.
 **
-**   4. Use the CMSG_LEN macro to calculate the corrent length value to
+**   4. Use the CMESSAGE_LEN macro to calculate the corrent length value to
 **      pass to create_control_message() and marshal_control_message().
-**      If you are creating a command with {n} options, then CMSG_LEN(n)
+**      If you are creating a command with {n} options, then CMESSAGE_LEN(n)
 **      equals the length of the underlying control_word_t array.
 **      
 **      For example, here are the steps to create a message with two options:
@@ -69,10 +69,10 @@
 **         SET_UINT_CWORD(words, 1, TTL, 5);
 **         SET_STR_CWORD(words, 2, TXT, "Hello, World!", 13);
 **
-**         msg = create_control_message(words, CMSG_LEN(2), &msg_length);
+**         msg = create_control_message(words, CMESSAGE_LEN(2), &msg_length);
 */
 
-#define CMSG_LEN(n) (n)+2
+#define CMESSAGE_LEN(n) (n)+2
 
 #define INIT_CMESSAGE(words,reqnum,cmd) \
   memset(words, 0, 2 * sizeof(control_word_t)); \
