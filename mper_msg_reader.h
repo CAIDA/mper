@@ -27,8 +27,13 @@
 ** Parses a control message and returns a pointer to {*length_out} number of
 ** control word structures.
 **
-** On parse error, this sets {*length_out} to 0 and stores the error message
-** in the cw_str field of the first control word structure.
+** On parse error, this sets {*length_out} to 0 and
+**  (1) stores the reqnum in the cw_uint field of the first control word
+**      (if cw_code of the first control word does not equal KC_REQNUM,
+**       then even the reqnum couldn't be parsed and cw_uint will be 0), and
+**  (2) stores the error message in the cw_str field of the second control
+**      word structure (cw_code will equal KC_ERROR).
+**
 ** (Note: This function never returns NULL.)
 */
 const control_word_t *

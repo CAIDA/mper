@@ -412,7 +412,7 @@ test(const char *message, const control_word_t **words_out)
   else {
     fprintf(stderr, "\n>> ### %d-byte message\n", (int)strlen(message));
     words = parse_control_message(message, &length);
-    if (length == 0) fprintf(stderr, "PARSE ERROR: %s\n", words->cw_str);
+    if (length == 0) fprintf(stderr, "PARSE ERROR: %s\n", words[1].cw_str);
     else fprintf(stderr, "parsing succeeded\n");
   }
 

@@ -70,11 +70,11 @@ static void print_escaped(const unsigned char *s, size_t len);
 #define RETURN_ERROR \
   do { \
     *length_out = 0; \
-    memset(&words[0], 0, sizeof(control_word_t)); \
-    words[0].cw_name = "<error>"; \
-    words[0].cw_code = KC_ERROR; \
-    words[0].cw_type = KT_STR; \
-    words[0].cw_str = message_buf; \
+    memset(&words[1], 0, sizeof(control_word_t)); \
+    words[1].cw_name = "<error>"; \
+    words[1].cw_code = KC_ERROR; \
+    words[1].cw_type = KT_STR; \
+    words[1].cw_str = message_buf; \
     return words; \
   } while (0)
 
@@ -84,6 +84,8 @@ parse_control_message(const char *message, size_t *length_out)
 {
   char *s = message_buf;
   size_t length;
+
+  memset(&words[0], 0, sizeof(control_word_t));
 
   if (!copy_message(message)) RETURN_ERROR;
   
@@ -771,8 +773,14 @@ dump_parsed_message(const control_word_t *control_words, size_t length)
   size_t i;
 
   if (length == 0) {  /* parse error */
-    DUMP_ASSERT(control_words->cw_code == KC_ERROR);
-    fprintf(stderr, "PARSE ERROR: %s\n", control_words->cw_str);
+    DUMP_ASSERT(control_words[1].cw_code == KC_ERROR);
+    if (control_words[0].cw_code != KC_REQNUM) {
+      fprintf(stderr, "PARSE ERROR: reqnum ??: %s\n", control_words[1].cw_str);
+    }
+    else {
+      fprintf(stderr, "PARSE ERROR: reqnum %lu: %s\n",
+	      (unsigned long)control_words[0].cw_uint, control_words[1].cw_str);
+    }
   }
   else {
     DUMP_ASSERT(length >= 2);

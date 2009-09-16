@@ -33,6 +33,10 @@ typedef enum {
 
   KC_CMD_MIN,
   KC_PING_CMD,
+  KC_CMD_ERROR_CMD,      /* response: error parsing command */
+  KC_SEND_ERROR_CMD,     /* response: couldn't send probe */
+  KC_RESP_TIMEOUT_CMD,   /* response: response timed out */
+  KC_PING_RESP_CMD,  /* response: valid response to ping command */
   KC_CMD_MAX,
 
   KC_OPT_MIN,

@@ -37,6 +37,10 @@ const char* keyword_code_names[] = {
   "<REQNUM>",
   "<CMD_MIN>",
   "ping",
+  "cmd_error",
+  "send_error",
+  "resp_timeout",
+  "ping_resp",
   "<CMD_MAX>",
   "<OPT_MIN>",
   "txt",
@@ -69,6 +73,10 @@ struct keyword;
 %%
 # commands
 ping, KC_PING_CMD, KT_NONE
+cmd_error, KC_CMD_ERROR_CMD, KT_NONE
+send_error, KC_SEND_ERROR_CMD, KT_NONE
+resp_timeout, KC_RESP_TIMEOUT_CMD, KT_NONE
+ping_resp, KC_PING_RESP_CMD, KT_NONE
 #
 # options
 txt, KC_TXT_OPT, KT_STR
