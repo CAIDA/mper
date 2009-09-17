@@ -66,6 +66,11 @@ typedef unsigned __int32 uint32_t;
 #include <dmalloc.h>
 #endif
 
+#include "mper_keywords.h"
+#include "mper_msg.h"
+#include "mper_msg_reader.h"
+#include "mper_msg_writer.h"
+
 #include "scamper.h"
 #include "scamper_debug.h"
 #include "scamper_addr.h"
@@ -86,6 +91,7 @@ typedef unsigned __int32 uint32_t;
 #include "scamper_probe.h"
 #include "scamper_privsep.h"
 #include "scamper_control.h"
+#include "scamper_ping.h"
 #include "scamper_do_ping.h"
 
 #include "utils.h"

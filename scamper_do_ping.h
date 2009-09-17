@@ -24,7 +24,9 @@
 #ifndef __SCAMPER_DO_PING_H
 #define __SCAMPER_DO_PING_H
 
-void *scamper_do_ping_alloc(char *str);
+scamper_ping_t *scamper_do_ping_alloc(const control_word_t *words,
+				      size_t word_count,
+				      const char **error_msg);
 
 int scamper_do_ping_dstaddr(void *data, void *param,
 			    int (*foreach)(struct scamper_addr *, void *));

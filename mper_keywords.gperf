@@ -49,8 +49,10 @@ const char* keyword_code_names[] = {
   "net",
   "ttl",
   "meth",
+  "cksum",
   "sport",
   "dport",
+  "udata",
   "tx",
   "rx",
   "<OPT_MAX>",
@@ -85,8 +87,10 @@ dest, KC_DEST_OPT, KT_ADDRESS
 net, KC_NET_OPT, KT_PREFIX
 ttl, KC_TTL_OPT, KT_UINT
 meth, KC_METH_OPT, KT_SYMBOL
+cksum, KC_CKSUM_OPT, KT_UINT
 sport, KC_DPORT_OPT, KT_UINT
 dport, KC_DPORT_OPT, KT_UINT
+udata, KC_UDATA_OPT, KT_UINT
 tx, KC_TX_OPT, KT_TIMEVAL
 rx, KC_RX_OPT, KT_TIMEVAL
 %%

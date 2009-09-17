@@ -68,6 +68,11 @@ typedef __int16 int16_t;
 
 #include <assert.h>
 
+#include "mper_keywords.h"
+#include "mper_msg.h"
+#include "mper_msg_reader.h"
+#include "mper_msg_writer.h"
+
 #include "scamper.h"
 #include "scamper_addr.h"
 #include "scamper_ping.h"
@@ -88,7 +93,7 @@ typedef __int16 int16_t;
 #include "utils.h"
 
 #define SCAMPER_DO_PING_PROBECOUNT_MIN    1
-#define SCAMPER_DO_PING_PROBECOUNT_DEF    4
+#define SCAMPER_DO_PING_PROBECOUNT_DEF    1
 #define SCAMPER_DO_PING_PROBECOUNT_MAX    65535
 
 #define SCAMPER_DO_PING_PROBESIZE_V4_MIN  28
@@ -168,41 +173,6 @@ typedef struct ping_state
   uint32_t           tcp_seq;
   uint32_t           tcp_ack;
 } ping_state_t;
-
-#define PING_OPT_PROBECOUNT    1
-#define PING_OPT_PROBEDPORT    2
-#define PING_OPT_PROBEWAIT     3
-#define PING_OPT_PROBETTL      4
-#define PING_OPT_REPLYCOUNT    5
-#define PING_OPT_PATTERN       6
-#define PING_OPT_PROBEMETHOD   7
-#define PING_OPT_USERID        8
-#define PING_OPT_PROBESIZE     9
-#define PING_OPT_PROBETOS      10
-#define PING_OPT_SRCADDR       11
-
-static const scamper_option_in_t opts[] = {
-  {'c', NULL, PING_OPT_PROBECOUNT,   SCAMPER_OPTION_TYPE_NUM},
-  {'d', NULL, PING_OPT_PROBEDPORT,   SCAMPER_OPTION_TYPE_NUM},
-  {'i', NULL, PING_OPT_PROBEWAIT,    SCAMPER_OPTION_TYPE_NUM},
-  {'m', NULL, PING_OPT_PROBETTL,     SCAMPER_OPTION_TYPE_NUM},
-  {'o', NULL, PING_OPT_REPLYCOUNT,   SCAMPER_OPTION_TYPE_NUM},
-  {'p', NULL, PING_OPT_PATTERN,      SCAMPER_OPTION_TYPE_STR},
-  {'P', NULL, PING_OPT_PROBEMETHOD,  SCAMPER_OPTION_TYPE_STR},
-  {'U', NULL, PING_OPT_USERID,       SCAMPER_OPTION_TYPE_NUM},
-  {'s', NULL, PING_OPT_PROBESIZE,    SCAMPER_OPTION_TYPE_NUM},
-  {'S', NULL, PING_OPT_SRCADDR,      SCAMPER_OPTION_TYPE_STR},
-  {'z', NULL, PING_OPT_PROBETOS,     SCAMPER_OPTION_TYPE_NUM},
-};
-
-static const int opts_cnt = SCAMPER_OPTION_COUNT(opts);
-
-const char *scamper_do_ping_usage(void)
-{
-  return "ping [-c count] [-d dport] [-i wait-probe] [-m ttl]\n"
-         "     [-o reply-count] [-p pattern] [-P method] [-U userid]\n"
-         "     [-s probe-size] [-S srcaddr] [-z tos]";
-}
 
 /*
  * ping_abort
@@ -919,6 +889,7 @@ static void do_ping_free(scamper_task_t *task)
   return;
 }
 
+#if 0
 static int ping_arg_param_validate(int optid, char *param, long *out)
 {
   int i;
@@ -1054,6 +1025,7 @@ int scamper_do_ping_arg_validate(int argc, char *argv[], int *stop)
   return scamper_options_validate(opts, opts_cnt, argc, argv, stop,
 				  ping_arg_param_validate);
 }
+#endif
 
 /*
  * scamper_do_ping_alloc
@@ -1062,132 +1034,144 @@ int scamper_do_ping_arg_validate(int argc, char *argv[], int *stop)
  * a ping.  return the ping structure so that it is all ready to go.
  *
  */
-void *scamper_do_ping_alloc(char *str)
+scamper_ping_t *scamper_do_ping_alloc(const control_word_t *words,
+				      size_t word_count,
+				      const char **error_msg)
 {
   uint16_t  probe_count   = SCAMPER_DO_PING_PROBECOUNT_DEF;
   uint8_t   probe_wait    = SCAMPER_DO_PING_PROBEWAIT_DEF;
   uint8_t   probe_ttl     = SCAMPER_DO_PING_PROBETTL_DEF;
   uint8_t   probe_tos     = SCAMPER_DO_PING_PROBETOS_DEF;
   uint8_t   probe_method  = SCAMPER_DO_PING_PROBEMETHOD_DEF;
+  uint16_t  probe_cksum   = 0;
   uint16_t  probe_sport   = (pid & 0xffff) | 0x8000;
   uint16_t  probe_dport   = 33435;
   uint16_t  reply_count   = SCAMPER_DO_PING_REPLYCOUNT_DEF;
   uint16_t  probe_size    = 0; /* unset */
   uint16_t  pattern_len   = 0;
   uint8_t   pattern_bytes[SCAMPER_DO_PING_PATTERN_MAX/2];
-  uint32_t  userid        = 0;
-  char     *src           = NULL;
+  uint32_t  user_data     = 0;
+  const char *src         = NULL;
+  const char *dest        = NULL;
+  const char *meth        = NULL;
   int       af;
 
-  scamper_option_out_t *opts_out = NULL, *opt;
   scamper_ping_t *ping = NULL;
-  char *addr;
-  long tmp;
-  int i;
+  size_t i;
 
-  /* try and parse the string passed in */
-  if(scamper_options_parse(str, opts, opts_cnt, &opts_out, &addr) != 0)
+  for(i = 1; i < word_count; i++)
     {
-      goto err;
-    }
-
-  /* if there is no IP address after the options string, then stop now */
-  if(addr == NULL)
-    {
-      goto err;
-    }
-
-  /* parse the options, do preliminary sanity checks */
-  for(opt = opts_out; opt != NULL; opt = opt->next)
-    {
-      if(opt->type != SCAMPER_OPTION_TYPE_NULL &&
-	 ping_arg_param_validate(opt->id, opt->str, &tmp) != 0)
+      switch(words[i].cw_code)
 	{
-	  scamper_debug(__func__, "validation of optid %d failed", opt->id);
-	  goto err;
-	}
-
-      switch(opt->id)
-	{
-	/* number of probes to send */
-	case PING_OPT_PROBECOUNT:
-	  probe_count = (uint16_t)tmp;
-	  break;
-
-	case PING_OPT_PROBEDPORT:
-	  probe_dport = (uint16_t)tmp;
-	  break;
-
-	case PING_OPT_PROBEMETHOD:
-	  probe_method = (uint8_t)tmp;
-	  break;
-
-	/* how long to wait between sending probes */
-	case PING_OPT_PROBEWAIT:
-	  probe_wait = (uint8_t)tmp;
+	case KC_DEST_OPT:
+	  dest = words[i].cw_str;
 	  break;
 
 	/* the ttl to probe with */
-	case PING_OPT_PROBETTL:
-	  probe_ttl = (uint8_t)tmp;
+	case KC_TTL_OPT:
+	  probe_ttl = words[i].cw_uint;
 	  break;
 
-	/* how many unique replies are required before the ping completes */
-	case PING_OPT_REPLYCOUNT:
-	  reply_count = (uint16_t)tmp;
-	  break;
-
-	/* the pattern to fill each probe with */
-	case PING_OPT_PATTERN:
-	  i = strlen(opt->str);
-	  if((i % 2) == 0)
-	    {
-	      pattern_len = i/2;
-	      for(i=0; i<pattern_len; i++)
-		{
-		  pattern_bytes[i] = hex2byte(opt->str[i*2],opt->str[(i*2)+1]);
-		}
-	    }
+	case KC_METH_OPT:
+	  meth = words[i].cw_str;
+	  if(strcasecmp(meth, "icmp-echo") == 0)
+	    probe_method = SCAMPER_PING_METHOD_ICMP_ECHO;
+	  else if(strcasecmp(meth, "tcp-ack") == 0)
+	    probe_method = SCAMPER_PING_METHOD_TCP_ACK;
+	  else if(strcasecmp(meth, "tcp-ack-sport") == 0)
+	    probe_method = SCAMPER_PING_METHOD_TCP_ACK_SPORT;
+	  else if(strcasecmp(meth, "udp") == 0)
+	    probe_method = SCAMPER_PING_METHOD_UDP;
+	  else if(strcasecmp(meth, "udp-dport") == 0)
+	    probe_method = SCAMPER_PING_METHOD_UDP_DPORT;
 	  else
 	    {
-	      pattern_len = (i/2) + 1;
-	      pattern_bytes[0] = hex2byte('0', opt->str[0]);
-	      for(i=1; i<pattern_len; i++)
-		{
-		  pattern_bytes[i] = hex2byte(opt->str[(i*2)-1],opt->str[i*2]);
-		}
+	      *error_msg = "invalid 'meth' option value";
+	      return NULL;
 	    }
 	  break;
 
-	/* the size of each probe */
-	case PING_OPT_PROBESIZE:
-	  probe_size = (uint16_t)tmp;
+	case KC_CKSUM_OPT:
+	  probe_cksum = words[i].cw_uint;
 	  break;
 
-	case PING_OPT_USERID:
-	  userid = (uint32_t)tmp;
+	case KC_DPORT_OPT:
+	  probe_dport = words[i].cw_uint;
 	  break;
 
-	case PING_OPT_SRCADDR:
-	  if(src != NULL)
-	    goto err;
-	  src = opt->str;
+	case KC_UDATA_OPT:
+	  user_data = words[i].cw_uint;
 	  break;
 
-	/* the tos bits to include in each probe */
-	case PING_OPT_PROBETOS:
-	  probe_tos = (uint8_t)tmp;
-	  break;
+	default: /* XXX need better reporting */
+	  *error_msg = "invalid option to 'ping' command";
+	  return NULL;
+
+#if 0
+        /* number of probes to send */
+        case PING_OPT_PROBECOUNT:
+          probe_count = (uint16_t)tmp;
+          break;
+
+        /* how long to wait between sending probes */
+        case PING_OPT_PROBEWAIT:
+          probe_wait = (uint8_t)tmp;
+          break;
+
+        /* how many unique replies are required before the ping completes */
+        case PING_OPT_REPLYCOUNT:
+          reply_count = (uint16_t)tmp;
+          break;
+
+        /* the pattern to fill each probe with */
+        case PING_OPT_PATTERN:
+          i = strlen(opt->str);
+          if((i % 2) == 0)
+            {
+              pattern_len = i/2;
+              for(i=0; i<pattern_len; i++)
+                {
+                  pattern_bytes[i] = hex2byte(opt->str[i*2],opt->str[(i*2)+1]);
+                }
+            }
+          else
+            {
+              pattern_len = (i/2) + 1;
+              pattern_bytes[0] = hex2byte('0', opt->str[0]);
+              for(i=1; i<pattern_len; i++)
+                {
+                  pattern_bytes[i] = hex2byte(opt->str[(i*2)-1],opt->str[i*2]);
+                }
+            }
+          break;
+
+        /* the size of each probe */
+        case PING_OPT_PROBESIZE:
+          probe_size = (uint16_t)tmp;
+          break;
+
+        case PING_OPT_SRCADDR:
+          if(src != NULL)
+            goto err;
+          src = opt->str;
+          break;
+
+        /* the tos bits to include in each probe */
+        case PING_OPT_PROBETOS:
+          probe_tos = (uint8_t)tmp;
+          break;
+#endif
 	}
     }
-  scamper_options_free(opts_out); opts_out = NULL;
+
+  /* XXX need validation of option values & checking of required options */
 
   /* allocate the ping object and determine the address to probe */
   if((ping = scamper_ping_alloc()) == NULL)
     {
       goto err;
     }
-  if((ping->dst = scamper_addrcache_resolve(addrcache,AF_UNSPEC,addr)) == NULL)
+  if((ping->dst = scamper_addrcache_resolve(addrcache,AF_UNSPEC,dest)) == NULL)
     {
       goto err;
     }
@@ -1258,21 +1242,21 @@ void *scamper_do_ping_alloc(char *str)
       goto err;
     }
 
+  ping->reqnum       = words[0].cw_uint;
+  ping->user_data    = user_data;
   ping->probe_count  = probe_count;
   ping->probe_size   = probe_size;
   ping->probe_wait   = probe_wait;
+  ping->probe_cksum  = probe_cksum;
   ping->probe_ttl    = probe_ttl;
   ping->probe_tos    = probe_tos;
   ping->probe_sport  = probe_sport;
   ping->probe_dport  = probe_dport;
   ping->reply_count  = reply_count;
-  ping->userid       = userid;
-
   return ping;
 
  err:
   if(ping != NULL) scamper_ping_free(ping);
-  if(opts_out != NULL) scamper_options_free(opts_out);
   return NULL;
 }
 

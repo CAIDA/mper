@@ -658,19 +658,17 @@ void scamper_control_cleanup()
 #include <netdb.h>
 #endif
 
+#include "mper_keywords.h"
+#include "mper_msg.h"
+#include "mper_msg_reader.h"
+#include "mper_msg_writer.h"
+
 #include "scamper_addr.h"
 #include "scamper_target.h"
 #include "scamper_ping.h"
 #include "scamper_do_ping.h"
 
 #include "mjl_splaytree.h"
-
-#include "mper_keywords.h"
-#include "mper_msg.h"
-#include "mper_msg_reader.h"
-#include "mper_msg_writer.h"
-
-static control_word_t resp_words[MPER_MSG_MAX_WORDS];
 
 /*
  * scamper_source
@@ -758,12 +756,35 @@ static dlist_t          *finished    = NULL;
 static scamper_source_t *source_cur  = NULL;
 static uint32_t          source_cnt  = 0;
 
+
+/* ---------------------------------------------------------------------- */
+
+static control_word_t resp_words[MPER_MSG_MAX_WORDS];
+
+
+static const char *create_error_response(size_t reqnum, const char *txt)
+{
+  const char *msg = NULL;
+  size_t msg_len = 0;
+
+  INIT_CMESSAGE(resp_words, reqnum, CMD_ERROR);
+  SET_STR_CWORD(resp_words, 1, TXT, txt, strlen(txt));
+  msg = create_control_message(resp_words, CMESSAGE_LEN(1), &msg_len);
+  assert(msg_len != 0);
+  return msg;
+}
+
+
 static void send_response(scamper_source_t *source, const char *message)
 {
   /* XXX somewhat inefficient to do a separate send for just the newline */
   scamper_writebuf_send(source->client->wb, message, strlen(message));
   scamper_writebuf_send(source->client->wb, "\n", 1);
 }
+
+
+/* ---------------------------------------------------------------------- */
+
 
 /* forward declare */
 static void source_free(scamper_source_t *source);
@@ -1283,59 +1304,36 @@ int scamper_source_gettaskcount(const scamper_source_t *source)
 int scamper_source_command(scamper_source_t *source, const char *command)
 {
   const control_word_t *words = NULL;
-  size_t word_count = 0, resp_msg_len = 0;
+  size_t word_count = 0;
   const char *resp_msg = NULL;
+  const char *error_msg = NULL;
+  void *data = NULL;
+  command_t *cmd = NULL;
 
   words = parse_control_message(command, &word_count);
   if(word_count == 0)
     {
-      INIT_CMESSAGE(resp_words, words[0].cw_uint, CMD_ERROR);
-      SET_STR_CWORD(resp_words, 1, TXT, words[1].cw_str,
-		    strlen(words[1].cw_str));
-      resp_msg = create_control_message(resp_words, CMESSAGE_LEN(1),
-					&resp_msg_len);
-      assert(resp_msg_len != 0);
+      resp_msg = create_error_response(words[0].cw_uint, words[1].cw_str);
       send_response(source, resp_msg);
-      return 0;
+      return -1;
     }
 
-  INIT_CMESSAGE(resp_words, words[0].cw_uint, PING_RESP);
-  SET_STR_CWORD(resp_words, 1, TXT, "parse ok", strlen("parse ok"));
-  resp_msg = create_control_message(resp_words, CMESSAGE_LEN(1),
-				    &resp_msg_len);
-  assert(resp_msg_len != 0);
-  send_response(source, resp_msg);
-  return 1;
-
-#if 0
-  command_t *cmd = NULL;
-  char *opts = NULL;
-  void *data = NULL;
-  int valid = 0;
-  int len = 4;  /* == strlen("ping") */
-
-  if(strncasecmp(command, "ping", len) == 0 &&
-     isspace((int)command[len]) && command[len] != '\0')
+  if(words[1].cw_code == KC_PING_CMD)
     {
-      valid = 1;
+      data = scamper_do_ping_alloc(words, word_count, &error_msg);
+      if(data == NULL)
+        {
+	  resp_msg = create_error_response(words[0].cw_uint, error_msg);
+	  send_response(source, resp_msg);
+	  return -1;
+	}
     }
-
-  if(valid == 0) return -1;
-
-  /*
-   * make a copy of the options, since the next function may modify the
-   * contents of it
-   */
-  if((opts = strdup(command+len)) == NULL)
+  else
     {
-      goto err;
+      resp_msg = create_error_response(words[0].cw_uint, "invalid command");
+      send_response(source, resp_msg);
+      return -1;
     }
-
-  if((data = (scamper_ping_t *)scamper_do_ping_alloc(opts)) == NULL)
-    {
-      goto err;
-    }
-  free(opts); opts = NULL;
 
   if((cmd = malloc_zero(sizeof(command_t))) == NULL)
     {
@@ -1352,10 +1350,8 @@ int scamper_source_command(scamper_source_t *source, const char *command)
   return 0;
 
  err:
-  if(opts != NULL) free(opts);
   if(cmd != NULL) free(cmd);
   return -1;
-#endif
 }
 
 /*
