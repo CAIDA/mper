@@ -137,7 +137,8 @@ static scamper_fd_t *fdn          = NULL;
 
 /* ====================================================================== */
 /* functions for allocating, referencing, and dereferencing scamper sources */
-scamper_source_t *scamper_source_alloc(void (*signalmore)(void *), void *param);
+scamper_source_t *scamper_source_alloc(void (*signalmore)(void *),
+				       client_t *param);
 scamper_source_t *scamper_source_use(scamper_source_t *source);
 void scamper_source_abandon(scamper_source_t *source);
 
@@ -299,6 +300,7 @@ static void client_drained(void *ptr, scamper_writebuf_t *wb)
 static int client_attached_cb(client_t *client, uint8_t *buf, size_t len)
 {
   assert(client->source != NULL);
+  scamper_source_command(client->source, (char *)buf);
   return 0;
 
 #if 0
@@ -329,13 +331,9 @@ static int client_attached_cb(client_t *client, uint8_t *buf, size_t len)
  */
 static int client_read_line(void *param, uint8_t *buf, size_t len)
 {
-  static int (*const func[])(client_t *, uint8_t *, size_t) = {
-    client_attached_cb,      /* CLIENT_MODE_ATTACHED    == 0x01 */
-  };
-
   client_t *client = (client_t *)param;
-  assert(client->mode == 0 || client->mode == 1);
-  return func[client->mode](client, buf, len);
+  assert(client->mode == CLIENT_MODE_ATTACHED);
+  return client_attached_cb(client, buf, len);
 }
 
 static void client_read(const int fd, void *param)
@@ -667,6 +665,13 @@ void scamper_control_cleanup()
 
 #include "mjl_splaytree.h"
 
+#include "mper_keywords.h"
+#include "mper_msg.h"
+#include "mper_msg_reader.h"
+#include "mper_msg_writer.h"
+
+static control_word_t resp_words[MPER_MSG_MAX_WORDS];
+
 /*
  * scamper_source
  *
@@ -685,7 +690,7 @@ struct scamper_source
 
   /* a function and a parameter to interact with the control socket */
   void                          (*signalmore)(void *param);
-  void                         *param;
+  client_t                      *client;
 
   /*
    * commands:     a list of commands for the source that are queued, ready to
@@ -752,6 +757,13 @@ static dlist_t          *blocked     = NULL;
 static dlist_t          *finished    = NULL;
 static scamper_source_t *source_cur  = NULL;
 static uint32_t          source_cnt  = 0;
+
+static void send_response(scamper_source_t *source, const char *message)
+{
+  /* XXX somewhat inefficient to do a separate send for just the newline */
+  scamper_writebuf_send(source->client->wb, message, strlen(message));
+  scamper_writebuf_send(source->client->wb, "\n", 1);
+}
 
 /* forward declare */
 static void source_free(scamper_source_t *source);
@@ -1270,6 +1282,32 @@ int scamper_source_gettaskcount(const scamper_source_t *source)
  */
 int scamper_source_command(scamper_source_t *source, const char *command)
 {
+  const control_word_t *words = NULL;
+  size_t word_count = 0, resp_msg_len = 0;
+  const char *resp_msg = NULL;
+
+  words = parse_control_message(command, &word_count);
+  if(word_count == 0)
+    {
+      INIT_CMESSAGE(resp_words, words[0].cw_uint, CMD_ERROR);
+      SET_STR_CWORD(resp_words, 1, TXT, words[1].cw_str,
+		    strlen(words[1].cw_str));
+      resp_msg = create_control_message(resp_words, CMESSAGE_LEN(1),
+					&resp_msg_len);
+      assert(resp_msg_len != 0);
+      send_response(source, resp_msg);
+      return 0;
+    }
+
+  INIT_CMESSAGE(resp_words, words[0].cw_uint, PING_RESP);
+  SET_STR_CWORD(resp_words, 1, TXT, "parse ok", strlen("parse ok"));
+  resp_msg = create_control_message(resp_words, CMESSAGE_LEN(1),
+				    &resp_msg_len);
+  assert(resp_msg_len != 0);
+  send_response(source, resp_msg);
+  return 1;
+
+#if 0
   command_t *cmd = NULL;
   char *opts = NULL;
   void *data = NULL;
@@ -1317,6 +1355,7 @@ int scamper_source_command(scamper_source_t *source, const char *command)
   if(opts != NULL) free(opts);
   if(cmd != NULL) free(cmd);
   return -1;
+#endif
 }
 
 /*
@@ -1393,12 +1432,13 @@ void scamper_source_free(scamper_source_t *source)
  * not put into rotation -- the caller has to call scamper_sources_add
  * for that to occur.
  */
-scamper_source_t *scamper_source_alloc(void (*signalmore)(void *), void *param)
+scamper_source_t *scamper_source_alloc(void (*signalmore)(void *),
+				       client_t *client)
 {
   scamper_source_t *source = NULL;
 
   /* make sure the caller passes some details of the source to be created */
-  if(signalmore == NULL || param == NULL)
+  if(signalmore == NULL || client == NULL)
     {
       scamper_debug(__func__, "missing necessary parameters");
       goto err;
@@ -1416,7 +1456,7 @@ scamper_source_t *scamper_source_alloc(void (*signalmore)(void *), void *param)
 
   /* data parameter and associated callbacks */
   source->signalmore  = signalmore;
-  source->param       = param;
+  source->client       = client;
 
   if((source->commands = slist_alloc()) == NULL)
     {
@@ -1577,7 +1617,7 @@ int scamper_sources_gettask(scamper_task_t **task)
 	  if(scamper_source_getcommandcount(source) == 0
 	     && source->isfinished == 0)
 	    {
-	      source->signalmore(source->param);
+	      source->signalmore(source->client);
 	    }
 
 	  if(command_probe_handle(source, command, task) != 0)
