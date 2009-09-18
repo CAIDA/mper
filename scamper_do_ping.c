@@ -425,7 +425,7 @@ static void do_ping_probe(scamper_task_t *task)
   size_t           payload_len;
   size_t           hdr_len;
   int              i;
-  uint16_t         ipid = 0;
+  uint16_t         ipid = 0, u16;
 
 #ifndef _WIN32
   if(state->rt != NULL)
@@ -475,6 +475,12 @@ static void do_ping_probe(scamper_task_t *task)
       goto err;
     }
 
+  /*
+  ** Note: We ensure in scamper_do_ping_alloc() that there is enough room
+  **       in the payload for the checksum if the user has requested a
+  **       specific checksum for ICMP.  (The user can't set the TCP/UDP
+  **       checksum.)
+  */
   if(SCAMPER_PING_METHOD_IS_ICMP(ping))
     payload_len = ping->probe_size - hdr_len - 8;
   else if(SCAMPER_PING_METHOD_IS_TCP(ping))
@@ -500,6 +506,28 @@ static void do_ping_probe(scamper_task_t *task)
       pktbuf_len = payload_len;
     }
 
+  /* if the ping has to hold some pattern, then generate it now */  
+  /*
+  ** Note: We overwrite the first 2 bytes of the payload with the checksum
+  **       if the user has requested a specific checksum for ICMP.
+  **       Thus, the user shouldn't really request both a specific checksum
+  **       and a payload pattern, though we allow it.
+  */
+  if(ping->pattern_bytes == NULL)
+    {
+      memset(pktbuf, 0, payload_len);
+    }
+  else
+    {
+      i = 0;
+      while((size_t)(i + ping->pattern_len) < payload_len)
+	{
+	  memcpy(pktbuf+i, ping->pattern_bytes, ping->pattern_len);
+	  i += ping->pattern_len;
+	}
+      memcpy(pktbuf+i, ping->pattern_bytes, payload_len - i);
+    }
+
   memset(&probe, 0, sizeof(probe));
   probe.pr_ip_src    = ping->src;
   probe.pr_ip_dst    = ping->dst;
@@ -523,6 +551,15 @@ static void do_ping_probe(scamper_task_t *task)
       probe.pr_icmp_id   = pid & 0xffff;
       probe.pr_icmp_seq  = state->seq_cur;
       probe.pr_fd        = scamper_fd_fd_get(state->icmp);
+
+      /* hack to get the icmp csum to be a particular value, and be valid */
+      if(ping->opt_set_cksum)  /* XXX not supported with IPv6 */
+        {
+	  u16 = htons(ping->probe_cksum);
+	  memcpy(probe.pr_data, &u16, 2);
+	  u16 = scamper_icmp4_cksum(&probe);
+	  memcpy(probe.pr_data, &u16, 2);
+	}
     }
   else if(SCAMPER_PING_METHOD_IS_TCP(ping))
     {
@@ -557,22 +594,17 @@ static void do_ping_probe(scamper_task_t *task)
 	probe.pr_udp_dport = ping->probe_dport;
       else if(ping->probe_method == SCAMPER_PING_METHOD_UDP_DPORT)
 	probe.pr_udp_dport = ping->probe_dport + state->seq_cur;
-    }
 
-  /* if the ping has to hold some pattern, then generate it now */  
-  if(ping->pattern_bytes == NULL)
-    {
-      memset(pktbuf, 0, payload_len);
-    }
-  else
-    {
-      i = 0;
-      while((size_t)(i + ping->pattern_len) < payload_len)
-	{
-	  memcpy(pktbuf+i, ping->pattern_bytes, ping->pattern_len);
-	  i += ping->pattern_len;
+#if 0
+      /* hack to get the udp csum to be a particular value, and be valid */
+      if(ping->opt_set_cksum)  /* XXX not supported with IPv6 */
+        {
+	  u16 = htons(ping->probe_cksum);
+	  memcpy(probe.pr_data, &u16, 2);
+	  u16 = scamper_udp4_cksum(&probe);
+	  memcpy(probe.pr_data, &u16, 2);
 	}
-      memcpy(pktbuf+i, ping->pattern_bytes, payload_len - i);
+#endif
     }
 
   /*
@@ -1175,6 +1207,7 @@ scamper_ping_t *scamper_do_ping_alloc(const control_word_t *words,
   uint16_t  pattern_len   = 0;
   uint8_t   pattern_bytes[SCAMPER_DO_PING_PATTERN_MAX/2];
   uint32_t  user_data     = 0;
+  uint8_t   opt_set_cksum = 0;  /* user provided checksum */
   const char *src         = NULL;
   const char *dest        = NULL;
   const char *meth        = NULL;
@@ -1217,6 +1250,7 @@ scamper_ping_t *scamper_do_ping_alloc(const control_word_t *words,
 
 	case KC_CKSUM_OPT:
 	  probe_cksum = words[i].cw_uint;
+	  opt_set_cksum = 1;
 	  break;
 
 	case KC_DPORT_OPT:
@@ -1301,6 +1335,11 @@ scamper_ping_t *scamper_do_ping_alloc(const control_word_t *words,
     }
   ping->probe_method = probe_method;
 
+  /*
+  ** Note: If the user provided a checksum to set for ICMP/UDP, then we must
+  ** make room for 2 bytes in the payload.  (The user can't set the TCP
+  ** checksum.)
+  */
   /* ensure the probe size specified is suitable */
   if(ping->dst->type == SCAMPER_ADDR_TYPE_IPV4)
     {
@@ -1310,12 +1349,19 @@ scamper_ping_t *scamper_do_ping_alloc(const control_word_t *words,
 	    probe_size = SCAMPER_DO_PING_PROBESIZE_V4_DEF;
 	  else if(probe_size < SCAMPER_DO_PING_PROBESIZE_V4_MIN)
 	    goto err;
+
+	  if(opt_set_cksum && probe_size < SCAMPER_DO_PING_PROBESIZE_V4_MIN + 2)
+	    {
+	      probe_size = SCAMPER_DO_PING_PROBESIZE_V4_MIN + 2;
+	    }
 	}
       else if(SCAMPER_PING_METHOD_IS_TCP(ping))
 	{
 	  if(probe_size != 0 && probe_size != 40)
 	    goto err;
 	  probe_size = 40;
+
+	  if(opt_set_cksum) opt_set_cksum = 0;  /* not supported */
 	}
       else if(SCAMPER_PING_METHOD_IS_UDP(ping))
 	{
@@ -1323,10 +1369,14 @@ scamper_ping_t *scamper_do_ping_alloc(const control_word_t *words,
 	  if(probe_size != 0 && probe_size != 40)
 	    goto err;
 	  probe_size = 40;
+
+	  if(opt_set_cksum) opt_set_cksum = 0;  /* not supported */
 	}
     }
   else if(ping->dst->type == SCAMPER_ADDR_TYPE_IPV6)
     {
+      if(opt_set_cksum) opt_set_cksum = 0;  /* XXX not supported with IPv6 */
+
       if(SCAMPER_PING_METHOD_IS_ICMP(ping))
 	{
 	  if(probe_size == 0)
@@ -1377,6 +1427,7 @@ scamper_ping_t *scamper_do_ping_alloc(const control_word_t *words,
   ping->probe_sport  = probe_sport;
   ping->probe_dport  = probe_dport;
   ping->reply_count  = reply_count;
+  ping->opt_set_cksum = opt_set_cksum;
   return ping;
 
  err:

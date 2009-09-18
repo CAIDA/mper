@@ -169,6 +169,8 @@ typedef struct scamper_ping
   uint16_t               probe_dport;  /* -d option to ping */
   uint16_t               reply_count;  /* -o option to ping */
 
+  uint8_t                opt_set_cksum;  /* user provided checksum */
+
   uint8_t               *probe_pkt;    /* raw probe packet */
   size_t                 probe_pkt_len;  /* length of probe_pkt */
 
