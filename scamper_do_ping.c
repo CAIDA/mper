@@ -1253,6 +1253,10 @@ scamper_ping_t *scamper_do_ping_alloc(const control_word_t *words,
 	  opt_set_cksum = 1;
 	  break;
 
+	case KC_SPORT_OPT:
+	  probe_sport = words[i].cw_uint;
+	  break;
+
 	case KC_DPORT_OPT:
 	  probe_dport = words[i].cw_uint;
 	  break;
