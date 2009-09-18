@@ -1094,7 +1094,8 @@ static int command_probe_handle(scamper_source_t *source, command_t *command,
     }
 
   /* allocate the task structure to keep everything together */
-  if((task = scamper_do_ping_alloctask(command->data)) == NULL)
+  if((task = scamper_do_ping_alloctask(command->data,
+				       source->client->wb)) == NULL)
     {
       goto err;
     }
@@ -1307,7 +1308,7 @@ int scamper_source_command(scamper_source_t *source, const char *command)
   size_t word_count = 0;
   const char *resp_msg = NULL;
   const char *error_msg = NULL;
-  void *data = NULL;
+  scamper_ping_t *data = NULL;
   command_t *cmd = NULL;
 
   words = parse_control_message(command, &word_count);

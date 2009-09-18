@@ -32,6 +32,8 @@ typedef __int16 int16_t;
 #ifdef _WIN32
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#define snprintf _snprintf
+#define strcasecmp _stricmp
 #endif
 
 #include <sys/types.h>
@@ -58,6 +60,7 @@ typedef __int16 int16_t;
 #endif
 
 #include <stdlib.h>
+#include <stdio.h>
 #include <errno.h>
 
 #include <string.h>
@@ -82,15 +85,44 @@ typedef __int16 int16_t;
 #include "scamper_rtsock.h"
 #include "scamper_dl.h"
 #include "scamper_probe.h"
+#include "scamper_writebuf.h"
 #include "scamper_task.h"
 #include "scamper_queue.h"
-#include "scamper_control.h"
 #include "scamper_debug.h"
 #include "scamper_do_ping.h"
 #include "scamper_options.h"
 #include "scamper_icmp4.h"
 #include "scamper_icmp6.h"
 #include "utils.h"
+
+/* ---------------------------------------------------------------------- */
+
+/* XXX probably should use the code in scamper_control */
+
+static control_word_t resp_words[MPER_MSG_MAX_WORDS];
+
+
+static const char *create_error_response(size_t reqnum, const char *txt)
+{
+  const char *msg = NULL;
+  size_t msg_len = 0;
+
+  INIT_CMESSAGE(resp_words, reqnum, CMD_ERROR);
+  SET_STR_CWORD(resp_words, 1, TXT, txt, strlen(txt));
+  msg = create_control_message(resp_words, CMESSAGE_LEN(1), &msg_len);
+  assert(msg_len != 0);
+  return msg;
+}
+
+
+static void send_response(scamper_task_t *task, const char *message)
+{
+  /* XXX somewhat inefficient to do a separate send for just the newline */
+  scamper_writebuf_send(task->wb, message, strlen(message));
+  scamper_writebuf_send(task->wb, "\n", 1);
+}
+
+/* ---------------------------------------------------------------------- */
 
 #define SCAMPER_DO_PING_PROBECOUNT_MIN    1
 #define SCAMPER_DO_PING_PROBECOUNT_DEF    1
@@ -124,7 +156,7 @@ typedef __int16 int16_t;
 #define SCAMPER_DO_PING_PROBEDPORT_MAX    65535
 
 #define SCAMPER_DO_PING_REPLYCOUNT_MIN    0
-#define SCAMPER_DO_PING_REPLYCOUNT_DEF    0
+#define SCAMPER_DO_PING_REPLYCOUNT_DEF    1
 #define SCAMPER_DO_PING_REPLYCOUNT_MAX    65535
 
 #define SCAMPER_DO_PING_PATTERN_MIN       1
@@ -284,7 +316,9 @@ static void do_ping_handle_dl(scamper_task_t *task, scamper_dl_rec_t *dl)
     }
 
   /* put together details of the reply */
-  timeval_diff_tv(&reply->rtt, &probe->tx, &dl->dl_tv);
+  /* timeval_diff_tv(&reply->rtt, &probe->tx, &dl->dl_tv); */
+  reply->tx = probe->tx;
+  reply->rx = dl->dl_tv;
   reply->reply_size  = dl->dl_ip_size;
   reply->reply_proto = dl->dl_ip_proto;
   reply->probe_id    = state->seq_cur-1;
@@ -738,11 +772,14 @@ static void do_ping_handle_icmp(scamper_task_t *task, scamper_icmp_resp_t *ir)
     }
 
   /* put together details of the reply */
-  timeval_diff_tv(&reply->rtt, &probe->tx, &ir->ir_rx);
+  /* timeval_diff_tv(&reply->rtt, &probe->tx, &ir->ir_rx); */
+  reply->tx = probe->tx;
+  reply->rx = ir->ir_rx;
   reply->reply_size  = ir->ir_ip_size;
   reply->probe_id    = seq;
   reply->icmp_type   = ir->ir_icmp_type;
   reply->icmp_code   = ir->ir_icmp_code;
+  reply->icmp_q_ip_ttl = ir->ir_inner_ip_ttl;  /* == zero if not available */
 
   if(ir->ir_af == AF_INET)
     {
@@ -821,24 +858,123 @@ static void do_ping_handle_timeout(scamper_task_t *task)
   return;
 }
 
-static void do_ping_write(scamper_task_t *task)
+static void do_ping_write_reply(scamper_task_t *task, scamper_ping_t *ping,
+				scamper_ping_reply_t *reply)
 {
-#if 0
-  const char *outfile_name;
-  scamper_outfile_t *outfile;
-  scamper_file_t *sf;
+  const char *msg = NULL;
+  size_t msg_len = 0;
+  char buf[128];
+  size_t opts;
 
-  outfile_name = scamper_source_getoutfile(task->source);
-  assert(outfile_name != NULL);
+  INIT_CMESSAGE(resp_words, ping->reqnum, PING_RESP);
+  scamper_addr_tostr(ping->src, buf, 128);
+  SET_ADDRESS_CWORD(resp_words, 1, SRC, buf);
+  scamper_addr_tostr(ping->dst, buf, 128);
+  SET_ADDRESS_CWORD(resp_words, 2, DEST, buf);
+  SET_UINT_CWORD(resp_words, 3, UDATA, ping->user_data);
+  SET_TIMEVAL_CWORD(resp_words, 4, TX, &reply->tx);
+  SET_TIMEVAL_CWORD(resp_words, 5, RX, &reply->rx);
+  SET_UINT_CWORD(resp_words, 6, PROBE_TTL, ping->probe_ttl);
+  SET_UINT_CWORD(resp_words, 7, PROBE_IPID, reply->probe_ipid);
+  scamper_addr_tostr(reply->addr, buf, 128);
+  SET_ADDRESS_CWORD(resp_words, 8, REPLY_SRC, buf);
+  SET_UINT_CWORD(resp_words, 9, REPLY_TTL, reply->reply_ttl);
+  SET_UINT_CWORD(resp_words, 10, REPLY_IPID, reply->reply_ipid);
 
-  if((outfile = scamper_outfiles_get(outfile_name)) != NULL)
+  opts = 11;
+  if(SCAMPER_PING_REPLY_IS_ICMP(reply))
     {
-      sf = scamper_outfile_getfile(outfile);
-      scamper_file_write_ping(sf, (scamper_ping_t *)task->data);
+      uint32_t icmp_value = (reply->icmp_type << 8) | reply->icmp_code;
+      SET_UINT_CWORD(resp_words, 11, REPLY_ICMP, icmp_value);
+
+      if(!SCAMPER_PING_REPLY_IS_ICMP_ECHO_REPLY(reply))
+        {
+	  opts = 12;
+	  SET_UINT_CWORD(resp_words, 12, REPLY_QTTL, reply->icmp_q_ip_ttl);
+	}
+    }
+  else /* tcp */
+    {
+      SET_UINT_CWORD(resp_words, 11, REPLY_TCP, reply->tcp_flags);
     }
 
-  return;
-#endif
+  msg = create_control_message(resp_words, CMESSAGE_LEN(opts), &msg_len);
+  assert(msg_len != 0);
+  send_response(task, msg);
+}
+
+static void do_ping_write_nonresponse(scamper_task_t *task,scamper_ping_t *ping)
+{
+  const char *msg = NULL;
+  size_t msg_len = 0;
+  char buf[128];
+
+  INIT_CMESSAGE(resp_words, ping->reqnum, RESP_TIMEOUT);
+  scamper_addr_tostr(ping->src, buf, 128);
+  SET_ADDRESS_CWORD(resp_words, 1, SRC, buf);
+  scamper_addr_tostr(ping->dst, buf, 128);
+  SET_ADDRESS_CWORD(resp_words, 2, DEST, buf);
+  SET_UINT_CWORD(resp_words, 3, UDATA, ping->user_data);
+  SET_TIMEVAL_CWORD(resp_words, 4, TX, &ping->start);
+  SET_UINT_CWORD(resp_words, 5, PROBE_TTL, ping->probe_ttl);
+
+  msg = create_control_message(resp_words, CMESSAGE_LEN(5), &msg_len);
+  assert(msg_len != 0);
+  send_response(task, msg);
+}
+
+static void do_ping_write_error(scamper_task_t *task, scamper_ping_t *ping,
+				const char *txt)
+{
+  const char *msg = NULL;
+  size_t msg_len = 0;
+
+  INIT_CMESSAGE(resp_words, ping->reqnum, SEND_ERROR);
+  SET_STR_CWORD(resp_words, 1, TXT, txt, strlen(txt));
+  SET_UINT_CWORD(resp_words, 2, STOP_REASON, ping->stop_reason);
+  SET_UINT_CWORD(resp_words, 3, STOP_DATA, ping->stop_data);
+  msg = create_control_message(resp_words, CMESSAGE_LEN(3), &msg_len);
+  assert(msg_len != 0);
+  send_response(task, msg);
+}
+
+static void do_ping_write(scamper_task_t *task)
+{
+  scamper_ping_t *ping = (scamper_ping_t *)task->data;
+  scamper_ping_reply_t *reply = NULL;
+  uint16_t i, num_replies = 0;
+  char buf[128];
+
+  if(ping->stop_reason == SCAMPER_PING_STOP_NONE
+     || ping->stop_reason == SCAMPER_PING_STOP_COMPLETED)
+    {
+      for(i = 0; i < ping->ping_sent; i++)
+        {
+	  reply = ping->ping_replies[i];
+	  while(reply)
+	    {
+	      ++num_replies;
+	      do_ping_write_reply(task, ping, reply);
+	      reply = reply->next;
+	    }
+	}
+
+      if(num_replies == 0)
+        {
+	  do_ping_write_nonresponse(task, ping);
+	}
+    }
+  else if (ping->stop_reason == SCAMPER_PING_STOP_ERROR)
+    {
+      do_ping_write_error(task, ping, "ping failed");
+    }
+  else
+    {
+      snprintf(buf, 128, "internal error: unknown stop_reason %d",
+	       ping->stop_reason);
+      do_ping_write_error(task, ping, buf);
+      assert(false);
+    }
 }
 
 static void do_ping_free(scamper_task_t *task)
@@ -1260,9 +1396,9 @@ scamper_ping_t *scamper_do_ping_alloc(const control_word_t *words,
   return NULL;
 }
 
-scamper_task_t *scamper_do_ping_alloctask(void *data)
+scamper_task_t *scamper_do_ping_alloctask(scamper_ping_t *ping,
+					  scamper_writebuf_t *wb)
 {
-  scamper_ping_t *ping = (scamper_ping_t *)data;
   scamper_task_t *task;
   ping_state_t   *state;
   size_t          size;
@@ -1273,10 +1409,12 @@ scamper_task_t *scamper_do_ping_alloctask(void *data)
 #endif
 
   /* firstly, allocate the task structure */
-  if((task = scamper_task_alloc(data, &ping_funcs)) == NULL)
+  if((task = scamper_task_alloc(ping, &ping_funcs)) == NULL)
     {
       goto err;
     }
+
+  task->wb = wb;
 
   /* determine the source address used for sending probes */
   if(ping->src == NULL)

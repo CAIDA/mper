@@ -31,6 +31,7 @@ struct scamper_dl_rec;
 struct scamper_rt_rec;
 struct scamper_icmp_resp;
 struct scamper_targetset;
+struct scamper_writebuf;
 
 typedef struct scamper_task_funcs
 {
@@ -82,6 +83,7 @@ typedef struct scamper_task
   /* pointer to where the task came from */
   struct scamper_source    *source;
   void                     *source_task;
+  struct scamper_writebuf  *wb; /* alias of source->client->wb */
 
   /* pointer to a targetset structure, if used */
   struct scamper_targetset *targetset;

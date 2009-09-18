@@ -31,7 +31,8 @@ scamper_ping_t *scamper_do_ping_alloc(const control_word_t *words,
 int scamper_do_ping_dstaddr(void *data, void *param,
 			    int (*foreach)(struct scamper_addr *, void *));
 
-scamper_task_t *scamper_do_ping_alloctask(void *data);
+scamper_task_t *scamper_do_ping_alloctask(scamper_ping_t *ping,
+					  scamper_writebuf_t *wb);
 
 int scamper_do_ping_arg_validate(int argc, char *argv[], int *stop);
 

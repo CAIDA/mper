@@ -56,60 +56,6 @@ typedef unsigned __int32 uint32_t;
 
 #include "utils.h"
 
-int scamper_ping_stats(const scamper_ping_t *ping,
-		       uint32_t *nreplies, uint32_t *ndups, uint16_t *nloss,
-		       struct timeval *min_rtt, struct timeval *max_rtt,
-		       struct timeval *avg_rtt, struct timeval *stddev_rtt)
-{
-  struct timeval min_rtt_, max_rtt_;
-  scamper_ping_reply_t *reply;
-  uint16_t i;
-  uint32_t nreplies_ = 0;
-  uint32_t ndups_ = 0;
-  uint16_t nloss_ = 0;
-
-  for(i=0; i<ping->ping_sent; i++)
-    {
-      if((reply = ping->ping_replies[i]) == NULL)
-	{
-	  nloss_++;
-	  continue;
-	}
-
-      nreplies_++;
-      for(;;)
-	{
-	  if(nreplies_ != 0)
-	    {
-	      if(timeval_cmp(&reply->rtt, &min_rtt_) < 0)
-		memcpy(&min_rtt_, &reply->rtt, sizeof(&min_rtt_));
-	      else if(timeval_cmp(&reply->rtt, &max_rtt_) < 0)
-		memcpy(&max_rtt_, &reply->rtt, sizeof(&max_rtt_));
-	    }
-	  else
-	    {
-	      memcpy(&min_rtt_, &reply->rtt, sizeof(min_rtt_));
-	      memcpy(&max_rtt_, &reply->rtt, sizeof(max_rtt_));
-	    }
-
-	  if(reply->next != NULL)
-	    {
-	      reply = reply->next;
-	      ndups_++;
-	    }
-	  else break;
-	}
-    }
-
-  if(min_rtt != NULL) memcpy(min_rtt, &min_rtt_, sizeof(min_rtt_));
-  if(max_rtt != NULL) memcpy(max_rtt, &max_rtt_, sizeof(max_rtt_));
-  if(ndups != NULL) *ndups = ndups_;
-  if(nreplies != NULL) *nreplies = nreplies_;
-  if(nloss != NULL) *nloss = nloss_;
-
-  return 0;
-}
-
 int scamper_ping_setpattern(scamper_ping_t *ping, uint8_t *bytes, uint16_t len)
 {
   uint8_t *dup;

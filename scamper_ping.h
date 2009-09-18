@@ -99,6 +99,10 @@ typedef struct scamper_ping_reply
   /* where the response came from */
   scamper_addr_t            *addr;
 
+  /* timestamps for sending the probe and getting this response */
+  struct timeval             tx;
+  struct timeval             rx;
+
   /* flags defined by SCAMPER_PING_REPLY_FLAG_* */
   uint8_t                    flags;
 
@@ -113,12 +117,10 @@ typedef struct scamper_ping_reply
   /* the icmp type / code returned */
   uint8_t                    icmp_type;
   uint8_t                    icmp_code;
+  uint8_t                    icmp_q_ip_ttl;
 
   /* the tcp flags returned */
   uint8_t                    tcp_flags;
-
-  /* the time elapsed between sending the probe and getting this response */
-  struct timeval             rtt;
 
   uint8_t                   *reply_pkt;      /* raw reply packet */
   size_t                     reply_pkt_len;  /* length of reply_pkt */
@@ -189,12 +191,6 @@ scamper_ping_reply_t *scamper_ping_reply_alloc(void);
 void scamper_ping_reply_free(scamper_ping_reply_t *reply);
 int scamper_ping_reply_append(scamper_ping_t *p, scamper_ping_reply_t *reply);
 uint32_t scamper_ping_reply_count(const scamper_ping_t *ping);
-
-/* routine to return basic stats for the measurement */
-int scamper_ping_stats(const scamper_ping_t *ping,
-		       uint32_t *nreplies, uint32_t *ndups, uint16_t *nloss,
-		       struct timeval *min_rtt, struct timeval *max_rtt,
-		       struct timeval *avg_rtt, struct timeval *stddev_rtt);
 
 #ifndef ICMP_ECHO
 #define ICMP_ECHO 8

@@ -45,6 +45,7 @@ const char* keyword_code_names[] = {
   "<OPT_MIN>",
   "txt",
   "pkt",
+  "src",
   "dest",
   "net",
   "ttl",
@@ -55,6 +56,16 @@ const char* keyword_code_names[] = {
   "udata",
   "tx",
   "rx",
+  "probe_ttl",
+  "probe_ipid",
+  "reply_src",
+  "reply_ttl",
+  "reply_ipid",
+  "reply_icmp",
+  "reply_qttl",
+  "reply_tcp",
+  "stop_reason",
+  "stop_data",
   "<OPT_MAX>",
 };
 
@@ -83,6 +94,7 @@ ping_resp, KC_PING_RESP_CMD, KT_NONE
 # options
 txt, KC_TXT_OPT, KT_STR
 pkt, KC_PKT_OPT, KT_BLOB
+src, KC_SRC_OPT, KT_ADDRESS
 dest, KC_DEST_OPT, KT_ADDRESS
 net, KC_NET_OPT, KT_PREFIX
 ttl, KC_TTL_OPT, KT_UINT
@@ -93,5 +105,15 @@ dport, KC_DPORT_OPT, KT_UINT
 udata, KC_UDATA_OPT, KT_UINT
 tx, KC_TX_OPT, KT_TIMEVAL
 rx, KC_RX_OPT, KT_TIMEVAL
+probe_ttl, KC_PROBE_TTL_OPT, KT_UINT
+probe_ipid, KC_PROBE_IPID_OPT, KT_UINT
+reply_src, KC_REPLY_SRC_OPT, KT_ADDRESS
+reply_ttl, KC_REPLY_TTL_OPT, KT_UINT
+reply_ipid, KC_REPLY_IPID_OPT, KT_UINT
+reply_icmp, KC_REPLY_ICMP_OPT, KT_UINT
+reply_qttl, KC_REPLY_QTTL_OPT, KT_UINT
+reply_tcp, KC_REPLY_TCP_OPT, KT_UINT
+stop_reason, KC_STOP_REASON_OPT, KT_UINT
+stop_data, KC_STOP_DATA_OPT, KT_UINT
 %%
 /* functions */
