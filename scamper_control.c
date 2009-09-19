@@ -136,6 +136,8 @@ static dlist_t      *client_list  = NULL;
 static scamper_fd_t *fdn          = NULL;
 
 /* ====================================================================== */
+static void send_response(scamper_source_t *source, const char *message);
+
 /* functions for allocating, referencing, and dereferencing scamper sources */
 scamper_source_t *scamper_source_alloc(void (*signalmore)(void *),
 				       client_t *param);
@@ -300,26 +302,19 @@ static void client_drained(void *ptr, scamper_writebuf_t *wb)
 static int client_attached_cb(client_t *client, uint8_t *buf, size_t len)
 {
   assert(client->source != NULL);
-  scamper_source_command(client->source, (char *)buf);
-  return 0;
 
-#if 0
   /* the control socket will not be supplying any more tasks */
   if(len == 4 && strcasecmp((char *)buf, "done") == 0)
     {
       /* mark the source as not going to supply any further tasks */
       scamper_source_control_finish(client->source);
-      return client_send(client, "OK");
+      send_response(client->source, "bye!");
     }
-
-  /* try the command to see if it is valid and acceptable */
-  if(scamper_source_command(client->source, (char *)buf) == 0)
+  else
     {
-      return client_send(client, "OK");
+      scamper_source_command(client->source, (char *)buf);
     }
-
-  return client_send(client, "ERR command not accepted");
-#endif
+  return 0;
 }
 
 /*
