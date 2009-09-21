@@ -149,6 +149,9 @@ static void send_response(scamper_task_t *task, const char *message)
 #define SCAMPER_DO_PING_PATTERN_DEF       0
 #define SCAMPER_DO_PING_PATTERN_MAX       32
 
+extern scamper_addr_t *g_gateway_sa;  /* in scamper.c */
+extern int g_interface;  /* in scamper.c */
+
 /* the callback functions registered with the ping task */
 static scamper_task_funcs_t ping_funcs;
 
@@ -1509,8 +1512,28 @@ scamper_task_t *scamper_do_ping_alloctask(scamper_ping_t *ping,
 	  goto err;
 	}
 #else
-      if((state->rt = scamper_fd_rtsock()) == NULL)
-	goto err;
+      if(g_gateway_sa)
+        {
+	  if((state->pr = scamper_fd_dl(g_interface)) == NULL)
+	    {
+	      scamper_debug(__func__, "could not get dl for %d", g_interface);
+	      goto err;
+	    }
+	  state->dl_hdr = scamper_dl_hdr_alloc(state->pr, ping->src, ping->dst,
+					       g_gateway_sa);
+	  if(state->dl_hdr == NULL)
+	    {
+	      goto err;
+	    }
+	  if(random_u32(&state->tcp_seq) != 0
+	     || random_u32(&state->tcp_ack) != 0)
+	    goto err;
+	}
+      else
+        {
+	  if((state->rt = scamper_fd_rtsock()) == NULL)
+	    goto err;
+	}
 #endif
     }
   else if(SCAMPER_PING_METHOD_IS_UDP(ping))

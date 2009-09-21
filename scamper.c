@@ -108,7 +108,9 @@ static uint32_t options = 0;
 #define OPT_WINDOW      0x00010000 /* w: */
 #define OPT_DEBUGFILE   0x00020000 /* d: */
 #define OPT_FIREWALL    0x00200000 /* F: */
-#define OPT_USE_TCP     0x00400000 /* T */
+#define OPT_GATEWAY     0x00400000 /* G: */
+#define OPT_INTERFACE   0x00800000 /* I: */
+#define OPT_USE_TCP     0x01000000 /* T */
 
 /*
  * parameters configurable by the command line:
@@ -123,6 +125,8 @@ static uint32_t options = 0;
  * window:      maximum number of concurrent tasks to actively probe
  * debugfile:   place to write debugging output
  * firewall:    scamper should use the system firewall when needed
+ * gateway:     IP address of the gateway to use
+ * interface:   datalink interface index to use if manually specifying gateway
  * use_tcp:     use a TCP server socket instead of a Unix domain socket
  */
 static char  *command      = NULL;
@@ -136,6 +140,10 @@ static int    window       = SCAMPER_WINDOW_DEF;
 static char  *debugfile    = NULL;
 static char  *firewall     = NULL;
 static int   use_tcp       = 0;
+
+/* don't make these static: need in scamper_do_ping.c */
+scamper_addr_t *g_gateway_sa = NULL;
+int g_interface = 1;
 
 /*
  * parameters calculated by scamper at run time:
@@ -171,6 +179,7 @@ static void usage(uint32_t opt_mask)
     "usage: scamper [-?Pv] [-p pps] [-w window]\n"
     "               [-M monitorname]\n"
     "               [-H holdtime] [-d debugfile] [-F firewall]\n"
+    "               [-G gateway] [-I interface-index]\n"
     "               [-D port] [-T]\n");
 
   if(opt_mask == 0) return;
@@ -189,6 +198,9 @@ static void usage(uint32_t opt_mask)
   if((opt_mask & OPT_FIREWALL) != 0)
     usage_str('F', "use the system firewall to install rules as necessary");
 
+  if((opt_mask & OPT_GATEWAY) != 0)
+    usage_str('G', "use a given gateway address rather than querying system");
+
   if((opt_mask & OPT_HOLDTIME) != 0)
     {
       (void)snprintf(buf, sizeof(buf),
@@ -197,6 +209,9 @@ static void usage(uint32_t opt_mask)
 
       usage_str('H', buf);
     }
+
+  if((opt_mask & OPT_INTERFACE) != 0)
+    usage_str('G', "use a given interface index when manually setting gateway");
 
   if((opt_mask & OPT_MONITORNAME) != 0)
     usage_str('M', "specify the canonical name of the monitor");
@@ -239,10 +254,11 @@ static int check_options(int argc, char *argv[])
 {
   int   i;
   long  lo;
-  char *opts = "d:D:F:H:M:p:PTvw:?";
+  char *opts = "d:D:F:G:H:I:M:p:PTvw:?";
   char *opt_daemon = NULL, *opt_holdtime = NULL, *opt_monitorname = NULL;
   char *opt_pps = NULL, *opt_window = NULL;
-  char *opt_debugfile = NULL, *opt_firewall = NULL;
+  char *opt_debugfile = NULL, *opt_firewall = NULL, *opt_gateway = NULL;
+  char *opt_interface = NULL;
 
   while((i = getopt(argc, argv, opts)) != -1)
     {
@@ -263,10 +279,20 @@ static int check_options(int argc, char *argv[])
 	  opt_firewall = optarg;
 	  break;
 
+       case 'G':
+          options |= OPT_GATEWAY;
+          opt_gateway = optarg;
+          break;
+
 	case 'H':
 	  options |= OPT_HOLDTIME;
 	  opt_holdtime = optarg;
 	  break;
+
+       case 'I':
+          options |= OPT_INTERFACE;
+          opt_interface = optarg;
+          break;
 
 	case 'M':
 	  options |= OPT_MONITORNAME;
@@ -333,10 +359,34 @@ static int check_options(int argc, char *argv[])
       return -1;
     }
 
+
+  if(options & OPT_GATEWAY)
+    {
+      if ((g_gateway_sa = scamper_addr_resolve(PF_INET, opt_gateway)) == NULL)
+        {
+	  fprintf(stderr, "invalid -G gateway value '%s'\n", opt_gateway);
+	  return -1;
+	}
+    }
+#if 0
+  else
+    {
+      fprintf(stderr, "missing -G gateway option\n");
+      return -1;
+    }
+#endif
+
   if(options & OPT_HOLDTIME &&
      set_opt(OPT_HOLDTIME, opt_holdtime, scamper_holdtime_set) == -1)
     {
       usage(OPT_HOLDTIME);
+      return -1;
+    }
+
+  if(options & OPT_INTERFACE &&
+     set_opt(OPT_INTERFACE, opt_interface, scamper_interface_set) == -1)
+    {
+      usage(OPT_INTERFACE);
       return -1;
     }
 
@@ -436,6 +486,12 @@ int scamper_holdtime_set(const int ht)
     }
 
   return -1;
+}
+
+int scamper_interface_set(const int n)
+{
+  g_interface = n;
+  return 0;
 }
 
 int scamper_pps_get()
