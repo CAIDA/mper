@@ -213,7 +213,7 @@ static void ping_stop(scamper_task_t *task, uint8_t reason, uint8_t data)
   ping->stop_reason = reason;
   ping->stop_data   = data;
 
-  scamper_queue_done(task->queue, scamper_holdtime_get()*1000);
+  scamper_queue_done(task->queue, 0);
 
   return;  
 }
