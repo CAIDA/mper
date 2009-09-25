@@ -1224,7 +1224,7 @@ scamper_ping_t *scamper_do_ping_alloc(const control_word_t *words,
       switch(words[i].cw_code)
 	{
 	case KC_DEST_OPT:
-	  dest = words[i].cw_str;
+	  dest = words[i].cw_address;
 	  break;
 
 	/* the ttl to probe with */
@@ -1233,7 +1233,7 @@ scamper_ping_t *scamper_do_ping_alloc(const control_word_t *words,
 	  break;
 
 	case KC_METH_OPT:
-	  meth = words[i].cw_str;
+	  meth = words[i].cw_symbol;
 	  if(strcasecmp(meth, "icmp-echo") == 0)
 	    probe_method = SCAMPER_PING_METHOD_ICMP_ECHO;
 	  else if(strcasecmp(meth, "tcp-ack") == 0)
