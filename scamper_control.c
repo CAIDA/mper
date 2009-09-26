@@ -442,9 +442,11 @@ static client_t *client_alloc(struct sockaddr *sa, socklen_t slen, int fd)
 
   client->mode = CLIENT_MODE_ATTACHED;
 
+#if 0
   snprintf(buf, sizeof(buf), "mper version=%s protocol=%d.%d", MPER_VERSION,
 	   CLIENT_PROTOCOL_MAJOR, CLIENT_PROTOCOL_MINOR);
   client_send(client, buf);
+#endif
   return client;
 
  cleanup:
