@@ -66,6 +66,7 @@ typedef int socklen_t;
 #include <netinet/in.h>
 #include <netinet/tcp.h>  /* for TCP_NODELAY */
 #include <unistd.h>
+#include <sys/stat.h>
 #endif
 
 #include <errno.h>
@@ -447,6 +448,10 @@ static client_t *client_alloc(struct sockaddr *sa, socklen_t slen, int fd)
 	   CLIENT_PROTOCOL_MAJOR, CLIENT_PROTOCOL_MINOR);
   client_send(client, buf);
 #endif
+
+  client_send(client, "MORE");
+  scamper_fd_read_unpause(client->fdn);
+
   return client;
 
  cleanup:
@@ -566,6 +571,8 @@ int scamper_control_init(int port, int use_tcp)
 
       scamper_debug(__func__, "listening on unix domain socket %s",
 		    sun.sun_path);
+
+      chmod(sun.sun_path, 0777);  /* XXX need permission option */
     }
 #endif
 
