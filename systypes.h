@@ -35,6 +35,6 @@ typedef unsigned __int32 uint32_t;
 #include <unistd.h>
 #endif
 
-#if defined(__APPLE__)
+#if defined(__APPLE__) || defined(__linux__)
 #include <stdint.h>
 #endif
