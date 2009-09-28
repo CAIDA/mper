@@ -31,9 +31,15 @@ typedef unsigned __int16 uint16_t;
 typedef unsigned __int32 uint32_t;
 #endif
 
+#ifdef _WIN32
+#include <winsock2.h>
+#endif
+
 #include <sys/types.h>
 
 #ifndef _WIN32
+#include <sys/time.h>
+#include <sys/socket.h>
 #include <netinet/in.h>
 #endif
 

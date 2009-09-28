@@ -174,7 +174,7 @@ test_parse_control_message(void)
   fail("1234 ping tx=T234:");
   fail("1234 ping tx=T234: ");
   fail("1234 ping tx=T234:567x");
-  pass("1234 ping tx=T234:567", 3, KT_TIMEVAL, (time_t)234, (suseconds_t)567);
+  pass("1234 ping tx=T234:567", 3, KT_TIMEVAL, (time_t)234, 567);
 
   /* test non-interference of multiple str/blobs */
   pass("1234 ping pkt=$SGVsbG8s txt=$IFdvcmxkIQ==", 4,
@@ -211,7 +211,7 @@ test_parse_control_message(void)
   echo_message = 0;
   pass(create_long_msg("1234 ping tx=T234:567", "ttl=5",
 		       MPER_MSG_MAX_MESSAGE_SIZE), 4,
-       KT_TIMEVAL, (time_t)234, (suseconds_t)567, KT_UINT, 5);
+       KT_TIMEVAL, (time_t)234, 567, KT_UINT, 5);
   fail(create_long_msg("1234 ping tx=T234:567", "ttl=5",
 		       MPER_MSG_MAX_MESSAGE_SIZE + 1));
   fail(create_long_msg("1234 ping tx=T234:567", "ttl=5",
@@ -312,7 +312,7 @@ pass(const char *message, size_t expected_length, ...)
 
       case KT_TIMEVAL:
 	w.cw_timeval.tv_sec = va_arg(ap, time_t);
-	w.cw_timeval.tv_usec = va_arg(ap, suseconds_t);
+	w.cw_timeval.tv_usec = va_arg(ap, long);
 	break;
 
       default: fprintf(stderr, "ASSERTION FAILURE at %s:%d",

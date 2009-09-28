@@ -743,8 +743,7 @@ parse_timeval_usec(char *number, size_t word_index)
 
     if (*s == '\0' || *s == ' ') {
       if (*s == ' ') *s++ = '\0';
-      words[word_index].cw_timeval.tv_usec =
-	(suseconds_t)strtol(number, NULL, 10);
+      words[word_index].cw_timeval.tv_usec = strtol(number, NULL, 10);
       return s;
     }
     /* else fall through */
@@ -810,10 +809,10 @@ dump_parsed_message(const control_word_t *control_words, size_t length)
 	  break;
 
 	case KT_STR:
-	  fprintf(stderr, "[%lu]", control_words[i].cw_len);
+	  fprintf(stderr, "[%lu]", (unsigned long)control_words[i].cw_len);
 	  if (strlen(control_words[i].cw_str) != control_words[i].cw_len) {
 	      fprintf(stderr, " (WARN: strlen=%lu)",
-		      strlen(control_words[i].cw_str));
+		      (unsigned long)strlen(control_words[i].cw_str));
 	  }
 	  fprintf(stderr, " = \"");
 	  print_escaped((unsigned char *)control_words[i].cw_str,
@@ -822,7 +821,7 @@ dump_parsed_message(const control_word_t *control_words, size_t length)
 	  break;
 
 	case KT_BLOB:
-	  fprintf(stderr, "[%lu] = |", control_words[i].cw_len);
+	  fprintf(stderr, "[%lu] = |", (unsigned long)control_words[i].cw_len);
 	  print_escaped(control_words[i].cw_blob, control_words[i].cw_len);
 	  fprintf(stderr, "|\n");
 	  break;
