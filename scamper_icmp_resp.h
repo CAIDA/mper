@@ -63,9 +63,9 @@
 
 #define SCAMPER_ICMP_RESP_INNER_IS_ICMP_ECHO_REQ(ir) ( \
  (ir->ir_af == AF_INET  && \
-  ir->ir_inner_ip_proto == 1  && ir->ir_icmp_type == 8) || \
+  ir->ir_inner_ip_proto == 1  && ir->ir_inner_icmp_type == 8) || \
  (ir->ir_af == AF_INET6 && \
-  ir->ir_inner_ip_proto == 58 && ir->ir_icmp_type == 128))
+  ir->ir_inner_ip_proto == 58 && ir->ir_inner_icmp_type == 128))
 
 /*
  * an ICMP response may consist of up to four pieces.  when an ICMP
