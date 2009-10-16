@@ -122,9 +122,6 @@ typedef struct scamper_ping_reply
   /* the tcp flags returned */
   uint8_t                    tcp_flags;
 
-  uint8_t                   *reply_pkt;      /* raw reply packet */
-  size_t                     reply_pkt_len;  /* length of reply_pkt */
-
   /* if a single probe gets more than one response, they get chained */
   struct scamper_ping_reply *next;
 
@@ -170,9 +167,6 @@ typedef struct scamper_ping
   uint16_t               reply_count;  /* -o option to ping */
 
   uint8_t                opt_set_cksum;  /* user provided checksum */
-
-  uint8_t               *probe_pkt;    /* raw probe packet */
-  size_t                 probe_pkt_len;  /* length of probe_pkt */
 
   /* actual data collected with the ping */
   scamper_ping_reply_t **ping_replies;

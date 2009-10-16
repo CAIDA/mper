@@ -510,11 +510,15 @@ static void do_ping_probe(scamper_task_t *task)
     }
 
   /* if the ping has to hold some pattern, then generate it now */  
+
   /*
-  ** Note: We overwrite the first 2 bytes of the payload with the checksum
-  **       if the user has requested a specific checksum for ICMP.
+  ** Note: There is no direct way of setting the ICMP checksum of a probe
+  **       packet.  If a user requests a specific ICMP checksum, then
+  **       we employ a hack that requires storing 2 bytes in the payload.
   **       Thus, the user shouldn't really request both a specific checksum
-  **       and a payload pattern, though we allow it.
+  **       and a payload pattern, although we allow it, because the payload
+  **       pattern will be partially overwritten to ensure to we achieve
+  **       the requested checksum.
   */
   if(ping->pattern_bytes == NULL)
     {
