@@ -1368,10 +1368,9 @@ int random_u16(uint16_t *r)
 
 int random_u16_nonzero(uint16_t *r)
 {
-  *r = 0;
-  while(*r == 0)
+  do {
     random_u16(r);
-
+  } while (*r == 0);
   return 0;
 }
 
