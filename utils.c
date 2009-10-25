@@ -1366,6 +1366,15 @@ int random_u16(uint16_t *r)
   return 0;
 }
 
+int random_u16_nonzero(uint16_t *r)
+{
+  *r = 0;
+  while(*r == 0)
+    random_u16(r);
+
+  return 0;
+}
+
 uint16_t in_cksum(const void *buf, const size_t len)
 {
   uint16_t *w = (uint16_t *)buf;

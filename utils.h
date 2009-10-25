@@ -164,6 +164,7 @@ uint16_t in_cksum(const void *buf, const size_t len);
 /* generate a 32-bit random number and return it */
 int random_u32(uint32_t *r);
 int random_u16(uint16_t *r);
+int random_u16_nonzero(uint16_t *r);
 
 /*
  * Functions for uuencode and uudecode.
