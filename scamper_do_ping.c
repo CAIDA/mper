@@ -110,10 +110,6 @@ static void send_response(scamper_task_t *task, const char *message)
 
 /* ---------------------------------------------------------------------- */
 
-#define SCAMPER_DO_PING_PROBECOUNT_MIN    1
-#define SCAMPER_DO_PING_PROBECOUNT_DEF    1
-#define SCAMPER_DO_PING_PROBECOUNT_MAX    65535
-
 #define SCAMPER_DO_PING_PROBESIZE_V4_MIN  28
 #define SCAMPER_DO_PING_PROBESIZE_V4_DEF  (28+56)
 #define SCAMPER_DO_PING_PROBESIZE_V4_MAX  65535
@@ -169,13 +165,6 @@ static size_t   pktbuf_len = 0;
 /* address cache used to avoid reallocating the same address multiple times */
 extern scamper_addrcache_t *addrcache;
 
-typedef struct ping_probe
-{
-  struct timeval     tx;
-  uint16_t           seq;
-  uint16_t           ipid;
-} ping_probe_t;
-
 typedef struct ping_state
 {
 #ifndef _WIN32
@@ -185,11 +174,13 @@ typedef struct ping_state
   scamper_fd_t      *icmp;
   scamper_fd_t      *pr;
   scamper_dl_hdr_t  *dl_hdr;
-  ping_probe_t     **probes;
+
+  uint8_t            sent_probe;  /* whether we've sent a probe yet */
+  struct timeval     tx;          /* probe transmit time, seq, & ipid */
+  uint16_t           seq;
+  uint16_t           ipid;
   uint16_t           replies;
-  uint16_t           seq_min;
-  uint16_t           seq_cur;
-  uint16_t           seq_max;
+
   scamper_addr_t    *src;
   uint32_t           tcp_seq;
   uint32_t           tcp_ack;
@@ -224,70 +215,24 @@ static void ping_handleerror(scamper_task_t *task, int error)
   return;
 }
 
-static uint16_t match_ipid(scamper_task_t *task, uint16_t ipid)
-{
-  scamper_ping_t *ping  = task->data;
-  ping_state_t   *state = task->state;
-  uint16_t        seq;
-
-  for(seq = state->seq_cur-1; state->probes[seq]->ipid != ipid; seq--)
-    {
-      if(seq == 0 || ping->ping_sent - 5 == seq)
-	{
-	  seq = state->seq_cur - 1;
-	  break;
-	}
-    }
-
-  return seq;
-}
-
 static void do_ping_handle_dl(scamper_task_t *task, scamper_dl_rec_t *dl)
 {
   scamper_ping_t       *ping  = task->data;
   ping_state_t         *state = task->state;
   scamper_ping_reply_t *reply = NULL;
-  ping_probe_t         *probe;
-  uint16_t              seq;
 
-  if(state->seq_cur == 0)
+  if(!state->sent_probe)
     return;
 
   if(dl->dl_ip_proto != IPPROTO_TCP)
     return;
 
-  if(ping->probe_method == SCAMPER_PING_METHOD_TCP_ACK)
-    {
-      if(dl->dl_tcp_dport != ping->probe_sport)
-	return;
-
-      /*
-       * for TCP targets that might echo the IPID, use that to match probes.
-       * note that there exists the possibility that replies might be associated
-       * with the wrong probe by random chance.
-       */
-      if(ping->dst->type == SCAMPER_ADDR_TYPE_IPV4)
-	seq = match_ipid(task, dl->dl_ip_id);
-      else
-	seq = state->seq_cur - 1;
-    }
-  else if(ping->probe_method == SCAMPER_PING_METHOD_TCP_ACK_SPORT)
-    {
-      if(dl->dl_tcp_dport > ping->probe_sport + state->seq_cur ||
-	 dl->dl_tcp_dport < ping->probe_sport)
-	return;
-      seq = dl->dl_tcp_dport - ping->probe_sport;
-    }
-  else
-    {
-      return;
-    }
-
-  if(dl->dl_tcp_sport != ping->probe_dport)
+  if(ping->probe_method != SCAMPER_PING_METHOD_TCP_ACK)
     return;
 
-  /* this is probably the probe which goes with the reply */
-  probe = state->probes[seq];
+  if(dl->dl_tcp_dport != ping->probe_sport
+     || dl->dl_tcp_sport != ping->probe_dport)
+    return;
 
   scamper_dl_rec_tcp_print(dl);
 
@@ -305,12 +250,11 @@ static void do_ping_handle_dl(scamper_task_t *task, scamper_dl_rec_t *dl)
     }
 
   /* put together details of the reply */
-  /* timeval_diff_tv(&reply->rtt, &probe->tx, &dl->dl_tv); */
-  reply->tx = probe->tx;
+  /* timeval_diff_tv(&reply->rtt, &state->tx, &dl->dl_tv); */
+  reply->tx = state->tx;
   reply->rx = dl->dl_tv;
   reply->reply_size  = dl->dl_ip_size;
   reply->reply_proto = dl->dl_ip_proto;
-  reply->probe_id    = state->seq_cur-1;
   reply->tcp_flags   = dl->dl_tcp_flags;
 
   if(dl->dl_af == AF_INET)
@@ -318,21 +262,12 @@ static void do_ping_handle_dl(scamper_task_t *task, scamper_dl_rec_t *dl)
       reply->reply_ipid = dl->dl_ip_id;
       reply->flags |= SCAMPER_PING_REPLY_FLAG_REPLY_IPID;
 
-      reply->probe_ipid = probe->ipid;
+      reply->probe_ipid = state->ipid;
       reply->flags |= SCAMPER_PING_REPLY_FLAG_PROBE_IPID;
     }
 
   reply->reply_ttl = dl->dl_ip_ttl;
   reply->flags |= SCAMPER_PING_REPLY_FLAG_REPLY_TTL;
-
-  /*
-   * if this is the first reply we have for this hop, then increment
-   * the replies counter we keep state with
-   */
-  if(ping->ping_replies[state->seq_cur-1] == NULL)
-    {
-      state->replies++;
-    }
 
   /* put the reply into the ping table */
   scamper_ping_reply_append(ping, reply);
@@ -341,6 +276,7 @@ static void do_ping_handle_dl(scamper_task_t *task, scamper_dl_rec_t *dl)
    * if only a certain number of replies are required, and we've reached
    * that amount, then stop probing
    */
+  state->replies++;
   if(ping->reply_count != 0 && state->replies >= ping->reply_count)
     {
       ping_stop(task, SCAMPER_PING_STOP_COMPLETED, 0);
@@ -422,7 +358,6 @@ static void do_ping_probe(scamper_task_t *task)
 {
   scamper_ping_t  *ping  = task->data;
   ping_state_t    *state = task->state;
-  ping_probe_t    *pp = NULL;
   scamper_probe_t  probe;
   uint8_t         *buf;
   size_t           payload_len;
@@ -556,7 +491,7 @@ static void do_ping_probe(scamper_task_t *task)
 	  probe.pr_icmp_type = ICMP6_ECHO_REQUEST;
 	}
       probe.pr_icmp_id   = pid & 0xffff;
-      probe.pr_icmp_seq  = state->seq_cur;
+      probe.pr_icmp_seq  = state->seq;
       probe.pr_fd        = scamper_fd_fd_get(state->icmp);
 
       /* hack to get the icmp csum to be a particular value, and be valid */
@@ -583,13 +518,6 @@ static void do_ping_probe(scamper_task_t *task)
 	  probe.pr_tcp_seq   = state->tcp_seq;
 	  probe.pr_tcp_ack   = state->tcp_ack;
 	}
-      else if(ping->probe_method == SCAMPER_PING_METHOD_TCP_ACK_SPORT)
-	{
-	  probe.pr_tcp_sport = ping->probe_sport + state->seq_cur;
-	  if(random_u32(&probe.pr_tcp_seq) != 0 ||
-	     random_u32(&probe.pr_tcp_ack) != 0)
-	    goto err;
-	}
     }
   else if(SCAMPER_PING_METHOD_IS_UDP(ping))
     {
@@ -599,8 +527,6 @@ static void do_ping_probe(scamper_task_t *task)
 
       if(ping->probe_method == SCAMPER_PING_METHOD_UDP)
 	probe.pr_udp_dport = ping->probe_dport;
-      else if(ping->probe_method == SCAMPER_PING_METHOD_UDP_DPORT)
-	probe.pr_udp_dport = ping->probe_dport + state->seq_cur;
 
 #if 0
       /* hack to get the udp csum to be a particular value, and be valid */
@@ -614,17 +540,6 @@ static void do_ping_probe(scamper_task_t *task)
 #endif
     }
 
-  /*
-   * allocate a ping probe state record before we try and send the probe
-   * as there is no point sending something into the wild that we can't
-   * record
-   */
-  if((pp = malloc(sizeof(ping_probe_t))) == NULL)
-    {
-      ping_handleerror(task, errno);
-      goto err;
-    }
-
   if(scamper_probe(&probe) == -1)
     {
       ping_handleerror(task, probe.pr_errno);
@@ -632,18 +547,9 @@ static void do_ping_probe(scamper_task_t *task)
     }
 
   /* fill out the details of the probe sent */
-  pp->seq  = state->seq_cur;
-  pp->ipid = ipid;
-  timeval_cpy(&pp->tx, &probe.pr_tx);
-
-  /* record the probe in the probes table */
-  state->probes[state->seq_cur - state->seq_min] = pp;
-
-  /* we've sent this sequence number now, so move to the next one */
-  state->seq_cur++;
-
-  /* increment the number of probes sent... */
-  ping->ping_sent++;
+  state->sent_probe = 1;
+  state->ipid = ipid;
+  timeval_cpy(&state->tx, &probe.pr_tx);
 
   /* re-queue the ping task */
   scamper_queue_wait(task->queue, ping->probe_wait * 1000);
@@ -651,7 +557,6 @@ static void do_ping_probe(scamper_task_t *task)
   return;
 
  err:
-  if(pp != NULL) free(pp);
   return;
 }
 
@@ -660,7 +565,6 @@ static void do_ping_handle_icmp(scamper_task_t *task, scamper_icmp_resp_t *ir)
   scamper_ping_t       *ping  = task->data;
   ping_state_t         *state = task->state;
   scamper_ping_reply_t *reply = NULL;
-  ping_probe_t         *probe;
   uint16_t              seq;
   scamper_addr_t        addr;
 
@@ -673,7 +577,7 @@ static void do_ping_handle_icmp(scamper_task_t *task, scamper_icmp_resp_t *ir)
     return;
 
   /* if we haven't sent a probe yet */
-  if(state->seq_cur == 0)
+  if(!state->sent_probe)
     return;
 
   scamper_icmp_resp_print(ir);
@@ -684,13 +588,12 @@ static void do_ping_handle_icmp(scamper_task_t *task, scamper_icmp_resp_t *ir)
       /* if the response is not for us, then move on */
       if(ping->probe_method != SCAMPER_PING_METHOD_ICMP_ECHO ||
 	 ir->ir_icmp_id != (pid & 0xffff) ||
-	 ir->ir_icmp_seq < state->seq_min ||
-	 ir->ir_icmp_seq > state->seq_max)
+	 ir->ir_icmp_seq != state->seq)
 	{
 	  return;
 	}
 
-      seq = ir->ir_icmp_seq - state->seq_min;
+      seq = ir->ir_icmp_seq;
     }
   else if(SCAMPER_ICMP_RESP_INNER_IS_SET(ir))
     {
@@ -698,13 +601,12 @@ static void do_ping_handle_icmp(scamper_task_t *task, scamper_icmp_resp_t *ir)
 	{
 	  if(SCAMPER_ICMP_RESP_INNER_IS_ICMP_ECHO_REQ(ir) == 0 ||
 	     ir->ir_inner_icmp_id != (pid & 0xffff) ||
-	     ir->ir_inner_icmp_seq < state->seq_min ||
-	     ir->ir_inner_icmp_seq > state->seq_max)
+	     ir->ir_inner_icmp_seq != state->seq)
 	    {
 	      return;
 	    }
 
-	  seq = ir->ir_inner_icmp_seq - state->seq_min;
+	  seq = ir->ir_inner_icmp_seq;
 	}
       else if(SCAMPER_PING_METHOD_IS_TCP(ping))
 	{
@@ -720,19 +622,16 @@ static void do_ping_handle_icmp(scamper_task_t *task, scamper_icmp_resp_t *ir)
 	      if(ir->ir_inner_tcp_sport != ping->probe_sport)
 		return;
 
+	      /*
 	      if(ping->dst->type == SCAMPER_ADDR_TYPE_IPV4)
 		seq = match_ipid(task, ir->ir_inner_ip_id);
 	      else
 		seq = state->seq_cur - 1;
-	    }
-	  else
-	    {
-	      if(ir->ir_inner_tcp_sport > ping->probe_sport + state->seq_cur ||
-		 ir->ir_inner_tcp_sport < ping->probe_sport)
-		return;
+	      */
 
-	      seq = ir->ir_inner_tcp_sport - ping->probe_sport;
+	      seq = state->seq;
 	    }
+	  else return;
 	}
       else if(SCAMPER_PING_METHOD_IS_UDP(ping))
 	{
@@ -748,18 +647,14 @@ static void do_ping_handle_icmp(scamper_task_t *task, scamper_icmp_resp_t *ir)
 	      if(ir->ir_inner_udp_dport != ping->probe_dport)
 		return;
 
+	      /*
 	      if(ping->dst->type == SCAMPER_ADDR_TYPE_IPV4)
 		seq = match_ipid(task, ir->ir_inner_ip_id);
 	      else
 		seq = state->seq_cur - 1;
-	    }
-	  else if(ping->probe_method == SCAMPER_PING_METHOD_UDP_DPORT)
-	    {
-	      if(ir->ir_inner_udp_dport > ping->probe_dport + state->seq_cur ||
-		 ir->ir_inner_udp_dport < ping->probe_dport)
-		return;
+	      */
 
-	      seq = ir->ir_inner_udp_dport - ping->probe_dport;
+	      seq = state->seq;
 	    }
 	  else
 	    {
@@ -772,15 +667,6 @@ static void do_ping_handle_icmp(scamper_task_t *task, scamper_icmp_resp_t *ir)
 	}
     }
   else return;
-
-  /*
-   * if the sequence number was in our range, but we have no record of the
-   * probe, then just ignore the response
-   */
-  if((probe = state->probes[seq]) == NULL)
-    {
-      return;
-    }
 
   /* allocate a reply structure for the response */
   if((reply = scamper_ping_reply_alloc()) == NULL)
@@ -797,11 +683,10 @@ static void do_ping_handle_icmp(scamper_task_t *task, scamper_icmp_resp_t *ir)
     }
 
   /* put together details of the reply */
-  /* timeval_diff_tv(&reply->rtt, &probe->tx, &ir->ir_rx); */
-  reply->tx = probe->tx;
+  /* timeval_diff_tv(&reply->rtt, &state->tx, &ir->ir_rx); */
+  reply->tx = state->tx;
   reply->rx = ir->ir_rx;
   reply->reply_size  = ir->ir_ip_size;
-  reply->probe_id    = seq;
   reply->icmp_type   = ir->ir_icmp_type;
   reply->icmp_code   = ir->ir_icmp_code;
   reply->icmp_q_ip_ttl = ir->ir_inner_ip_ttl;  /* == zero if not available */
@@ -811,7 +696,7 @@ static void do_ping_handle_icmp(scamper_task_t *task, scamper_icmp_resp_t *ir)
       reply->reply_ipid = ir->ir_ip_id;
       reply->flags |= SCAMPER_PING_REPLY_FLAG_REPLY_IPID;
 
-      reply->probe_ipid = probe->ipid;
+      reply->probe_ipid = state->ipid;
       reply->flags |= SCAMPER_PING_REPLY_FLAG_PROBE_IPID;
 
       reply->reply_proto = IPPROTO_ICMP;
@@ -827,15 +712,6 @@ static void do_ping_handle_icmp(scamper_task_t *task, scamper_icmp_resp_t *ir)
       reply->flags |= SCAMPER_PING_REPLY_FLAG_REPLY_TTL;
     }
 
-  /*
-   * if this is the first reply we have for this hop, then increment
-   * the replies counter we keep state with
-   */
-  if(ping->ping_replies[seq] == NULL)
-    {
-      state->replies++;
-    }
-
   /* put the reply into the ping table */
   scamper_ping_reply_append(ping, reply);
 
@@ -843,6 +719,7 @@ static void do_ping_handle_icmp(scamper_task_t *task, scamper_icmp_resp_t *ir)
    * if only a certain number of replies are required, and we've reached
    * that amount, then stop probing
    */
+  state->replies++;
   if(ping->reply_count != 0 && state->replies >= ping->reply_count)
     {
       ping_stop(task, SCAMPER_PING_STOP_COMPLETED, 0);
@@ -875,11 +752,7 @@ static void do_ping_handle_timeout(scamper_task_t *task)
     }
 #endif
 
-  if(state->seq_cur == state->seq_max)
-    {
-      ping_stop(task, SCAMPER_PING_STOP_COMPLETED, 0);
-    }
-
+  ping_stop(task, SCAMPER_PING_STOP_COMPLETED, 0);
   return;
 }
 
@@ -969,24 +842,20 @@ static void do_ping_write(scamper_task_t *task)
 {
   scamper_ping_t *ping = (scamper_ping_t *)task->data;
   scamper_ping_reply_t *reply = NULL;
-  uint16_t i, num_replies = 0;
   char buf[128];
 
   if(ping->stop_reason == SCAMPER_PING_STOP_NONE
      || ping->stop_reason == SCAMPER_PING_STOP_COMPLETED)
     {
-      for(i = 0; i < ping->ping_sent; i++)
+      if((reply = ping->ping_reply) != NULL)
         {
-	  reply = ping->ping_replies[i];
 	  while(reply)
 	    {
-	      ++num_replies;
 	      do_ping_write_reply(task, ping, reply);
 	      reply = reply->next;
 	    }
 	}
-
-      if(num_replies == 0)
+      else
         {
 	  do_ping_write_nonresponse(task, ping);
 	}
@@ -1008,7 +877,6 @@ static void do_ping_free(scamper_task_t *task)
 {
   scamper_ping_t *ping;
   ping_state_t *state;
-  int i;
 
   /* free any ping data collected */
   if((ping = task->data) != NULL)
@@ -1035,17 +903,6 @@ static void do_ping_free(scamper_task_t *task)
 	scamper_fd_free(state->rt);
 #endif
 
-      if(state->probes != NULL)
-	{
-	  for(i=0; i<state->seq_max - state->seq_min; i++)
-	    {
-	      if(state->probes[i] != NULL)
-		{
-		  free(state->probes[i]);
-		}
-	    }
-	  free(state->probes);
-	}
       free(state);
     }
 
@@ -1201,7 +1058,6 @@ scamper_ping_t *scamper_do_ping_alloc(const control_word_t *words,
 				      size_t word_count,
 				      const char **error_msg)
 {
-  uint16_t  probe_count   = SCAMPER_DO_PING_PROBECOUNT_DEF;
   uint8_t   probe_wait    = SCAMPER_DO_PING_PROBEWAIT_DEF;
   uint8_t   probe_ttl     = SCAMPER_DO_PING_PROBETTL_DEF;
   uint8_t   probe_tos     = SCAMPER_DO_PING_PROBETOS_DEF;
@@ -1242,12 +1098,8 @@ scamper_ping_t *scamper_do_ping_alloc(const control_word_t *words,
 	    probe_method = SCAMPER_PING_METHOD_ICMP_ECHO;
 	  else if(strcasecmp(meth, "tcp-ack") == 0)
 	    probe_method = SCAMPER_PING_METHOD_TCP_ACK;
-	  else if(strcasecmp(meth, "tcp-ack-sport") == 0)
-	    probe_method = SCAMPER_PING_METHOD_TCP_ACK_SPORT;
 	  else if(strcasecmp(meth, "udp") == 0)
 	    probe_method = SCAMPER_PING_METHOD_UDP;
-	  else if(strcasecmp(meth, "udp-dport") == 0)
-	    probe_method = SCAMPER_PING_METHOD_UDP_DPORT;
 	  else
 	    {
 	      *error_msg = "invalid 'meth' option value";
@@ -1277,11 +1129,6 @@ scamper_ping_t *scamper_do_ping_alloc(const control_word_t *words,
 	  return NULL;
 
 #if 0
-        /* number of probes to send */
-        case PING_OPT_PROBECOUNT:
-          probe_count = (uint16_t)tmp;
-          break;
-
         /* how long to wait between sending probes */
         case PING_OPT_PROBEWAIT:
           probe_wait = (uint8_t)tmp;
@@ -1429,7 +1276,6 @@ scamper_ping_t *scamper_do_ping_alloc(const control_word_t *words,
 
   ping->reqnum       = words[0].cw_uint;
   ping->user_data    = user_data;
-  ping->probe_count  = probe_count;
   ping->probe_size   = probe_size;
   ping->probe_wait   = probe_wait;
   ping->probe_cksum  = probe_cksum;
@@ -1451,7 +1297,6 @@ scamper_task_t *scamper_do_ping_alloctask(scamper_ping_t *ping,
 {
   scamper_task_t *task;
   ping_state_t   *state;
-  size_t          size;
   void           *addr;
 
 #ifdef _WIN32
@@ -1478,24 +1323,12 @@ scamper_task_t *scamper_do_ping_alloctask(scamper_ping_t *ping,
       addr = ping->src->addr;
     }
 
-  /* allocate the memory for ping replies */
-  if(scamper_ping_replies_alloc(ping, ping->probe_count) == -1)
-    {
-      goto err;
-    }
-
   /* allocate the necessary state to keep track of probes */
   if((task->state = malloc_zero(sizeof(ping_state_t))) == NULL)
     {
       goto err;
     }
   state = task->state;
-  size = ping->probe_count * sizeof(ping_probe_t *);
-  if((state->probes = malloc_zero(size)) == NULL)
-    {
-      goto err;
-    }
-  state->seq_max = state->seq_min + ping->probe_count;
 
   /* get the icmp file descriptor */
   if(ping->dst->type == SCAMPER_ADDR_TYPE_IPV4)

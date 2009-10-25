@@ -100,23 +100,15 @@ scamper_ping_t *scamper_ping_alloc()
 void scamper_ping_free(scamper_ping_t *ping)
 {
   scamper_ping_reply_t *reply, *reply_next;
-  int i;
 
   if(ping == NULL) return;
 
-  if(ping->ping_replies != NULL)
+  reply = ping->ping_reply;
+  while(reply != NULL)
     {
-      for(i=0; i<ping->ping_sent; i++)
-	{
-	  reply = ping->ping_replies[i];
-	  while(reply != NULL)
-	    {
-	      reply_next = reply->next;
-	      scamper_ping_reply_free(reply);
-	      reply = reply_next;
-	    }
-	}
-      free(ping->ping_replies);
+      reply_next = reply->next;
+      scamper_ping_reply_free(reply);
+      reply = reply_next;
     }
 
   if(ping->dst != NULL) scamper_addr_free(ping->dst);
@@ -129,18 +121,13 @@ void scamper_ping_free(scamper_ping_t *ping)
 uint32_t scamper_ping_reply_count(const scamper_ping_t *ping)
 {
   scamper_ping_reply_t *reply;
-  uint16_t i;
-  uint32_t count;
+  uint32_t count = 0;
 
-  for(i=0, count=0; i<ping->ping_sent; i++)
+  reply = ping->ping_reply;
+  while(reply != NULL)
     {
-      reply = ping->ping_replies[i];
-
-      while(reply != NULL)
-	{
-	  count++;
-	  reply = reply->next;
-	}
+      count++;
+      reply = reply->next;
     }
 
   return count;
@@ -148,41 +135,28 @@ uint32_t scamper_ping_reply_count(const scamper_ping_t *ping)
 
 int scamper_ping_reply_append(scamper_ping_t *p, scamper_ping_reply_t *reply)
 {
-  scamper_ping_reply_t *replies;
+  scamper_ping_reply_t *current;
 
-  if(p == NULL || reply == NULL || reply->probe_id >= p->ping_sent)
+  if(p == NULL || reply == NULL)
     {
       return -1;
     }
 
-  if((replies = p->ping_replies[reply->probe_id]) == NULL)
+  if((current = p->ping_reply) == NULL)
     {
-      p->ping_replies[reply->probe_id] = reply;
+      p->ping_reply = reply;
     }
   else
     {
-      while(replies->next != NULL)
+      while(current->next != NULL)
 	{
-	  replies = replies->next;
+	  current = current->next;
 	}
 
-      replies->next = reply;
+      current->next = reply;
     }
 
   return 0;
-}
-
-int scamper_ping_replies_alloc(scamper_ping_t *ping, int count)
-{
-  size_t size;
-
-  size = sizeof(scamper_ping_reply_t *) * count;
-  if((ping->ping_replies = (scamper_ping_reply_t **)malloc_zero(size)) != NULL)
-    {
-      return 0;
-    }
-
-  return -1;
 }
 
 scamper_ping_reply_t *scamper_ping_reply_alloc(void)

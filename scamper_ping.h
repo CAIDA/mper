@@ -112,7 +112,6 @@ typedef struct scamper_ping_reply
   uint16_t                   reply_size;
   uint16_t                   reply_ipid;
   uint16_t                   probe_ipid;
-  uint16_t                   probe_id;
 
   /* the icmp type / code returned */
   uint8_t                    icmp_type;
@@ -155,7 +154,6 @@ typedef struct scamper_ping
   uint8_t               *pattern_bytes;
 
   /* ping options */
-  uint16_t               probe_count;  /* -c option to ping */
   uint16_t               probe_size;   /* -s option to ping */
   uint8_t                probe_method; /* -P option to ping */
   uint8_t                probe_wait;   /* -i option to ping */
@@ -169,8 +167,7 @@ typedef struct scamper_ping
   uint8_t                opt_set_cksum;  /* user provided checksum */
 
   /* actual data collected with the ping */
-  scamper_ping_reply_t **ping_replies;
-  uint16_t               ping_sent;
+  scamper_ping_reply_t *ping_reply;
 } scamper_ping_t;
 
 /* basic routines to allocate and free scamper_ping structures */
@@ -178,9 +175,6 @@ scamper_ping_t *scamper_ping_alloc(void);
 void scamper_ping_free(scamper_ping_t *ping);
 scamper_addr_t *scamper_ping_addr(const void *va);
 int scamper_ping_setpattern(scamper_ping_t *ping,uint8_t *bytes,uint16_t len);
-
-/* utility function for allocating an array for recording replies */
-int scamper_ping_replies_alloc(scamper_ping_t *ping, int count);
 
 /* basic routines to allocate and free scamper_ping_reply structures */
 scamper_ping_reply_t *scamper_ping_reply_alloc(void);
