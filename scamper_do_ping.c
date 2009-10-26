@@ -165,6 +165,149 @@ static size_t   pktbuf_len = 0;
 /* address cache used to avoid reallocating the same address multiple times */
 extern scamper_addrcache_t *addrcache;
 
+/* ---------------------------------------------------------------------- */
+
+/*
+** Code for reversing bits derived from "Bit Twiddling Hacks",
+** http://graphics.stanford.edu/~seander/bithacks.html, accessed Oct 21, 2009.
+*/
+static const unsigned char BitReverseTable256[256] = 
+{
+#   define R2(n)     n,     n + 2*64,     n + 1*64,     n + 3*64
+#   define R4(n) R2(n), R2(n + 2*16), R2(n + 1*16), R2(n + 3*16)
+#   define R6(n) R4(n), R4(n + 2*4 ), R4(n + 1*4 ), R4(n + 3*4 )
+    R6(0), R6(2), R6(1), R6(3)
+};
+
+static uint16_t reverse_16bits(uint16_t v)
+{
+  return (BitReverseTable256[v & 0xff] << 8) | 
+          BitReverseTable256[(v >> 8) & 0xff];
+}
+
+/*
+** Probe-response matching.
+**
+**   WARNING: None of this works properly with IPv6, since IPv6 doesn't
+**            have an IP ID.  Support for IPv6 is future work.
+**
+** We use a combination of random (or quasi-random) IP ID and a global
+** per-packet counter to match responses to probes.  By supplementing the
+** random IP ID with an incrementing counter, we ensure that it is
+** *impossible* (not just unlikely) for a response to be mismatched to a
+** probe in any given cycle through the counter.  For example, with a
+** 16-bit counter, it is impossible for a mismatch to occur in any
+** consecutive 2^16 = 65,536 packets.  (ICMP echo reply responses don't
+** return the probe IP ID, so we rely on just the global counter rather
+** than global counter + probe IP ID for matching.)
+**
+** The scheme is slightly different for UDP, since there is no room for a
+** separate 16-bit counter.  So we use a quasi-random sequence for the IP
+** ID rather than randomly generating an IP ID.  The quasi-random sequence
+** ensures that there is no mismatch for any consecutive 2^16 = 65,536
+** packets.  In the future, we'll also encode a 6-bit counter into the
+** payload length, reducing the probability of a mismatch even further.
+** The additional match space given by the 6-bit counter can be useful if
+** we decide to remove the current mper restriction that only one probe may
+** be outstanding for any given destination at a time.
+**
+**   NOTE: We need to use a quasi-random (or another randomish sequence)
+**         for the IP ID because we compare the probe IP ID with the
+**         response IP ID to detect reflectors in RadarGun-style probing.
+**         Otherwise, we could have simply used a simple incrementing
+**         sequence for the IP ID.
+**
+** On mper start up, we should randomly choose the starting counter for
+** each protocol to ensure that there is no accidental matches across mper
+** runs.
+**
+**   BACKGROUND: You can compute the probability of choosing a previously
+**         chosen 16-bit random value after k trials with
+**
+**         ruby -e 'n = 2 ** 16; p = 1.0; x = n; s = (1..32).to_a; s.concat [64,96,128,192,256]; 256.times do |i| if i + 1 == s.first then s.shift; printf("%d %d %g\n", i + 1, x, 1.0 - p); end; x -= 1; p *= x.quo(n); end'
+**
+**          trials   probability
+**             64       3.0%
+**             96       6.7%
+**            128      11.7%
+**            192      24.4%
+**            256      39.3%
+**
+** ----------------------------------------------------------------------
+**
+** * ICMP:
+**    - store pid in ICMP ID
+**    - store global 16-bit counter into ICMP sequence number
+**    - primary match fields: IP ID and ICMP seq number
+**    - secondary match field: target addr
+**    - for Paris traceroute, ensure ICMP checksum is consistent
+**
+** * UDP:
+**    - store pid in sport
+**    - store Van der Corput sequence into IP ID; store global 6-bit
+**      counter into packet length; use a descending Van der Corput
+**      sequence to reduce probability of incorrectly inferring IP ID
+**      reflection
+**    - primary match fields: IP ID and packet length
+**    - secondary match fields: target addr, sport, dport
+**
+**    NOTE: FreeBSD versions older than 6.2 zero out the UDP checksum in
+**          the UDP probe packet enclosed in an ICMP response.  Thus, we
+**          can't store probe matching data in the UDP checksum.
+**
+**          See: kern/112471: [netinet] [patch] sys/netinet/udp_usrreq.c
+**                            modifies received UDP checksum
+**
+** * TCP ACK:
+**    - store pid in sport
+**    - store shared 16-bit counter in lower 16 bits of sequence number
+**      and acknowledgment number
+**    - store IP ID in upper 16 bits of acknowledgment number
+**    - ICMP response: primary match fields: IP ID and sequence number
+**    - TCP RST response: primary match field: sequence number (== sent
+**      acknowledgment number)
+**    - non-RST TCP response: try matching seq num of response just like
+**      for RST responses
+**        - mostly ACK, and the few ACK responses I checked have
+**          response-acknowledgment-number == sent-sequence-number (since
+**          we sent empty ACK), which is useful just like for RST
+**          responses
+**    - secondary match fields: target addr, sport, dport
+**
+**    NOTE: RFC 793 (Transmission Control Protocol) states:
+**
+**             If the incoming segment has an ACK field, the reset
+**             takes its sequence number from the ACK field of the
+**             segment, otherwise the reset has sequence number zero
+**             and the ACK field is set to the sum of the sequence
+**             number and segment length of the incoming segment.
+*/
+
+/* scamper_do_ping_init() sets these counters to a non-zero random value. */
+static uint16_t g_icmp_seq;
+static uint16_t g_tcp_seq;
+static uint16_t g_udp_ipid;  /* descending Van der Corput quasi-random seq */
+
+static uint16_t next_icmp_seq(void)
+{
+  g_icmp_seq = (g_icmp_seq == 65535 ? 1 : g_icmp_seq + 1);
+  return g_icmp_seq;
+}
+
+static uint16_t next_tcp_seq(void)
+{
+  g_tcp_seq = (g_tcp_seq == 65535 ? 1 : g_tcp_seq + 1);
+  return g_tcp_seq;
+}
+
+static uint16_t next_udp_ipid(void)
+{
+  g_udp_ipid = (g_udp_ipid == 1 ? 65535 : g_udp_ipid - 1);
+  return reverse_16bits(g_udp_ipid);
+}
+
+/* ---------------------------------------------------------------------- */
+
 typedef struct ping_state
 {
 #ifndef _WIN32
@@ -185,6 +328,8 @@ typedef struct ping_state
   uint32_t           tcp_seq;
   uint32_t           tcp_ack;
 } ping_state_t;
+
+/* ---------------------------------------------------------------------- */
 
 /*
  * ping_abort
@@ -220,6 +365,7 @@ static void do_ping_handle_dl(scamper_task_t *task, scamper_dl_rec_t *dl)
   scamper_ping_t       *ping  = task->data;
   ping_state_t         *state = task->state;
   scamper_ping_reply_t *reply = NULL;
+  uint16_t              seq, ipid;
 
   if(!state->sent_probe)
     return;
@@ -228,6 +374,11 @@ static void do_ping_handle_dl(scamper_task_t *task, scamper_dl_rec_t *dl)
     return;
 
   if(ping->probe_method != SCAMPER_PING_METHOD_TCP_ACK)
+    return;
+
+  seq = dl->dl_tcp_seq & 0xFFFF;
+  ipid = dl->dl_tcp_seq >> 16;
+  if (seq != state->seq || ipid != state->ipid)
     return;
 
   if(dl->dl_tcp_dport != ping->probe_sport
@@ -363,7 +514,7 @@ static void do_ping_probe(scamper_task_t *task)
   size_t           payload_len;
   size_t           hdr_len;
   int              i;
-  uint16_t         ipid = 0, u16;
+  uint16_t         u16;
 
 #ifndef _WIN32
   if(state->rt != NULL)
@@ -383,25 +534,10 @@ static void do_ping_probe(scamper_task_t *task)
       /* sizeof(struct ip) */
       hdr_len = 20;
 
-      /* select a random IPID value that is not zero. try up to three times */
-      for(i=0; i<3; i++)
-	{
-	  if(random_u16(&ipid) != 0)
-	    {
-	      printerror(errno, strerror, __func__, "could not rand ipid");
-	      ping_handleerror(task, errno);
-	      goto err;
-	    }
-
-	  if(ipid != 0)
-	    break;
-	}
-
-      if(ipid == 0)
-	{
-	  ping_handleerror(task, errno);
-	  goto err;
-	}
+      if(SCAMPER_PING_METHOD_IS_UDP(ping))
+	state->ipid = next_udp_ipid();
+      else /* ICMP or TCP */
+	random_u16_nonzero(&state->ipid);
     }
   else if(ping->dst->type == SCAMPER_ADDR_TYPE_IPV6)
     {
@@ -474,7 +610,7 @@ static void do_ping_probe(scamper_task_t *task)
   probe.pr_ip_src    = ping->src;
   probe.pr_ip_dst    = ping->dst;
   probe.pr_ip_ttl    = ping->probe_ttl;
-  probe.pr_ip_id     = ipid;
+  probe.pr_ip_id     = state->ipid;
   probe.pr_data      = pktbuf;
   probe.pr_len       = payload_len;
 
@@ -491,7 +627,7 @@ static void do_ping_probe(scamper_task_t *task)
 	  probe.pr_icmp_type = ICMP6_ECHO_REQUEST;
 	}
       probe.pr_icmp_id   = pid & 0xffff;
-      probe.pr_icmp_seq  = state->seq;
+      probe.pr_icmp_seq  = state->seq = next_icmp_seq();
       probe.pr_fd        = scamper_fd_fd_get(state->icmp);
 
       /* hack to get the icmp csum to be a particular value, and be valid */
@@ -512,12 +648,10 @@ static void do_ping_probe(scamper_task_t *task)
       probe.pr_dl_hdr    = state->dl_hdr->dl_hdr;
       probe.pr_dl_size   = state->dl_hdr->dl_size;
 
-      if(ping->probe_method == SCAMPER_PING_METHOD_TCP_ACK)
-	{
-	  probe.pr_tcp_sport = ping->probe_sport;
-	  probe.pr_tcp_seq   = state->tcp_seq;
-	  probe.pr_tcp_ack   = state->tcp_ack;
-	}
+      /* ping->probe_method == SCAMPER_PING_METHOD_TCP_ACK */
+      probe.pr_tcp_sport = ping->probe_sport;
+      probe.pr_tcp_seq   = state->seq = next_tcp_seq();
+      probe.pr_tcp_ack   = (state->ipid << 16) | state->seq;
     }
   else if(SCAMPER_PING_METHOD_IS_UDP(ping))
     {
@@ -525,8 +659,8 @@ static void do_ping_probe(scamper_task_t *task)
       probe.pr_udp_sport = ping->probe_sport;
       probe.pr_fd        = scamper_fd_fd_get(state->pr);
 
-      if(ping->probe_method == SCAMPER_PING_METHOD_UDP)
-	probe.pr_udp_dport = ping->probe_dport;
+      /* ping->probe_method == SCAMPER_PING_METHOD_UDP */
+      probe.pr_udp_dport = ping->probe_dport;
 
 #if 0
       /* hack to get the udp csum to be a particular value, and be valid */
@@ -548,7 +682,6 @@ static void do_ping_probe(scamper_task_t *task)
 
   /* fill out the details of the probe sent */
   state->sent_probe = 1;
-  state->ipid = ipid;
   timeval_cpy(&state->tx, &probe.pr_tx);
 
   /* re-queue the ping task */
@@ -565,7 +698,6 @@ static void do_ping_handle_icmp(scamper_task_t *task, scamper_icmp_resp_t *ir)
   scamper_ping_t       *ping  = task->data;
   ping_state_t         *state = task->state;
   scamper_ping_reply_t *reply = NULL;
-  uint16_t              seq;
   scamper_addr_t        addr;
 
   /*
@@ -589,11 +721,7 @@ static void do_ping_handle_icmp(scamper_task_t *task, scamper_icmp_resp_t *ir)
       if(ping->probe_method != SCAMPER_PING_METHOD_ICMP_ECHO ||
 	 ir->ir_icmp_id != (pid & 0xffff) ||
 	 ir->ir_icmp_seq != state->seq)
-	{
 	  return;
-	}
-
-      seq = ir->ir_icmp_seq;
     }
   else if(SCAMPER_ICMP_RESP_INNER_IS_SET(ir))
     {
@@ -601,72 +729,32 @@ static void do_ping_handle_icmp(scamper_task_t *task, scamper_icmp_resp_t *ir)
 	{
 	  if(SCAMPER_ICMP_RESP_INNER_IS_ICMP_ECHO_REQ(ir) == 0 ||
 	     ir->ir_inner_icmp_id != (pid & 0xffff) ||
-	     ir->ir_inner_icmp_seq != state->seq)
-	    {
+	     ir->ir_inner_icmp_seq != state->seq ||
+	     (ir->ir_af == AF_INET && ir->ir_inner_ip_id != state->ipid))
 	      return;
-	    }
-
-	  seq = ir->ir_inner_icmp_seq;
 	}
       else if(SCAMPER_PING_METHOD_IS_TCP(ping))
 	{
 	  if(SCAMPER_ICMP_RESP_INNER_IS_TCP(ir) == 0 ||
 	     SCAMPER_ICMP_RESP_IS_UNREACH(ir) == 0 ||
+	     ir->ir_inner_tcp_seq != state->seq ||
+	     (ir->ir_af == AF_INET && ir->ir_inner_ip_id != state->ipid) ||
+	     ir->ir_inner_tcp_sport != ping->probe_sport ||
 	     ir->ir_inner_tcp_dport != ping->probe_dport)
-	    {
 	      return;
-	    }
-
-	  if(ping->probe_method == SCAMPER_PING_METHOD_TCP_ACK)
-	    {
-	      if(ir->ir_inner_tcp_sport != ping->probe_sport)
-		return;
-
-	      /*
-	      if(ping->dst->type == SCAMPER_ADDR_TYPE_IPV4)
-		seq = match_ipid(task, ir->ir_inner_ip_id);
-	      else
-		seq = state->seq_cur - 1;
-	      */
-
-	      seq = state->seq;
-	    }
-	  else return;
 	}
       else if(SCAMPER_PING_METHOD_IS_UDP(ping))
 	{
 	  if(SCAMPER_ICMP_RESP_INNER_IS_UDP(ir) == 0 ||
 	     SCAMPER_ICMP_RESP_IS_UNREACH(ir) == 0 ||
-	     ir->ir_inner_udp_sport != ping->probe_sport)
-	    {
+	     (ir->ir_af == AF_INET && ir->ir_inner_ip_id != state->ipid) ||
+	     ir->ir_inner_udp_sport != ping->probe_sport ||
+	     ir->ir_inner_udp_dport != ping->probe_dport)
 	      return;
-	    }
-
-	  if(ping->probe_method == SCAMPER_PING_METHOD_UDP)
-	    {
-	      if(ir->ir_inner_udp_dport != ping->probe_dport)
-		return;
-
-	      /*
-	      if(ping->dst->type == SCAMPER_ADDR_TYPE_IPV4)
-		seq = match_ipid(task, ir->ir_inner_ip_id);
-	      else
-		seq = state->seq_cur - 1;
-	      */
-
-	      seq = state->seq;
-	    }
-	  else
-	    {
-	      return;
-	    }
 	}
-      else
-	{
-	  return;
-	}
+      else { assert(0 && "unknown ping method"); return; }
     }
-  else return;
+  else return;  /* !SCAMPER_ICMP_RESP_INNER_IS_SET(ir) */
 
   /* allocate a reply structure for the response */
   if((reply = scamper_ping_reply_alloc()) == NULL)
@@ -1419,6 +1507,10 @@ void scamper_do_ping_cleanup()
 
 int scamper_do_ping_init()
 {
+  random_u16_nonzero(&g_icmp_seq);
+  random_u16_nonzero(&g_tcp_seq);
+  random_u16_nonzero(&g_udp_ipid);
+
   ping_funcs.probe          = do_ping_probe;
   ping_funcs.handle_icmp    = do_ping_handle_icmp;
   ping_funcs.handle_timeout = do_ping_handle_timeout;
