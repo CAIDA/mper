@@ -95,6 +95,8 @@ typedef __int16 int16_t;
 #include "scamper_icmp6.h"
 #include "utils.h"
 
+extern int g_debug_match;  /* whether to write out probe-response info */
+
 /* ---------------------------------------------------------------------- */
 
 /* XXX probably should use the code in scamper_control */
@@ -358,12 +360,50 @@ static void ping_handleerror(scamper_task_t *task, int error)
   return;
 }
 
+/* See comments at the beginning of this file for details on matching. */
+static int match_tcp_response(scamper_task_t *task, scamper_dl_rec_t *dl)
+{
+  scamper_ping_t *ping  = task->data;
+  ping_state_t   *state = task->state;
+  uint16_t        seq, ipid;
+  int             retval = 1;
+
+  if(dl->dl_tcp_dport != ping->probe_sport ||
+     dl->dl_tcp_sport != ping->probe_dport)
+    return 0;  /* response not for this process: don't log at all */
+
+  seq = dl->dl_tcp_seq & 0xFFFF;
+  ipid = dl->dl_tcp_seq >> 16;
+  if(seq != state->seq || ipid != state->ipid)
+    retval = 0;
+
+  if(g_debug_match)
+    {
+      char dest_addr[40];
+      scamper_addr_tostr(ping->dst, dest_addr, 40);
+      if(retval)
+        {
+	  scamper_debug_match("match tcp %d %s %d:%d %d %d",
+			      dl->dl_tcp_flags, dest_addr, ping->probe_sport,
+			      ping->probe_dport, state->seq, state->ipid);
+	}
+      else
+        {
+	  scamper_debug_match("fail tcp %d %s %d:%d %d %d == %d:%d %d %d",
+			      dl->dl_tcp_flags, dest_addr, ping->probe_sport,
+			      ping->probe_dport, state->seq, state->ipid,
+			      dl->dl_tcp_dport, dl->dl_tcp_sport, seq, ipid);
+	}
+    }
+
+  return retval;
+}
+
 static void do_ping_handle_dl(scamper_task_t *task, scamper_dl_rec_t *dl)
 {
   scamper_ping_t       *ping  = task->data;
   ping_state_t         *state = task->state;
   scamper_ping_reply_t *reply = NULL;
-  uint16_t              seq, ipid;
 
   if(!state->sent_probe)
     return;
@@ -374,13 +414,7 @@ static void do_ping_handle_dl(scamper_task_t *task, scamper_dl_rec_t *dl)
   if(ping->probe_method != SCAMPER_PING_METHOD_TCP_ACK)
     return;
 
-  seq = dl->dl_tcp_seq & 0xFFFF;
-  ipid = dl->dl_tcp_seq >> 16;
-  if (seq != state->seq || ipid != state->ipid)
-    return;
-
-  if(dl->dl_tcp_dport != ping->probe_sport
-     || dl->dl_tcp_sport != ping->probe_dport)
+  if(!match_tcp_response(task, dl))
     return;
 
   scamper_dl_rec_tcp_print(dl);
@@ -494,11 +528,16 @@ static void do_ping_handle_rt(scamper_task_t *task, scamper_rt_rec_t *rt)
 }
 #endif
 
+#define DEBUG_MATCH_SETUP \
+  char dest_addr[40]; \
+  scamper_addr_tostr(ping->dst, dest_addr, 40)
+
 /*
- * do_ping_probe
- *
  * it is time to send a probe for this task.  figure out the form of the
  * probe to send, and then send it.
+ *
+ * See comments at the beginning of this file for details on probe-response
+ * matching.
  */
 static void do_ping_probe(scamper_task_t *task)
 {
@@ -633,6 +672,10 @@ static void do_ping_probe(scamper_task_t *task)
 	  u16 = scamper_icmp4_cksum(&probe);
 	  memcpy(probe.pr_data, &u16, 2);
 	}
+
+      if (g_debug_match) { DEBUG_MATCH_SETUP;
+	scamper_debug_match("probe echo-req %s %d %d", dest_addr,
+			    probe.pr_icmp_id, state->seq); }
     }
   else if(SCAMPER_PING_METHOD_IS_TCP(ping))
     {
@@ -647,6 +690,11 @@ static void do_ping_probe(scamper_task_t *task)
       probe.pr_tcp_sport = ping->probe_sport;
       probe.pr_tcp_seq   = state->seq = next_tcp_seq();
       probe.pr_tcp_ack   = (state->ipid << 16) | state->seq;
+
+      if (g_debug_match) { DEBUG_MATCH_SETUP;
+	  scamper_debug_match("probe tcp-ack %s %d:%d %d %d",
+	                      dest_addr, ping->probe_sport,
+			      ping->probe_dport, state->seq, state->ipid); }
     }
   else if(SCAMPER_PING_METHOD_IS_UDP(ping))
     {
@@ -667,6 +715,10 @@ static void do_ping_probe(scamper_task_t *task)
 	  memcpy(probe.pr_data, &u16, 2);
 	}
 #endif
+
+      if (g_debug_match) { DEBUG_MATCH_SETUP;
+	  scamper_debug_match("probe udp %s %d:%d %d", dest_addr,
+	      ping->probe_sport, ping->probe_dport, state->ipid); }
     }
 
   if(scamper_probe(&probe) == -1)
@@ -688,12 +740,119 @@ static void do_ping_probe(scamper_task_t *task)
   return;
 }
 
+/* See comments at the beginning of this file for details on matching. */
+static int match_icmp_response(scamper_task_t *task, scamper_icmp_resp_t *ir)
+{
+  scamper_ping_t *ping  = task->data;
+  ping_state_t   *state = task->state;
+  uint16_t        probe_icmp_id = pid & 0xffff;
+  int             retval = 1;
+
+  if (SCAMPER_ICMP_RESP_IS_ECHO_REPLY(ir)) {
+    if (ping->probe_method != SCAMPER_PING_METHOD_ICMP_ECHO) return 0;
+
+    if (ir->ir_icmp_id != probe_icmp_id)
+      return 0;  /* response not for this process: don't log at all */
+
+    if (ir->ir_icmp_seq != state->seq)
+      retval = 0;
+
+    if (g_debug_match) { DEBUG_MATCH_SETUP;
+      if (retval) {
+	scamper_debug_match("match echo-reply %s %d %d", dest_addr,
+			    probe_icmp_id, state->seq); }
+      else {
+	scamper_debug_match("fail echo-reply %s %d %d == %d %d", dest_addr,
+	    probe_icmp_id, state->seq, ir->ir_icmp_id, ir->ir_icmp_seq); }
+    }
+  }
+  else if (SCAMPER_ICMP_RESP_INNER_IS_SET(ir)) {
+    if (SCAMPER_PING_METHOD_IS_ICMP(ping)) {
+      if (SCAMPER_ICMP_RESP_INNER_IS_ICMP_ECHO_REQ(ir) == 0) return 0;
+
+      if (ir->ir_icmp_id != probe_icmp_id)
+	return 0;  /* response not for this process: don't log at all */
+
+      if (ir->ir_inner_icmp_seq != state->seq ||
+	  (ir->ir_af == AF_INET && ir->ir_inner_ip_id != state->ipid))
+	retval = 0;
+
+      if (g_debug_match) { DEBUG_MATCH_SETUP;
+	if (retval) {
+	  scamper_debug_match("match icmp %d:%d %s %d %d %d",
+	      ir->ir_icmp_type, ir->ir_icmp_code, dest_addr, probe_icmp_id,
+	      state->seq, state->ipid); }
+	else {
+	  scamper_debug_match("fail icmp %d:%d %s %d %d %d == %d %d %d",
+	      ir->ir_icmp_type, ir->ir_icmp_code, dest_addr, probe_icmp_id,
+              state->seq, state->ipid, ir->ir_inner_icmp_id,
+	      ir->ir_inner_icmp_seq, ir->ir_inner_ip_id); }
+      }
+    }
+    else if (SCAMPER_PING_METHOD_IS_TCP(ping)) {
+      if (SCAMPER_ICMP_RESP_INNER_IS_TCP(ir) == 0 ||
+	  SCAMPER_ICMP_RESP_IS_UNREACH(ir) == 0) return 0;
+
+      if(ir->ir_inner_tcp_sport != ping->probe_sport ||
+	 ir->ir_inner_tcp_dport != ping->probe_dport)
+	return 0;  /* response not for this process: don't log at all */
+
+      if (ir->ir_inner_tcp_seq != state->seq ||
+	  (ir->ir_af == AF_INET && ir->ir_inner_ip_id != state->ipid))
+	retval = 0;
+
+      if (g_debug_match) { DEBUG_MATCH_SETUP;
+	if (retval) {
+	  scamper_debug_match("match tcp-pu %s %d:%d %d %d", dest_addr,
+	      ping->probe_sport, ping->probe_dport, state->seq, state->ipid); }
+	else {
+	  scamper_debug_match("fail tcp-pu %s %d:%d %d %d == %d:%d %d %d",
+	      dest_addr, ping->probe_sport, ping->probe_dport, state->seq,
+	      state->ipid, ir->ir_inner_tcp_sport, ir->ir_inner_tcp_dport,
+	      ir->ir_inner_tcp_seq, ir->ir_inner_ip_id); }
+      }
+    }
+    else if (SCAMPER_PING_METHOD_IS_UDP(ping)) {
+      if (SCAMPER_ICMP_RESP_INNER_IS_UDP(ir) == 0 ||
+	  SCAMPER_ICMP_RESP_IS_UNREACH(ir) == 0) return 0;
+
+      if(ir->ir_inner_udp_sport != ping->probe_sport ||
+	 ir->ir_inner_udp_dport != ping->probe_dport)
+	return 0;  /* response not for this process: don't log at all */
+
+      if (ir->ir_af == AF_INET && ir->ir_inner_ip_id != state->ipid)
+	retval = 0;
+
+      if (g_debug_match) { DEBUG_MATCH_SETUP;
+	if (retval) {
+	  scamper_debug_match("match udp-pu %s %d:%d %d", dest_addr,
+	      ping->probe_sport, ping->probe_dport, state->ipid); }
+	else {
+	  scamper_debug_match("fail udp-pu %s %d:%d %d == %d:%d %d",
+	      dest_addr, ping->probe_sport, ping->probe_dport, state->ipid,
+	      ir->ir_inner_udp_sport, ir->ir_inner_udp_dport,
+	      ir->ir_inner_ip_id); }
+      }
+    }
+    else { assert(0 && "unknown ping method"); retval = 0; }
+  }
+  else retval = 0;  /* !SCAMPER_ICMP_RESP_INNER_IS_SET(ir) */
+
+  return retval;
+}
+
+#undef DEBUG_MATCH_SETUP
+
 static void do_ping_handle_icmp(scamper_task_t *task, scamper_icmp_resp_t *ir)
 {
   scamper_ping_t       *ping  = task->data;
   ping_state_t         *state = task->state;
   scamper_ping_reply_t *reply = NULL;
   scamper_addr_t        addr;
+
+  /* if we haven't sent a probe yet */
+  if(!state->sent_probe)
+    return;
 
   /*
    * ignore the message if it is received on an fd that we didn't use to send
@@ -703,53 +862,10 @@ static void do_ping_handle_icmp(scamper_task_t *task, scamper_icmp_resp_t *ir)
   if(ir->ir_fd != scamper_fd_fd_get(state->icmp))
     return;
 
-  /* if we haven't sent a probe yet */
-  if(!state->sent_probe)
+  if(!match_icmp_response(task, ir))
     return;
 
   scamper_icmp_resp_print(ir);
-
-  /* if this is an echo reply packet, then check the id and sequence */
-  if(SCAMPER_ICMP_RESP_IS_ECHO_REPLY(ir))
-    {
-      /* if the response is not for us, then move on */
-      if(ping->probe_method != SCAMPER_PING_METHOD_ICMP_ECHO ||
-	 ir->ir_icmp_id != (pid & 0xffff) ||
-	 ir->ir_icmp_seq != state->seq)
-	  return;
-    }
-  else if(SCAMPER_ICMP_RESP_INNER_IS_SET(ir))
-    {
-      if(SCAMPER_PING_METHOD_IS_ICMP(ping))
-	{
-	  if(SCAMPER_ICMP_RESP_INNER_IS_ICMP_ECHO_REQ(ir) == 0 ||
-	     ir->ir_inner_icmp_id != (pid & 0xffff) ||
-	     ir->ir_inner_icmp_seq != state->seq ||
-	     (ir->ir_af == AF_INET && ir->ir_inner_ip_id != state->ipid))
-	      return;
-	}
-      else if(SCAMPER_PING_METHOD_IS_TCP(ping))
-	{
-	  if(SCAMPER_ICMP_RESP_INNER_IS_TCP(ir) == 0 ||
-	     SCAMPER_ICMP_RESP_IS_UNREACH(ir) == 0 ||
-	     ir->ir_inner_tcp_seq != state->seq ||
-	     (ir->ir_af == AF_INET && ir->ir_inner_ip_id != state->ipid) ||
-	     ir->ir_inner_tcp_sport != ping->probe_sport ||
-	     ir->ir_inner_tcp_dport != ping->probe_dport)
-	      return;
-	}
-      else if(SCAMPER_PING_METHOD_IS_UDP(ping))
-	{
-	  if(SCAMPER_ICMP_RESP_INNER_IS_UDP(ir) == 0 ||
-	     SCAMPER_ICMP_RESP_IS_UNREACH(ir) == 0 ||
-	     (ir->ir_af == AF_INET && ir->ir_inner_ip_id != state->ipid) ||
-	     ir->ir_inner_udp_sport != ping->probe_sport ||
-	     ir->ir_inner_udp_dport != ping->probe_dport)
-	      return;
-	}
-      else { assert(0 && "unknown ping method"); return; }
-    }
-  else return;  /* !SCAMPER_ICMP_RESP_INNER_IS_SET(ir) */
 
   /* allocate a reply structure for the response */
   if((reply = scamper_ping_reply_alloc()) == NULL)

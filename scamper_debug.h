@@ -39,4 +39,8 @@ int scamper_debug_open(const char *debugfile);
 void scamper_debug_close(void);
 #endif
 
+void scamper_debug_match(const char *format, ...);
+int scamper_debug_match_open(const char *file);
+void scamper_debug_match_close();
+
 #endif /* scamper_debug.h */

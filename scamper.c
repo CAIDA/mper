@@ -107,10 +107,12 @@ static uint32_t options = 0;
 #define OPT_HELP        0x00008000 /* ?: */
 #define OPT_WINDOW      0x00010000 /* w: */
 #define OPT_DEBUGFILE   0x00020000 /* d: */
+#define OPT_MATCHFILE   0x00040000 /* Z: */
 #define OPT_FIREWALL    0x00200000 /* F: */
 #define OPT_GATEWAY     0x00400000 /* G: */
 #define OPT_INTERFACE   0x00800000 /* I: */
 #define OPT_USE_TCP     0x01000000 /* T */
+
 
 /*
  * parameters configurable by the command line:
@@ -124,6 +126,7 @@ static uint32_t options = 0;
  * arglist_len: number of arguments left over after getopt processing
  * window:      maximum number of concurrent tasks to actively probe
  * debugfile:   place to write debugging output
+ * matchfile:   place to write probe-response matching information
  * firewall:    scamper should use the system firewall when needed
  * gateway:     IP address of the gateway to use
  * interface:   datalink interface index to use if manually specifying gateway
@@ -138,12 +141,14 @@ static char **arglist      = NULL;
 static int    arglist_len  = 0;
 static int    window       = SCAMPER_WINDOW_DEF;
 static char  *debugfile    = NULL;
+static char  *matchfile    = NULL;
 static char  *firewall     = NULL;
 static int   use_tcp       = 0;
 
 /* don't make these static: need in scamper_do_ping.c */
 scamper_addr_t *g_gateway_sa = NULL;
 int g_interface = 1;
+int g_debug_match = 0;  /* whether to write out probe-response info */
 
 /*
  * parameters calculated by scamper at run time:
@@ -176,9 +181,9 @@ static void usage(uint32_t opt_mask)
   char buf[256];
 
   fprintf(stderr,
-    "usage: scamper [-?Pv] [-p pps] [-w window]\n"
-    "               [-M monitorname]\n"
-    "               [-H holdtime] [-d debugfile] [-F firewall]\n"
+    "usage: mper    [-?Pv] [-p pps] [-w window]\n"
+    "               [-M monitorname] [-H holdtime]\n"
+    "               [-F firewall] [-d debugfile] [-Z matchfile]\n"
     "               [-G gateway] [-I interface-index]\n"
     "               [-D port] [-T]\n");
 
@@ -234,6 +239,9 @@ static void usage(uint32_t opt_mask)
   if((opt_mask & OPT_WINDOW) != 0)
     usage_str('w', "limit the window of actively probing tasks");
 
+  if((opt_mask & OPT_MATCHFILE) != 0)
+    usage_str('Z', "write probe-response matching info to the specified file");
+
   return;
 }
 
@@ -254,11 +262,11 @@ static int check_options(int argc, char *argv[])
 {
   int   i;
   long  lo;
-  char *opts = "d:D:F:G:H:I:M:p:PTvw:?";
+  char *opts = "d:D:F:G:H:I:M:p:PTvw:Z:?";
   char *opt_daemon = NULL, *opt_holdtime = NULL, *opt_monitorname = NULL;
   char *opt_pps = NULL, *opt_window = NULL;
-  char *opt_debugfile = NULL, *opt_firewall = NULL, *opt_gateway = NULL;
-  char *opt_interface = NULL;
+  char *opt_debugfile = NULL, *opt_matchfile = NULL, *opt_firewall = NULL;
+  char *opt_gateway = NULL, *opt_interface = NULL;
 
   while((i = getopt(argc, argv, opts)) != -1)
     {
@@ -320,6 +328,12 @@ static int check_options(int argc, char *argv[])
 	case 'w':
 	  options |= OPT_WINDOW;
 	  opt_window = optarg;
+	  break;
+
+	case 'Z':
+	  options |= OPT_MATCHFILE;
+	  opt_matchfile = optarg;
+	  g_debug_match = 1;
 	  break;
 
 	case '?':
@@ -400,6 +414,12 @@ static int check_options(int argc, char *argv[])
   if(options & OPT_DEBUGFILE && (debugfile = strdup(opt_debugfile)) == NULL)
     {
       printerror(errno, strerror, __func__, "could not strdup debugfile");
+      return -1;
+    }
+
+  if(options & OPT_MATCHFILE && (matchfile = strdup(opt_matchfile)) == NULL)
+    {
+      printerror(errno, strerror, __func__, "could not strdup matchfile");
       return -1;
     }
 
@@ -653,6 +673,11 @@ static int scamper(int argc, char *argv[])
       return -1;
     }
 #endif
+
+  if(matchfile != NULL && scamper_debug_match_open(matchfile) != 0)
+    {
+      return -1;
+    }
 
   /* allocate the cache of addresses for scamper to keep track of */
   if((addrcache = scamper_addrcache_alloc()) == NULL)
@@ -942,6 +967,17 @@ static void cleanup(void)
     {
       free(debugfile);
       debugfile = NULL;
+    }
+
+  if(options & OPT_MATCHFILE)
+    {
+      scamper_debug_match_close();
+    }
+
+  if(matchfile != NULL)
+    {
+      free(matchfile);
+      matchfile = NULL;
     }
 
   return;

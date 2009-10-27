@@ -74,6 +74,8 @@ typedef int mode_t;
 static FILE *debugfile = NULL;
 #endif
 
+static FILE *matchfile = NULL;
+
 static char *timestamp_str(char *buf, const size_t len)
 {
   struct timeval  tv;
@@ -239,3 +241,98 @@ void scamper_debug_close()
   return;
 }
 #endif
+
+
+/* ---------------------------------------------------------------------- */
+
+void scamper_debug_match(const char *format, ...)
+{
+  va_list  ap;
+  char     message[512];
+  struct timeval  tv;
+
+  assert(format != NULL);
+
+  va_start(ap, format);
+  vsnprintf(message, sizeof(message), format, ap);
+  va_end(ap);
+
+  gettimeofday_wrap(&tv);
+  fprintf(matchfile, "%ld.%03d %s\n", (long)tv.tv_sec, tv.tv_usec / 1000,
+	  message);
+
+  /* Probe-response matching information is useful but not critical, so
+     prefer I/O efficiency over guaranteed flushing of writes. */
+
+  /* XXX flush on every call until we can figure out a more efficient way */
+  fflush(matchfile);
+}
+
+int scamper_debug_match_open(const char *file)
+{
+  mode_t mode; 
+  int flags = O_WRONLY | O_APPEND | O_CREAT | O_TRUNC;
+  int fd;
+#ifndef _WIN32
+  pid_t pid;
+#else
+  DWORD pid;
+#endif
+
+#if defined(WITHOUT_PRIVSEP) && !defined(_WIN32)
+  uid_t uid = getuid();
+#endif
+
+#ifndef _WIN32
+  mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
+#else
+  mode = _S_IREAD | _S_IWRITE;
+#endif
+
+#ifndef WITHOUT_PRIVSEP
+  fd = scamper_privsep_open_file(file, flags, mode);
+#else
+  fd = open(file, flags, mode);
+#endif
+
+  if(fd == -1)
+    {
+      printerror(errno, strerror, __func__,
+		 "could not open matchfile %s", file);
+      return -1;
+    }
+
+  if((matchfile = fdopen(fd, "a")) == NULL)
+    {
+      printerror(errno, strerror, __func__,
+		 "could not fdopen matchfile %s", file);
+      return -1;
+    }
+
+#if defined(WITHOUT_PRIVSEP) && !defined(_WIN32)
+  if(uid != geteuid() && fchown(fd, uid, -1) != 0)
+    {
+      printerror(errno, strerror, __func__, "could not fchown");
+    }
+#endif
+
+#ifndef _WIN32
+  pid = getpid();
+#else
+  pid = GetCurrentProcessId();
+#endif
+
+  scamper_debug_match("opened pid %d", (int)pid);
+  fflush(matchfile);
+  return 0;
+}
+
+void scamper_debug_match_close()
+{
+  if(matchfile != NULL)
+    {
+      fclose(matchfile);
+      matchfile = NULL;
+    }
+  return;
+}
