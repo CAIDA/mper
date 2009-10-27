@@ -124,9 +124,19 @@ int scamper_probe(scamper_probe_t *probe)
 	case IPPROTO_ICMP:
 	  send_func = scamper_icmp4_probe;
 	  build_func = scamper_icmp4_build;
-	  scamper_debug(__func__, "icmp %s, ttl %d, sum 0x%04x, seq %d, len %d",
-			addr, probe->pr_ip_ttl, ntohs(probe->pr_icmp_sum),
-			probe->pr_icmp_seq, probe->pr_len + 28);
+	  if(probe->pr_icmp_sum != 0)
+	    {
+	      scamper_debug(__func__,
+			    "icmp %s, ttl %d, sum 0x%04x, seq %d, len %d",
+			    addr, probe->pr_ip_ttl, ntohs(probe->pr_icmp_sum),
+			    probe->pr_icmp_seq, probe->pr_len + 28);
+	    }
+	  else
+	    {
+	      scamper_debug(__func__, "icmp %s, ttl %d, seq %d, len %d",
+			    addr, probe->pr_ip_ttl, probe->pr_icmp_seq,
+			    probe->pr_len + 28);
+	    }
 	  break;
 
 	case IPPROTO_TCP:
