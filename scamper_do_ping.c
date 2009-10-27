@@ -734,6 +734,10 @@ static void do_ping_probe(scamper_task_t *task)
   state->sent_probe = 1;
   timeval_cpy(&state->tx, &probe.pr_tx);
 
+  /* We set ping->start at task creation time, but a more accurate tx time
+     is useful for reporting nonresponses. */
+  timeval_cpy(&ping->start, &probe.pr_tx);
+
   /* re-queue the ping task */
   scamper_queue_wait(task->queue, ping->probe_wait * 1000);
 
