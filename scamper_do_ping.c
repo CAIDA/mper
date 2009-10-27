@@ -325,8 +325,6 @@ typedef struct ping_state
   uint16_t           replies;
 
   scamper_addr_t    *src;
-  uint32_t           tcp_seq;
-  uint32_t           tcp_ack;
 } ping_state_t;
 
 /* ---------------------------------------------------------------------- */
@@ -461,9 +459,6 @@ static int ping_handle_rt(scamper_task_t *task, scamper_rt_rec_t *rt)
     {
       return -1;
     }
-
-  if(random_u32(&state->tcp_seq) != 0 || random_u32(&state->tcp_ack) != 0)
-    return -1;
 
   return 0;
 }
@@ -1450,9 +1445,6 @@ scamper_task_t *scamper_do_ping_alloctask(scamper_ping_t *ping,
 	    {
 	      goto err;
 	    }
-	  if(random_u32(&state->tcp_seq) != 0
-	     || random_u32(&state->tcp_ack) != 0)
-	    goto err;
 	}
       else
         {
