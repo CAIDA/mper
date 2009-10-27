@@ -115,34 +115,24 @@ int scamper_probe(scamper_probe_t *probe)
 	case IPPROTO_UDP:
 	  send_func = scamper_udp4_probe;
 	  build_func = scamper_udp4_build;
-	  scamper_debug(__func__, "udp %s, ttl %d, %d:%d, len %d",
+	  scamper_debug(__func__, "udp %s, ttl %d, %d:%d, ipid 0x%04x, len %d",
 			addr, probe->pr_ip_ttl,
 			probe->pr_udp_sport, probe->pr_udp_dport,
-			probe->pr_len + 28);
+			probe->pr_ip_id, probe->pr_len + 28);
 	  break;
 
 	case IPPROTO_ICMP:
 	  send_func = scamper_icmp4_probe;
 	  build_func = scamper_icmp4_build;
-	  if(probe->pr_icmp_sum != 0)
-	    {
-	      scamper_debug(__func__,
-			    "icmp %s, ttl %d, sum %04x, seq %d, len %d",
-			    addr, probe->pr_ip_ttl, ntohs(probe->pr_icmp_sum),
-			    probe->pr_icmp_seq, probe->pr_len + 28);
-	    }
-	  else
-	    {
-	      scamper_debug(__func__, "icmp %s, ttl %d, seq %d, len %d",
-			    addr, probe->pr_ip_ttl, probe->pr_icmp_seq,
-			    probe->pr_len + 28);
-	    }
+	  scamper_debug(__func__, "icmp %s, ttl %d, sum 0x%04x, seq %d, len %d",
+			addr, probe->pr_ip_ttl, ntohs(probe->pr_icmp_sum),
+			probe->pr_icmp_seq, probe->pr_len + 28);
 	  break;
 
 	case IPPROTO_TCP:
 	  build_func = scamper_tcp4_build;
 	  scamper_debug(__func__,
-			"tcp %s, ttl %d, %d:%d, ipid %04x, seq %u, len %d",
+			"tcp %s, ttl %d, %d:%d, ipid 0x%04x, seq %u, len %d",
 			addr, probe->pr_ip_ttl,
 			probe->pr_tcp_sport, probe->pr_tcp_dport,
 			probe->pr_ip_id, probe->pr_tcp_seq,
