@@ -244,6 +244,9 @@ static uint16_t reverse_16bits(uint16_t v)
 **    - secondary match field: target addr
 **    - for Paris traceroute, ensure ICMP checksum is consistent
 **
+**    NOTE: ICMP echo reply responses don't return the IP ID, so we
+**          have to fall back to using just the ICMP seq number.
+**
 ** * UDP:
 **    - store pid in sport
 **    - store Van der Corput sequence into IP ID; store global 6-bit
@@ -1618,6 +1621,10 @@ int scamper_do_ping_init()
   random_u16_nonzero(&g_icmp_seq);
   random_u16_nonzero(&g_tcp_seq);
   random_u16_nonzero(&g_udp_ipid);
+
+  scamper_debug(__func__,
+		"random start values: icmp_seq=%u tcp_seq=%u udp_ipid=%u",
+		g_icmp_seq, g_tcp_seq, g_udp_ipid);
 
   ping_funcs.probe          = do_ping_probe;
   ping_funcs.handle_icmp    = do_ping_handle_icmp;

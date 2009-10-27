@@ -635,6 +635,12 @@ static int scamper(int argc, char *argv[])
   struct timeval          *timeout;
   scamper_task_t          *task;
 
+  gettimeofday_wrap(&lastprobe);
+
+#ifndef _WIN32
+  srandom(lastprobe.tv_usec);
+#endif
+
   if(check_options(argc, argv) == -1)
     {
       return -1;
@@ -752,12 +758,6 @@ static int scamper(int argc, char *argv[])
     {
       return -1;
     }
-
-  gettimeofday_wrap(&lastprobe);
-
-#ifndef _WIN32
-  srandom(lastprobe.tv_usec);
-#endif
 
   for(;;)
     {
