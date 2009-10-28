@@ -1771,7 +1771,7 @@ void scamper_dl_rec_tcp_print(scamper_dl_rec_t *dl)
   };
   char addr[64];
   char fbuf[32], *flags;
-  char ack[16];
+  char ack[18];
   char ipid[16];
   uint8_t u8;
   int i;
@@ -1804,9 +1804,9 @@ void scamper_dl_rec_tcp_print(scamper_dl_rec_t *dl)
       flags = "nil";
     }
 
-  if(dl->dl_tcp_flags & TH_ACK)
+  if(dl->dl_tcp_flags & TH_ACK || dl->dl_tcp_ack != 0)
     {
-      snprintf(ack, sizeof(ack), " %u", dl->dl_tcp_ack);
+      snprintf(ack, sizeof(ack), " ack 0x%08x", dl->dl_tcp_ack);
     }
   else ack[0] = '\0';
 
@@ -1815,9 +1815,10 @@ void scamper_dl_rec_tcp_print(scamper_dl_rec_t *dl)
   else
     ipid[0] = '\0';
 
-  scamper_debug(NULL, "from %s %stcp %d:%d %s%s",
+  scamper_debug(NULL, "from %s %stcp %d:%d %s seq 0x%08x%s",
 		addr_tostr(dl->dl_af, dl->dl_ip_src, addr, sizeof(addr)),
-		ipid, dl->dl_tcp_sport, dl->dl_tcp_dport, flags, ack);
+		ipid, dl->dl_tcp_sport, dl->dl_tcp_dport, flags,
+		dl->dl_tcp_seq, ack);
 
   return;
 }

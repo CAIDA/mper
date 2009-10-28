@@ -238,7 +238,7 @@ static uint16_t reverse_16bits(uint16_t v)
 ** ----------------------------------------------------------------------
 **
 ** * ICMP:
-**    - store pid in ICMP ID
+**    - encode pid in ICMP ID
 **    - store global 16-bit counter into ICMP sequence number
 **    - primary match fields: IP ID and ICMP seq number
 **    - secondary match field: target addr
@@ -248,7 +248,7 @@ static uint16_t reverse_16bits(uint16_t v)
 **          have to fall back to using just the ICMP seq number.
 **
 ** * UDP:
-**    - store pid in sport
+**    - encode pid in sport
 **    - store Van der Corput sequence into IP ID; store global 6-bit
 **      counter into packet length; use a descending Van der Corput
 **      sequence to reduce probability of incorrectly inferring IP ID
@@ -264,10 +264,18 @@ static uint16_t reverse_16bits(uint16_t v)
 **                            modifies received UDP checksum
 **
 ** * TCP ACK:
-**    - store pid in sport
+**    - encode pid in sport
 **    - store shared 16-bit counter in lower 16 bits of sequence number
 **      and acknowledgment number
+**    - store random 16 bit value (nonce) in the upper 16 bits of the
+**      sequence number
 **    - store IP ID in upper 16 bits of acknowledgment number
+**    - if DONT_OBSCURE_TCP_PROBE is not defined, then the nonce is
+**      XOR'ed into the lower 16 bits of the sequence number and
+**      the shared counter is XOR'ed into the upper 16 bits of the
+**      acknowledgment number; this process ensures that there is
+**      no simple signature (e.g., lower 16 bits of seq and ack
+**      numbers are equal) that could be used for detecting our probes
 **    - ICMP response: primary match fields: IP ID and sequence number
 **    - TCP RST response: primary match field: sequence number (== sent
 **      acknowledgment number)
@@ -377,6 +385,11 @@ static int match_tcp_response(scamper_task_t *task, scamper_dl_rec_t *dl)
 
   seq = dl->dl_tcp_seq & 0xFFFF;
   ipid = dl->dl_tcp_seq >> 16;
+
+#ifndef DONT_OBSCURE_TCP_PROBE
+  ipid ^= seq;
+#endif
+
   if(seq != state->seq || ipid != state->ipid)
     retval = 0;
 
@@ -682,17 +695,26 @@ static void do_ping_probe(scamper_task_t *task)
     }
   else if(SCAMPER_PING_METHOD_IS_TCP(ping))
     {
+      /* ping->probe_method == SCAMPER_PING_METHOD_TCP_ACK */
       probe.pr_ip_proto  = IPPROTO_TCP;
+      probe.pr_tcp_sport = ping->probe_sport;
       probe.pr_tcp_dport = ping->probe_dport;
       probe.pr_tcp_flags = TH_ACK;
       probe.pr_dl        = scamper_fd_write_state(state->pr);
       probe.pr_dl_hdr    = state->dl_hdr->dl_hdr;
       probe.pr_dl_size   = state->dl_hdr->dl_size;
 
-      /* ping->probe_method == SCAMPER_PING_METHOD_TCP_ACK */
-      probe.pr_tcp_sport = ping->probe_sport;
-      probe.pr_tcp_seq   = state->seq = next_tcp_seq();
-      probe.pr_tcp_ack   = (state->ipid << 16) | state->seq;
+      random_u16_nonzero(&u16);
+      state->seq = next_tcp_seq();
+
+#ifdef DONT_OBSCURE_TCP_PROBE
+      probe.pr_tcp_seq   = ((uint32_t)u16 << 16) | state->seq;
+      probe.pr_tcp_ack   = ((uint32_t)state->ipid << 16) | state->seq;
+#else
+      probe.pr_tcp_seq   = ((uint32_t)u16 << 16) | (state->seq ^ u16);
+      probe.pr_tcp_ack   = ((uint32_t)(state->ipid ^ state->seq) << 16)
+                                                         | state->seq;
+#endif
 
       if (g_debug_match) { DEBUG_MATCH_SETUP;
 	  scamper_debug_match("probe tcp-ack %s %d:%d %d %d",
@@ -701,12 +723,11 @@ static void do_ping_probe(scamper_task_t *task)
     }
   else if(SCAMPER_PING_METHOD_IS_UDP(ping))
     {
+      /* ping->probe_method == SCAMPER_PING_METHOD_UDP */
       probe.pr_ip_proto  = IPPROTO_UDP;
       probe.pr_udp_sport = ping->probe_sport;
-      probe.pr_fd        = scamper_fd_fd_get(state->pr);
-
-      /* ping->probe_method == SCAMPER_PING_METHOD_UDP */
       probe.pr_udp_dport = ping->probe_dport;
+      probe.pr_fd        = scamper_fd_fd_get(state->pr);
 
 #if 0
       /* hack to get the udp csum to be a particular value, and be valid */
@@ -754,6 +775,10 @@ static int match_icmp_response(scamper_task_t *task, scamper_icmp_resp_t *ir)
   ping_state_t   *state = task->state;
   uint16_t        probe_icmp_id = pid & 0xffff;
   int             retval = 1;
+  uint16_t        seq;
+#ifndef DONT_OBSCURE_TCP_PROBE
+  uint16_t        nonce;
+#endif
 
   if (SCAMPER_ICMP_RESP_IS_ECHO_REPLY(ir)) {
     if (ping->probe_method != SCAMPER_PING_METHOD_ICMP_ECHO) return 0;
@@ -804,7 +829,14 @@ static int match_icmp_response(scamper_task_t *task, scamper_icmp_resp_t *ir)
 	 ir->ir_inner_tcp_dport != ping->probe_dport)
 	return 0;  /* response not for this process: don't log at all */
 
-      if (ir->ir_inner_tcp_seq != state->seq ||
+      seq = ir->ir_inner_tcp_seq & 0xFFFF;
+
+#ifndef DONT_OBSCURE_TCP_PROBE
+      nonce = ir->ir_inner_tcp_seq >> 16;
+      seq ^= nonce;
+#endif
+
+      if (seq != state->seq ||
 	  (ir->ir_af == AF_INET && ir->ir_inner_ip_id != state->ipid))
 	retval = 0;
 

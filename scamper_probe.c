@@ -142,10 +142,10 @@ int scamper_probe(scamper_probe_t *probe)
 	case IPPROTO_TCP:
 	  build_func = scamper_tcp4_build;
 	  scamper_debug(__func__,
-			"tcp %s, ttl %d, %d:%d, ipid 0x%04x, seq %u, len %d",
+          "tcp %s, ttl %d, %d:%d, ipid 0x%04x, seq 0x%08x, ack 0x%08x, len %d",
 			addr, probe->pr_ip_ttl,
 			probe->pr_tcp_sport, probe->pr_tcp_dport,
-			probe->pr_ip_id, probe->pr_tcp_seq,
+			probe->pr_ip_id, probe->pr_tcp_seq, probe->pr_tcp_ack,
 			probe->pr_len + 40);
 	  break;
 	}
@@ -173,7 +173,7 @@ int scamper_probe(scamper_probe_t *probe)
 
 	case IPPROTO_TCP:
 	  build_func = scamper_tcp6_build;
-	  scamper_debug(__func__, "tcp %s ttl %d, %d:%d, seq %d, len %d",
+	  scamper_debug(__func__, "tcp %s ttl %d, %d:%d, seq 0x%08x, len %d",
 			addr, probe->pr_ip_ttl,
 			probe->pr_tcp_sport, probe->pr_tcp_dport,
 			probe->pr_ip_flow, probe->pr_len + 60);

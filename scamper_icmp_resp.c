@@ -425,7 +425,7 @@ void scamper_icmp_resp_print(const scamper_icmp_resp_t *ir)
 	case IPPROTO_ICMP:
 	case IPPROTO_ICMPV6:
 	  snprintf(inner_transport, sizeof(inner_transport),
-		   " proto ICMP type %d code %d id %04x seq %d sum %04x",
+		   " proto ICMP type %d code %d id %d seq %d sum 0x%04x",
 		   ir->ir_inner_icmp_type, ir->ir_inner_icmp_code,
 		   ir->ir_inner_icmp_id, ir->ir_inner_icmp_seq,
 		   ir->ir_inner_icmp_sum);
@@ -433,7 +433,7 @@ void scamper_icmp_resp_print(const scamper_icmp_resp_t *ir)
 
 	case IPPROTO_TCP:
 	  snprintf(inner_transport, sizeof(inner_transport),
-		   " proto TCP sport %d dport %d seq %08x",
+		   " proto TCP sport %d dport %d seq 0x%08x",
 		   ir->ir_inner_tcp_sport, ir->ir_inner_tcp_dport,
 		   ir->ir_inner_tcp_seq);
 	  break;
