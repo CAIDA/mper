@@ -136,6 +136,11 @@ typedef struct client
 static dlist_t      *client_list  = NULL;
 static scamper_fd_t *fdn          = NULL;
 
+#ifndef _WIN32
+/* Whether to use TCP for the control socket.  We always use TCP on Windows. */
+static int g_use_tcp = 0;  
+#endif
+
 /* ====================================================================== */
 static void send_response(scamper_source_t *source, const char *message);
 
@@ -472,7 +477,7 @@ static void control_accept(const int fd, void *param)
 {
   struct sockaddr_storage ss;
   socklen_t socklen;
-  int s;
+  int s, opt;
 
   /* accept the new client */
   socklen = sizeof(ss);
@@ -482,6 +487,19 @@ static void control_accept(const int fd, void *param)
     }
 
   scamper_debug(__func__, "fd %d", s);
+
+#ifndef _WIN32
+  if (g_use_tcp)
+#endif
+    {
+      opt = 1;
+      if(setsockopt(s, IPPROTO_TCP, TCP_NODELAY,
+		    (char *)&opt, sizeof(opt)) != 0)
+        {
+	  printerror(errno, strerror, __func__, "could not set TCP_NODELAY");
+	  /* ignore error */
+	}
+    }
 
   /* allocate a client struct to keep track of data coming in on socket */
   if(client_alloc((struct sockaddr *)&ss, socklen, s) == NULL)
@@ -502,6 +520,7 @@ int scamper_control_init(int port, int use_tcp)
   struct sockaddr_un sun;
   int path_len;
 
+  g_use_tcp = use_tcp;
   if(use_tcp)
 #endif
     {
@@ -510,14 +529,6 @@ int scamper_control_init(int port, int use_tcp)
         {
 	  printerror(errno, strerror, __func__, "could not create TCP socket");
 	  return -1;
-	}
-
-      opt = 1;
-      if(setsockopt(fd, IPPROTO_TCP, TCP_NODELAY,
-		    (char *)&opt, sizeof(opt)) != 0)
-        {
-	  printerror(errno, strerror, __func__, "could not set TCP_NODELAY");
-	  goto cleanup;
 	}
 
       opt = 1;
