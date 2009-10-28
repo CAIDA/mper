@@ -240,7 +240,7 @@ static uint16_t reverse_16bits(uint16_t v)
 ** * ICMP:
 **    - encode pid in ICMP ID
 **    - store global 16-bit counter into ICMP sequence number
-**    - primary match fields: IP ID and ICMP seq number
+**    - primary match fields: inner IP ID and ICMP seq number
 **    - secondary match field: target addr
 **    - for Paris traceroute, ensure ICMP checksum is consistent
 **
@@ -249,11 +249,11 @@ static uint16_t reverse_16bits(uint16_t v)
 **
 ** * UDP:
 **    - encode pid in sport
-**    - store Van der Corput sequence into IP ID; store global 6-bit
-**      counter into packet length; use a descending Van der Corput
-**      sequence to reduce probability of incorrectly inferring IP ID
-**      reflection
-**    - primary match fields: IP ID and packet length
+**    - store Van der Corput sequence into IP ID; use a descending Van
+**      der Corput sequence to reduce probability of incorrectly inferring
+**      IP ID reflection
+**    - future work: store global 6-bit counter into packet length
+**    - primary match fields: inner IP ID and UDP packet length
 **    - secondary match fields: target addr, sport, dport
 **
 **    NOTE: FreeBSD versions older than 6.2 zero out the UDP checksum in
@@ -271,13 +271,17 @@ static uint16_t reverse_16bits(uint16_t v)
 **    - store random 16 bit value (nonce) in the lower 16 bits of the
 **      sequence number
 **    - store IP ID in lower 16 bits of acknowledgment number
-**    - if DONT_OBSCURE_TCP_PROBE is not defined, then the nonce is
-**      XOR'ed into the upper 16 bits of the sequence number and
-**      the shared counter is XOR'ed into the lower 16 bits of the
-**      acknowledgment number; this process ensures that there is
-**      no simple signature (e.g., upper 16 bits of seq and ack
-**      numbers are equal) that could be used for detecting our probes
-**    - ICMP response: primary match fields: IP ID and sequence number
+**    - if DONT_OBSCURE_TCP_PROBE is not defined, then we obscure the
+**      TCP probe by
+**        + XORing the nonce into the upper 16 bits of the sequence number
+**          (thus obscuring the shared counter), and
+**        + XORing the shared counter into the lower 16 bits of the
+**          acknowledgment number (thus obscuring the IP ID),
+**      which ensures that there is no simple signature (e.g., upper 16
+**      bits of seq and ack numbers are equal) that could be used for
+**      detecting our probes
+**    - ICMP response: primary match fields: inner IP ID and TCP sequence
+**          number from the inner packet
 **    - TCP RST response: primary match field: sequence number (== sent
 **      acknowledgment number)
 **    - non-RST TCP response: try matching seq num of response just like
@@ -295,9 +299,58 @@ static uint16_t reverse_16bits(uint16_t v)
 **             segment, otherwise the reset has sequence number zero
 **             and the ACK field is set to the sum of the sequence
 **             number and segment length of the incoming segment.
+**
+** ----------------------------------------------------------------------
+**
+** Examples of TCP probes:
+**
+** ::: not obscured :::
+**
+**   $ ./mper-ping --tcp 200.159.255.29
+**   1256693522.523 >200.159.255.29  >ipid=29886 <ipid= 9563 tcp rst
+**
+**   [18:32:02:245] scamper_probe: tcp 200.159.255.29, ttl 64, 42338:80,
+**   ipid 0x74be, seq 0xd506ac0e, ack 0xd50674be, len 40
+**
+**   [18:32:02:523] from 200.159.255.29 ipid 0x255b tcp 80:42338 rst
+**   seq 0xd50674be
+**
+**   $ ./mper-ping --tcp 200.159.255.29
+**   1256693523.773 >200.159.255.29  >ipid=43491 <ipid= 9606 tcp rst
+**
+**   [18:32:03:495] scamper_probe: tcp 200.159.255.29, ttl 64, 42338:80,
+**   ipid 0xa9e3, seq 0xd507e1ba, ack 0xd507a9e3, len 40
+**
+**   [18:32:03:773] from 200.159.255.29 ipid 0x2586 tcp 80:42338 rst
+**   seq 0xd507a9e3
+**
+** ::: obscured :::
+**
+**   $ ./mper-ping --tcp 200.159.255.29
+**   1256693443.562 >200.159.255.29  >ipid=30560 <ipid= 2310 tcp rst
+**
+**   [18:30:43:283] scamper_probe: tcp 200.159.255.29, ttl 64, 41885:80,
+**   ipid 0x7760, seq 0xc2bf6cb3, ack 0xae0cd96c, len 40
+**
+**   [18:30:43:562] from 200.159.255.29 ipid 0x0906 tcp 80:41885 rst
+**   seq 0xae0cd96c
+**
+**   $ ./mper-ping --tcp 200.159.255.29
+**   1256693444.894 >200.159.255.29  >ipid= 6974 <ipid= 2444 tcp rst
+**
+**   [18:30:44:616] scamper_probe: tcp 200.159.255.29, ttl 64, 41885:80,
+**   ipid 0x1b3e, seq 0x120bbc06, ack 0xae0db533, len 40
+**
+**   [18:30:44:895] from 200.159.255.29 ipid 0x098c tcp 80:41885 rst
+**   seq 0xae0db533 
 */
 
-/* scamper_do_ping_init() sets these counters to a non-zero random value. */
+/*
+** Invariant: The following counters should never be zero.
+**
+** scamper_do_ping_init() sets these counters to a non-zero initial random
+** value, and the retrieval functions like next_icmp_seq maintain the invariant.
+*/
 static uint16_t g_icmp_seq;
 static uint16_t g_tcp_seq;
 static uint16_t g_udp_ipid;  /* descending Van der Corput quasi-random seq */
@@ -406,10 +459,11 @@ static int match_tcp_response(scamper_task_t *task, scamper_dl_rec_t *dl)
 	}
       else
         {
-	  scamper_debug_match("fail tcp %d %s %d:%d %d %d == %d:%d %d %d",
+	  scamper_debug_match("fail tcp %d %s %d:%d %d %d == %d:%d %d %d %lu",
 			      dl->dl_tcp_flags, dest_addr, ping->probe_sport,
 			      ping->probe_dport, state->seq, state->ipid,
-			      dl->dl_tcp_dport, dl->dl_tcp_sport, seq, ipid);
+			      dl->dl_tcp_dport, dl->dl_tcp_sport, seq, ipid,
+			      dl->dl_tcp_seq);
 	}
     }
 
@@ -803,7 +857,7 @@ static int match_icmp_response(scamper_task_t *task, scamper_icmp_resp_t *ir)
     if (SCAMPER_PING_METHOD_IS_ICMP(ping)) {
       if (SCAMPER_ICMP_RESP_INNER_IS_ICMP_ECHO_REQ(ir) == 0) return 0;
 
-      if (ir->ir_icmp_id != probe_icmp_id)
+      if (ir->ir_inner_icmp_id != probe_icmp_id)
 	return 0;  /* response not for this process: don't log at all */
 
       if (ir->ir_inner_icmp_seq != state->seq ||
@@ -846,10 +900,10 @@ static int match_icmp_response(scamper_task_t *task, scamper_icmp_resp_t *ir)
 	  scamper_debug_match("match tcp-pu %s %d:%d %d %d", dest_addr,
 	      ping->probe_sport, ping->probe_dport, state->seq, state->ipid); }
 	else {
-	  scamper_debug_match("fail tcp-pu %s %d:%d %d %d == %d:%d %d %d",
+	  scamper_debug_match("fail tcp-pu %s %d:%d %d %d == %d:%d %d %d %lu",
 	      dest_addr, ping->probe_sport, ping->probe_dport, state->seq,
 	      state->ipid, ir->ir_inner_tcp_sport, ir->ir_inner_tcp_dport,
-	      ir->ir_inner_tcp_seq, ir->ir_inner_ip_id); }
+	      seq, ir->ir_inner_ip_id, ir->ir_inner_tcp_seq); }
       }
     }
     else if (SCAMPER_PING_METHOD_IS_UDP(ping)) {
@@ -860,6 +914,7 @@ static int match_icmp_response(scamper_task_t *task, scamper_icmp_resp_t *ir)
 	 ir->ir_inner_udp_dport != ping->probe_dport)
 	return 0;  /* response not for this process: don't log at all */
 
+      /* future work: encode a 6-bit global counter into the packet length */
       if (ir->ir_af == AF_INET && ir->ir_inner_ip_id != state->ipid)
 	retval = 0;
 
