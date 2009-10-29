@@ -873,6 +873,8 @@ int scamper_fds_poll(struct timeval *timeout)
   int count, nfds = -1;
   struct timeval to;
 
+  if (timeout) to = *timeout;
+
   /* concat any new fds to monitor now */
   dlist_foreach(read_queue, fdp_list, read_fds);
   dlist_concat(read_fds, read_queue);
@@ -895,14 +897,14 @@ int scamper_fds_poll(struct timeval *timeout)
 #endif
     {
       do {
-	to = *timeout;
-	if((count = select(nfds+1, rfdsp, wfdsp, NULL, &to)) < 0)
+	if((count = select(nfds+1, rfdsp, wfdsp, NULL, timeout)) < 0)
           {
 	    if(errno != EAGAIN && errno != EINTR)
 	      {
 		printerror(errno, strerror, __func__, "select failed");
 		return -1;
 	      }
+	    if (timeout) *timeout = to;  /* not sure this is necessary */
 	  }
       } while (count < 0);
     }
