@@ -134,7 +134,7 @@ typedef struct client
  * fd: a scamper_fd struct that contains callback details
  */
 static dlist_t      *client_list  = NULL;
-static scamper_fd_t *fdn          = NULL;
+static scamper_fd_t *listen_fdn   = NULL;  /* socket to listen for clients */
 
 #ifndef _WIN32
 /* Whether to use TCP for the control socket.  We always use TCP on Windows. */
@@ -315,6 +315,13 @@ static int client_attached_cb(client_t *client, uint8_t *buf, size_t len)
       /* mark the source as not going to supply any further tasks */
       scamper_source_control_finish(client->source);
       send_response(client->source, "bye!");
+
+      /*
+       * XXX this is a hack; need to find a better way/time to flush the
+       *     probe-response log; a client disconnection is roughly the
+       *     end of a "measurement run", so this isn't too bad.
+       */
+      scamper_debug_match_flush();
     }
   else
     {
@@ -341,7 +348,7 @@ static void client_read(const int fd, void *param)
 {
   client_t *client;
   ssize_t rc;
-  uint8_t buf[256];
+  uint8_t buf[4096];
 
   client = (client_t *)param;
   assert(scamper_fd_fd_get(client->fdn) == fd);
@@ -352,10 +359,9 @@ static void client_read(const int fd, void *param)
       if(errno != EAGAIN && errno != EINTR)
 	{
 	  printerror(errno, strerror, __func__, "read failed");
+	  /* destroy the client */
+	  client_free(client);
 	}
-
-      /* destroy the client */
-      client_free(client);
       return;
     }
 
@@ -467,6 +473,7 @@ static client_t *client_alloc(struct sockaddr *sa, socklen_t slen, int fd)
     }
   if(client->wb != NULL) scamper_writebuf_free(client->wb);
   if(client->lp != NULL) scamper_linepoll_free(client->lp, 0);
+  if(client->fdn != NULL) scamper_fd_free(client->fdn);
   if(client->node != NULL) dlist_node_pop(client_list, client->node);
   free(client);
 
@@ -600,7 +607,8 @@ int scamper_control_init(int port, int use_tcp)
       goto cleanup;
     }
 
-  if((fdn = scamper_fd_private(fd, control_accept, NULL, NULL, NULL)) == NULL)
+  if((listen_fdn = scamper_fd_private(fd, control_accept,
+				      NULL, NULL, NULL)) == NULL)
     {
       goto cleanup;
     }
@@ -609,7 +617,7 @@ int scamper_control_init(int port, int use_tcp)
 
  cleanup:
   if(client_list != NULL) dlist_free(client_list);
-  if(fdn != NULL) scamper_fd_free(fdn);
+  if(listen_fdn != NULL) scamper_fd_free(listen_fdn);
   close(fd);
   return -1;
 }
@@ -640,15 +648,15 @@ void scamper_control_cleanup()
     }
 
   /* stop monitoring the control socket for new connections */
-  if(fdn != NULL)
+  if(listen_fdn != NULL)
     {
-      if((fd = scamper_fd_fd_get(fdn)) != -1)
+      if((fd = scamper_fd_fd_get(listen_fdn)) != -1)
 	{
 	  close(fd);
 	}
 
-      scamper_fd_free(fdn);
-      fdn = NULL;
+      scamper_fd_free(listen_fdn);
+      listen_fdn = NULL;
     }
 
   return;

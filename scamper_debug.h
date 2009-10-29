@@ -40,6 +40,7 @@ void scamper_debug_close(void);
 #endif
 
 void scamper_debug_match(const char *format, ...);
+void scamper_debug_match_flush(void);
 int scamper_debug_match_open(const char *file);
 void scamper_debug_match_close();
 

@@ -251,6 +251,8 @@ void scamper_debug_match(const char *format, ...)
   char     message[512];
   struct timeval  tv;
 
+  if (!matchfile) return;
+
   assert(format != NULL);
 
   va_start(ap, format);
@@ -261,11 +263,14 @@ void scamper_debug_match(const char *format, ...)
   fprintf(matchfile, "%ld.%03d %s\n", (long)tv.tv_sec, tv.tv_usec / 1000,
 	  message);
 
-  /* Probe-response matching information is useful but not critical, so
-     prefer I/O efficiency over guaranteed flushing of writes. */
+  /* Don't fflush(): probe-response matching information is useful but not
+     critical, so prefer I/O efficiency over guaranteed writes. */
+}
 
-  /* XXX flush on every call until we can figure out a more efficient way */
-  fflush(matchfile);
+void scamper_debug_match_flush(void)
+{
+  if (matchfile)
+      fflush(matchfile);
 }
 
 int scamper_debug_match_open(const char *file)
