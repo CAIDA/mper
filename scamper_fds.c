@@ -871,7 +871,7 @@ int scamper_fds_poll(struct timeval *timeout)
   fd_set rfds, *rfdsp;
   fd_set wfds, *wfdsp;
   int count, nfds = -1;
-  struct timeval to;
+  struct timeval to = { 0, 0 };  /* suppress warning about uninitialized var */
 
   if (timeout) to = *timeout;
 

@@ -399,7 +399,6 @@ static void client_read(const int fd, void *param)
 static client_t *client_alloc(struct sockaddr *sa, socklen_t slen, int fd)
 {
   client_t *client;
-  char buf[128];
 
   /* make the socket non-blocking, so a read or write will not hang scamper */
 #ifndef _WIN32
@@ -455,9 +454,12 @@ static client_t *client_alloc(struct sockaddr *sa, socklen_t slen, int fd)
   client->mode = CLIENT_MODE_ATTACHED;
 
 #if 0
+  {
+  char buf[128];
   snprintf(buf, sizeof(buf), "mper version=%s protocol=%d.%d", MPER_VERSION,
 	   CLIENT_PROTOCOL_MAJOR, CLIENT_PROTOCOL_MINOR);
   client_send(client, buf);
+  }
 #endif
 
   client_send(client, "MORE");

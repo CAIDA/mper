@@ -260,7 +260,7 @@ void scamper_debug_match(const char *format, ...)
   va_end(ap);
 
   gettimeofday_wrap(&tv);
-  fprintf(matchfile, "%ld.%03ld %s\n", (long)tv.tv_sec, tv.tv_usec / 1000,
+  fprintf(matchfile, "%ld.%03ld %s\n", (long)tv.tv_sec, (long)tv.tv_usec / 1000,
 	  message);
 
   /* Don't fflush(): probe-response matching information is useful but not
