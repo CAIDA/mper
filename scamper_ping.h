@@ -163,6 +163,7 @@ typedef struct scamper_ping
   uint16_t               probe_sport;
   uint16_t               probe_dport;  /* -d option to ping */
   uint16_t               reply_count;  /* -o option to ping */
+  uint32_t               spacing;      /* in ms */
 
   uint8_t                opt_set_cksum;  /* user provided checksum */
 

@@ -96,6 +96,7 @@ typedef __int16 int16_t;
 #include "utils.h"
 
 extern int g_debug_match;  /* whether to write out probe-response info */
+extern int g_simulate;   /* don't actually probe--simulate a non-response */
 
 /* ---------------------------------------------------------------------- */
 
@@ -396,6 +397,17 @@ typedef struct ping_state
 
 /* ---------------------------------------------------------------------- */
 
+/* We simulate a non-response timeout 10% of the time. */
+static int generate_simulated_timeout(void)
+{
+  uint32_t r;
+
+  random_u32(&r);
+  return ((r >> 16) % 100 < 10 ? 1000 : 75 + (r % 500));
+  /* return ((r >> 16) % 100 < 10 ? 1000 : 1500 + (r % 500)); */
+}
+
+
 /*
  * ping_abort
  *
@@ -410,11 +422,26 @@ static void ping_abort(scamper_task_t *task)
 static void ping_stop(scamper_task_t *task, uint8_t reason, uint8_t data)
 {
   scamper_ping_t *ping = task->data;
+  int delay_ms = 0;
+
+  if (ping->spacing > 0)
+    {
+      struct timeval now;
+      int delta;
+
+      gettimeofday_wrap(&now);
+      delta = timeval_diff_ms(&now, &ping->start);
+      if (delta < (int)ping->spacing)
+        {
+	  delay_ms = (int)ping->spacing - delta;
+	}
+   /* fprintf(stderr, "ping_stop: delta=%d; delay_ms=%d\n", delta, delay_ms);*/
+    }
 
   ping->stop_reason = reason;
   ping->stop_data   = data;
 
-  scamper_queue_done(task->queue, 0);
+  scamper_queue_done(task->queue, delay_ms);
 
   return;  
 }
@@ -618,7 +645,7 @@ static void do_ping_probe(scamper_task_t *task)
   uint8_t         *buf;
   size_t           payload_len;
   size_t           hdr_len;
-  int              i;
+  int              i, timeout;
   uint16_t         u16;
 
 #ifndef _WIN32
@@ -800,10 +827,19 @@ static void do_ping_probe(scamper_task_t *task)
 	      ping->probe_sport, ping->probe_dport, state->ipid); }
     }
 
-  if(scamper_probe(&probe) == -1)
+  if(g_simulate)
     {
-      ping_handleerror(task, probe.pr_errno);
-      goto err;
+      gettimeofday_wrap(&probe.pr_tx);
+      timeout = generate_simulated_timeout();
+    }
+  else
+    {
+      if(scamper_probe(&probe) == -1)
+        {
+	  ping_handleerror(task, probe.pr_errno);
+	  goto err;
+	}
+      timeout = ping->probe_wait * 1000;
     }
 
   /* fill out the details of the probe sent */
@@ -815,7 +851,7 @@ static void do_ping_probe(scamper_task_t *task)
   timeval_cpy(&ping->start, &probe.pr_tx);
 
   /* re-queue the ping task */
-  scamper_queue_wait(task->queue, ping->probe_wait * 1000);
+  scamper_queue_wait(task->queue, timeout);
 
   return;
 
@@ -1364,6 +1400,7 @@ scamper_ping_t *scamper_do_ping_alloc(const control_word_t *words,
   uint16_t  pattern_len   = 0;
   uint8_t   pattern_bytes[SCAMPER_DO_PING_PATTERN_MAX/2];
   uint32_t  user_data     = 0;
+  uint32_t  spacing       = 0;
   uint8_t   opt_set_cksum = 0;  /* user provided checksum */
   const char *src         = NULL;
   const char *dest        = NULL;
@@ -1416,6 +1453,11 @@ scamper_ping_t *scamper_do_ping_alloc(const control_word_t *words,
 
 	case KC_UDATA_OPT:
 	  user_data = words[i].cw_uint;
+	  break;
+
+	case KC_SPACING_OPT:
+	  spacing = (words[i].cw_uint > 2147483647 ? 2147483647
+		     : (int)words[i].cw_uint);
 	  break;
 
 	default: /* XXX need better reporting */
@@ -1578,6 +1620,7 @@ scamper_ping_t *scamper_do_ping_alloc(const control_word_t *words,
   ping->probe_sport  = probe_sport;
   ping->probe_dport  = probe_dport;
   ping->reply_count  = reply_count;
+  ping->spacing      = spacing;
   ping->opt_set_cksum = opt_set_cksum;
   return ping;
 

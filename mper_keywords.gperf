@@ -66,7 +66,8 @@ const char* keyword_code_names[] = {
   "reply_tcp",
   "stop_reason",
   "stop_data",
-  "<OPT_MAX>",
+  "spacing",
+  "<OPT_MAX>"
 };
 
 const char* keyword_type_names[] = {
@@ -115,5 +116,6 @@ reply_qttl, KC_REPLY_QTTL_OPT, KT_UINT
 reply_tcp, KC_REPLY_TCP_OPT, KT_UINT
 stop_reason, KC_STOP_REASON_OPT, KT_UINT
 stop_data, KC_STOP_DATA_OPT, KT_UINT
+spacing, KC_SPACING_OPT, KT_UINT
 %%
 /* functions */

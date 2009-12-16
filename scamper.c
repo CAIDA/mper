@@ -112,7 +112,7 @@ static uint32_t options = 0;
 #define OPT_GATEWAY     0x00400000 /* G: */
 #define OPT_INTERFACE   0x00800000 /* I: */
 #define OPT_USE_TCP     0x01000000 /* T */
-
+#define OPT_SIMULATE    0x01000000 /* S */
 
 /*
  * parameters configurable by the command line:
@@ -131,6 +131,7 @@ static uint32_t options = 0;
  * gateway:     IP address of the gateway to use
  * interface:   datalink interface index to use if manually specifying gateway
  * use_tcp:     use a TCP server socket instead of a Unix domain socket
+ * simulate:    don't actually probe--simulate a non-response for each probe
  */
 static char  *command      = NULL;
 static int    pps          = SCAMPER_PPS_DEF;
@@ -149,6 +150,7 @@ static int   use_tcp       = 0;
 scamper_addr_t *g_gateway_sa = NULL;
 int g_interface = 1;
 int g_debug_match = 0;  /* whether to write out probe-response info */
+int g_simulate = 0;
 
 /*
  * parameters calculated by scamper at run time:
@@ -185,7 +187,7 @@ static void usage(uint32_t opt_mask)
     "               [-M monitorname] [-H holdtime]\n"
     "               [-F firewall] [-d debugfile] [-Z matchfile]\n"
     "               [-G gateway] [-I interface-index]\n"
-    "               [-D port] [-T]\n");
+    "               [-D port] [-T] [-S]\n");
 
   if(opt_mask == 0) return;
 
@@ -233,6 +235,9 @@ static void usage(uint32_t opt_mask)
   if((opt_mask & OPT_DL) != 0)
     usage_str('P', "use a datalink to get tx timestamps for outgoing probes");
 
+  if((opt_mask & OPT_SIMULATE) != 0)
+    usage_str('S', "don't actually probe--simulate a non-response for each probe");
+
   if((opt_mask & OPT_VERSION) != 0)
     usage_str('v', "output the version of scamper this binary is");
 
@@ -262,7 +267,7 @@ static int check_options(int argc, char *argv[])
 {
   int   i;
   long  lo;
-  char *opts = "d:D:F:G:H:I:M:p:PTvw:Z:?";
+  char *opts = "d:D:F:G:H:I:M:p:PSTvw:Z:?";
   char *opt_daemon = NULL, *opt_holdtime = NULL, *opt_monitorname = NULL;
   char *opt_pps = NULL, *opt_window = NULL;
   char *opt_debugfile = NULL, *opt_matchfile = NULL, *opt_firewall = NULL;
@@ -314,6 +319,11 @@ static int check_options(int argc, char *argv[])
 
 	case 'P':
 	  options |= OPT_DL;
+	  break;
+
+	case 'S':
+	  options |= OPT_SIMULATE;
+	  g_simulate = 1;
 	  break;
 
 	case 'T':
@@ -982,6 +992,7 @@ static void cleanup(void)
 
   return;
 }
+
 
 int main(int argc, char *argv[])
 {

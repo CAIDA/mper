@@ -63,6 +63,7 @@ typedef enum {
   KC_REPLY_TCP_OPT,
   KC_STOP_REASON_OPT,
   KC_STOP_DATA_OPT,
+  KC_SPACING_OPT,
   KC_OPT_MAX
 } keyword_code;
 
