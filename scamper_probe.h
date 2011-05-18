@@ -38,6 +38,7 @@ typedef struct scamper_probe_ipopt
 
 #define SCAMPER_PROBE_IPOPTS_V6ROUTE0 0
 #define SCAMPER_PROBE_IPOPTS_V6FRAG   1
+#define SCAMPER_PROBE_IPOPTS_V4TSPS   2
 
 /*
  * scamper_probe

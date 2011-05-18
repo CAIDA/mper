@@ -92,6 +92,46 @@ scamper_addr_t *scamper_ping_addr(const void *va)
   return ((const scamper_ping_t *)va)->dst;
 }
 
+void scamper_ping_v4ts_free(scamper_ping_v4ts_t *ts)
+{
+  uint8_t i;
+
+  if(ts == NULL)
+    return;
+
+  if(ts->ips != NULL)
+    {
+      for(i=0; i<ts->ipc; i++)
+	if(ts->ips[i] != NULL)
+	  scamper_addr_free(ts->ips[i]);
+      free(ts->ips);
+    }
+
+  free(ts);
+  return;
+}
+
+scamper_ping_v4ts_t *scamper_ping_v4ts_alloc(uint8_t ipc)
+{
+  scamper_ping_v4ts_t *ts = NULL;
+
+  if(ipc == 0)
+    goto err;
+
+  if((ts = malloc_zero(sizeof(scamper_ping_reply_v4ts_t))) == NULL)
+    goto err;
+  ts->ipc = ipc;
+
+  if((ts->ips = malloc_zero(sizeof(scamper_addr_t *) * ipc)) == NULL)
+    goto err;
+
+  return ts;
+
+ err:
+  scamper_ping_v4ts_free(ts);
+  return NULL;
+}
+
 scamper_ping_t *scamper_ping_alloc()
 {
   return (scamper_ping_t *)malloc_zero(sizeof(scamper_ping_t));
@@ -113,6 +153,8 @@ void scamper_ping_free(scamper_ping_t *ping)
 
   if(ping->dst != NULL) scamper_addr_free(ping->dst);
   if(ping->src != NULL) scamper_addr_free(ping->src);
+
+  if(ping->probe_tsps != NULL) scamper_ping_v4ts_free(ping->probe_tsps);
 
   free(ping);
   return;
@@ -159,6 +201,52 @@ int scamper_ping_reply_append(scamper_ping_t *p, scamper_ping_reply_t *reply)
   return 0;
 }
 
+void scamper_ping_reply_v4ts_free(scamper_ping_reply_v4ts_t *ts)
+{
+  uint8_t i;
+
+  if(ts == NULL)
+    return;
+
+  if(ts->tss != NULL)
+    free(ts->tss);
+
+  if(ts->ips != NULL)
+    {
+      for(i=0; i<ts->tsc; i++)
+	if(ts->ips[i] != NULL)
+	  scamper_addr_free(ts->ips[i]);
+      free(ts->ips);
+    }
+
+  free(ts);
+  return;
+}
+
+scamper_ping_reply_v4ts_t *scamper_ping_reply_v4ts_alloc(uint8_t tsc, int ip)
+{
+  scamper_ping_reply_v4ts_t *ts = NULL;
+
+  if(tsc == 0)
+    goto err;
+
+  if((ts = malloc_zero(sizeof(scamper_ping_reply_v4ts_t))) == NULL)
+    goto err;
+  ts->tsc = tsc;
+
+  if((ts->tss = malloc_zero(sizeof(uint32_t) * tsc)) == NULL)
+    goto err;
+
+  if(ip != 0 && (ts->ips = malloc_zero(sizeof(scamper_addr_t *)*tsc)) == NULL)
+    goto err;
+
+  return ts;
+
+ err:
+  scamper_ping_reply_v4ts_free(ts);
+  return NULL;
+}
+
 scamper_ping_reply_t *scamper_ping_reply_alloc(void)
 {
   return (scamper_ping_reply_t *)malloc_zero(sizeof(scamper_ping_reply_t));
@@ -172,6 +260,9 @@ void scamper_ping_reply_free(scamper_ping_reply_t *reply)
     {
       scamper_addr_free(reply->addr);
     }
+
+  if(reply->v4ts != NULL)
+    scamper_ping_reply_v4ts_free(reply->v4ts);
 
   free(reply);
 

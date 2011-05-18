@@ -120,6 +120,14 @@ typedef struct scamper_icmp_resp
   int16_t           ir_ip_ttl;  /* ir_ip_hlim; -1 if unavailable */
 
   /*
+   * if the response includes the IPv4 timestamp option, the results of it
+   * are found in here.
+   */
+  uint8_t           ir_ipopt_tsc;
+  struct in_addr   *ir_ipopt_tsips;
+  uint32_t         *ir_ipopt_tstss;
+
+  /*
    * category 2: the ICMP header;
    *
    * scamper records the type and code of the ICMP message.  depending on
