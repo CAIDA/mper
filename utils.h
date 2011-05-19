@@ -131,6 +131,12 @@ int ishex(char c);
 uint8_t hex2byte(char a, char b);
 void byte2hex(uint8_t byte, char *a);
 
+/* functions for extracting and inserting values from byte arrays */
+uint16_t bytes_ntohs(const uint8_t *);
+uint32_t bytes_ntohl(const uint8_t *);
+void bytes_htons(uint8_t *, uint16_t);
+void bytes_htonl(uint8_t *, uint32_t);
+
 /*
  * Functions for doing I/O
  */

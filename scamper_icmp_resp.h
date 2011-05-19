@@ -168,6 +168,9 @@ typedef struct scamper_icmp_resp
   uint8_t           ir_inner_ip_tos;
   uint8_t           ir_inner_ip_ttl;   /* ir_inner_ip_hlim */
   uint8_t           ir_inner_ip_proto;
+  uint8_t           ir_inner_ipopt_tsc;
+  struct in_addr   *ir_inner_ipopt_tsips;
+  uint32_t         *ir_inner_ipopt_tstss;
 
   /*
    * category 4: details of the transport header
@@ -228,6 +231,8 @@ int scamper_icmp_resp_src(scamper_icmp_resp_t *resp, scamper_addr_t *addr);
 int scamper_icmp_resp_inner_dst(scamper_icmp_resp_t *resp, scamper_addr_t *a);
 
 void scamper_icmp_resp_handle(scamper_icmp_resp_t *resp);
+
+void scamper_icmp_resp_clean(scamper_icmp_resp_t *ir);
 
 /* scamper only uses this function if it is built in debug mode */
 #if !defined(NDEBUG) && !defined(WITHOUT_DEBUGFILE)

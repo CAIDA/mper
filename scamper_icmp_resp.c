@@ -53,6 +53,7 @@ typedef __int16 int16_t;
 #endif
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <assert.h>
 
@@ -510,6 +511,26 @@ int scamper_icmp_resp_inner_dst(scamper_icmp_resp_t *resp,scamper_addr_t *addr)
       return 0;
     }
   return -1;
+}
+
+void scamper_icmp_resp_clean(scamper_icmp_resp_t *ir)
+{
+  if(ir->ir_ext != NULL)
+    free(ir->ir_ext);
+
+  if(ir->ir_ipopt_tsips != NULL)
+    free(ir->ir_ipopt_tsips);
+
+  if(ir->ir_ipopt_tstss != NULL)
+    free(ir->ir_ipopt_tstss);
+
+  if(ir->ir_inner_ipopt_tsips != NULL)
+    free(ir->ir_inner_ipopt_tsips);
+
+  if(ir->ir_inner_ipopt_tstss != NULL)
+    free(ir->ir_inner_ipopt_tstss);
+
+  return;
 }
 
 void scamper_icmp_resp_handle(scamper_icmp_resp_t *resp)

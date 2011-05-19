@@ -135,7 +135,7 @@ int scamper_probe(scamper_probe_t *probe)
 	    {
 	      scamper_debug(__func__, "icmp %s, ttl %d, seq %d, len %d",
 			    addr, probe->pr_ip_ttl, probe->pr_icmp_seq,
-			    probe->pr_len + 28);
+			    probe->pr_len + 28); 
 	    }
 	  break;
 

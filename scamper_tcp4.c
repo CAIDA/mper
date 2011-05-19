@@ -1,9 +1,9 @@
 /*
  * scamper_tcp4.c
  *
- * $Id: scamper_tcp4.c,v 1.35 2009/03/21 09:27:16 mjl Exp $
+ * $Id: scamper_tcp4.c,v 1.45 2010/09/11 22:10:42 mjl Exp $
  *
- * Copyright (C) 2005-2009 The University of Waikato
+ * Copyright (C) 2005-2010 The University of Waikato
  * Author: Matthew Luckie
  *
  * This program is free software; you can redistribute it and/or modify
@@ -21,91 +21,31 @@
  *
  */
 
-#if defined(__APPLE__)
-#include <stdint.h>
+#ifndef lint
+static const char rcsid[] =
+  "$Id: scamper_tcp4.c,v 1.45 2010/09/11 22:10:42 mjl Exp $";
 #endif
 
-#if defined(__sun__)
-#define IP_HDR_HTONS
+#ifdef HAVE_CONFIG_H
+#include "config.h"
 #endif
-
-#include <sys/types.h>
-
-#if defined(_MSC_VER)
-typedef unsigned __int8 uint8_t;
-typedef unsigned __int16 uint16_t;
-typedef unsigned __int32 uint32_t;
-#define __func__ __FUNCTION__
-#endif
-
-#ifdef _WIN32
-#include <winsock2.h>
-struct ip
-{
-  uint8_t        ip_vhl;
-  uint8_t        ip_tos;
-  uint16_t       ip_len;
-  uint16_t       ip_id;
-  uint16_t       ip_off;
-  uint8_t        ip_ttl;
-  uint8_t        ip_p;
-  uint16_t       ip_sum;
-  struct in_addr ip_src;
-  struct in_addr ip_dst;
-};
-struct tcphdr {
-  uint16_t th_sport;
-  uint16_t th_dport;
-  uint32_t th_seq;
-  uint32_t th_ack;
-  uint8_t  th_offx2;
-  uint8_t  th_flags;
-  uint16_t th_win;
-  uint16_t th_sum;
-  uint16_t th_urp;
-};
-#endif
-
-#ifndef _WIN32
-#include <sys/socket.h>
-#include <sys/time.h>
-#endif
-
-#if defined(__linux__)
-#define __FAVOR_BSD
-#define IP_HDR_HTONS
-#endif
-
-#if defined(__OpenBSD__) && OpenBSD >= 199706
-#define IP_HDR_HTONS
-#endif
-
-#ifndef _WIN32
-#include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#include <netinet/tcp.h>
-#include <arpa/inet.h>
-#include <unistd.h>
-#endif
-
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <errno.h>
-
-#include <assert.h>
+#include "internal.h"
 
 #include "scamper_addr.h"
 #include "scamper_dl.h"
 #include "scamper_probe.h"
+#include "scamper_ip4.h"
 #include "scamper_tcp4.h"
 #include "scamper_debug.h"
 #include "utils.h"
 
-#ifndef IP_DF
-#define IP_DF 0x4000
-#endif
+static void tcp_mss(uint8_t *buf, uint16_t mss)
+{
+  buf[0] = 2;
+  buf[1] = 4;
+  bytes_htons(buf+2, mss);
+  return;
+}
 
 static void tcp_cksum(scamper_probe_t *probe, struct tcphdr *tcp, size_t len)
 {
@@ -149,30 +89,6 @@ static void tcp_cksum(scamper_probe_t *probe, struct tcphdr *tcp, size_t len)
   return;
 }
 
-static void ip4_build(scamper_probe_t *probe, uint8_t *buf)
-{
-  struct ip *ip = (struct ip *)buf;
-
-#ifndef _WIN32
-  ip->ip_v   = 4;
-  ip->ip_hl  = 5;
-#else
-  ip->ip_vhl = 0x45;
-#endif
-  ip->ip_tos = probe->pr_ip_tos;
-  ip->ip_len = htons(20 + 20 + probe->pr_len);
-  ip->ip_id  = htons(probe->pr_ip_id);
-  ip->ip_off = htons(IP_DF);
-  ip->ip_ttl = probe->pr_ip_ttl;
-  ip->ip_p   = IPPROTO_TCP;
-  ip->ip_sum = 0;
-  memcpy(&ip->ip_src, probe->pr_ip_src->addr, sizeof(ip->ip_src));
-  memcpy(&ip->ip_dst, probe->pr_ip_dst->addr, sizeof(ip->ip_dst));
-  ip->ip_sum = in_cksum(ip, sizeof(struct ip));
-
-  return;
-}
-
 static void tcp4_build(scamper_probe_t *probe, uint8_t *buf)
 {
   struct tcphdr *tcp = (struct tcphdr *)buf;
@@ -182,17 +98,26 @@ static void tcp4_build(scamper_probe_t *probe, uint8_t *buf)
   tcp->th_dport = htons(probe->pr_tcp_dport);
   tcp->th_seq   = htonl(probe->pr_tcp_seq);
   tcp->th_ack   = htonl(probe->pr_tcp_ack);
+  tcp->th_flags = probe->pr_tcp_flags;
+  tcp->th_win   = htons(probe->pr_tcp_win);
+  tcp->th_sum   = 0;
+  tcp->th_urp   = 0;
+
+  if(probe->pr_tcp_flags & TH_SYN)
+    {
+      if(probe->pr_tcp_mss != 0)
+	{
+	  tcp_mss(buf+tcphlen, probe->pr_tcp_mss);
+	  tcphlen += 4;
+	}
+    }
+
 #ifndef _WIN32
   tcp->th_off   = tcphlen >> 2;
   tcp->th_x2    = 0;
 #else
   tcp->th_offx2 = ((tcphlen >> 2) << 4);
 #endif
-
-  tcp->th_flags = probe->pr_tcp_flags;
-  tcp->th_win   = htons(probe->pr_tcp_win);
-  tcp->th_sum   = 0;
-  tcp->th_urp   = 0;
 
   /* if there is data to include in the payload, copy it in now */
   if(probe->pr_len > 0)
@@ -206,22 +131,30 @@ static void tcp4_build(scamper_probe_t *probe, uint8_t *buf)
   return;
 }
 
+size_t scamper_tcp4_hlen(scamper_probe_t *probe)
+{
+  size_t len = 20;
+  if(probe->pr_tcp_mss != 0)
+    len += 4;
+  return len;
+}
+
 int scamper_tcp4_build(scamper_probe_t *probe, uint8_t *buf, size_t *len)
 {
-  /* for now, we don't handle any TCP options */
-  size_t req = 20 + 20 + probe->pr_len;
+  size_t ip4hlen, req;
+  int rc = 0;
+
+  ip4hlen = *len;
+  scamper_ip4_build(probe, buf, &ip4hlen);
+  req = ip4hlen + scamper_tcp4_hlen(probe) + probe->pr_len;
 
   if(req <= *len)
-    {
-      ip4_build(probe, buf);
-      tcp4_build(probe, buf+20);
-
-      *len = req;
-      return 0;
-    }
+    tcp4_build(probe, buf + ip4hlen);
+  else
+    rc = -1;
 
   *len = req;
-  return -1;
+  return rc;
 }
 
 void scamper_tcp4_close(int fd)

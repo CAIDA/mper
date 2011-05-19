@@ -9,7 +9,7 @@ OBJS=			scamper.o scamper_debug.o utils.o \
 			scamper_udp4.o scamper_udp6.o \
 			scamper_icmp4.o scamper_icmp6.o scamper_icmp_resp.o \
 			scamper_tcp4.o scamper_tcp6.o \
-			scamper_ip6.o scamper_if.o \
+			scamper_ip4.o scamper_ip6.o scamper_if.o \
 			scamper_rtsock.o scamper_dl.o scamper_addr2mac.o \
 			scamper_fds.o scamper_linepoll.o scamper_writebuf.o \
 			scamper_privsep.o scamper_getsrc.o \

@@ -1140,7 +1140,7 @@ static void do_ping_write_reply(scamper_task_t *task, scamper_ping_t *ping,
   const char *msg = NULL;
   size_t msg_len = 0;
   char src_addr[40], dest_addr[40], reply_addr[40];
-  size_t opts;
+  size_t opts = 11;
   int i;
 
   scamper_addr_tostr(ping->src, src_addr, 40);
@@ -1162,8 +1162,7 @@ static void do_ping_write_reply(scamper_task_t *task, scamper_ping_t *ping,
   if(SCAMPER_PING_REPLY_IS_ICMP(reply))
     {
       uint32_t icmp_value = (reply->icmp_type << 8) | reply->icmp_code;
-      opts = 11;
-      SET_UINT_CWORD(resp_words, opts, REPLY_ICMP, icmp_value);
+      SET_UINT_CWORD(resp_words, 11, REPLY_ICMP, icmp_value);
 
       if(!SCAMPER_PING_REPLY_IS_ICMP_ECHO_REPLY(reply))
         {
@@ -1173,7 +1172,6 @@ static void do_ping_write_reply(scamper_task_t *task, scamper_ping_t *ping,
 
       if(reply->v4ts != NULL)
 	{
-	  scamper_debug(__func__, "got v4ts reply");
 	  for(i=0;i<reply->v4ts->tsc;i++)
 	    {
 	      opts++;
@@ -1181,36 +1179,31 @@ static void do_ping_write_reply(scamper_task_t *task, scamper_ping_t *ping,
 		{
 		case 0:
 		  SET_TIMEVAL2_CWORD(resp_words, opts, 
-				     TSPS1, reply->v4ts->tss[i], 0);
+				     REPLY_TSPS1, reply->v4ts->tss[i], 0);
 		  break;
 		  
 		case 1:
 		  SET_TIMEVAL2_CWORD(resp_words, opts, 
-				     TSPS2, reply->v4ts->tss[i], 0);
+				     REPLY_TSPS2, reply->v4ts->tss[i], 0);
 		  break;
 		  
 		case 2:
 		  SET_TIMEVAL2_CWORD(resp_words, opts, 
-				     TSPS3, reply->v4ts->tss[i], 0);
+				     REPLY_TSPS3, reply->v4ts->tss[i], 0);
 		  break;
 		  
 		case 3:
 		  SET_TIMEVAL2_CWORD(resp_words, opts, 
-				     TSPS4, reply->v4ts->tss[i], 0);
+				     REPLY_TSPS4, reply->v4ts->tss[i], 0);
 		  break;
 		}
 	    }
-	}
-      else
-	{
-	  scamper_debug(__func__, "no v4ts reply");
 	}
     }
   else /* tcp */
     {
       SET_UINT_CWORD(resp_words, 11, REPLY_TCP, reply->tcp_flags);
     }
-
   msg = create_control_message(resp_words, CMESSAGE_LEN(opts), &msg_len);
   assert(msg_len != 0);
   send_response(task, msg);
@@ -1787,6 +1780,7 @@ scamper_task_t *scamper_do_ping_alloctask(scamper_ping_t *ping,
   scamper_task_t *task;
   ping_state_t   *state;
   void           *addr;
+  int i;
 
 #ifdef _WIN32
   scamper_rt_rec_t rr;
@@ -1828,6 +1822,18 @@ scamper_task_t *scamper_do_ping_alloctask(scamper_ping_t *ping,
     goto err;
   if(state->icmp == NULL)
     goto err;
+
+  if(ping->probe_tsps != NULL)
+    {
+      if((state->tsps = malloc(4 * ping->probe_tsps->ipc)) == NULL)
+	{
+	  printerror(errno,strerror,__func__, "could not malloc state->tsps");
+	  goto err;
+	}
+      for(i=0; i<ping->probe_tsps->ipc; i++)
+	memcpy(state->tsps+(i*4), ping->probe_tsps->ips[i]->addr, 4);
+      state->tsps_len = ping->probe_tsps->ipc * 4;
+    }
 
   if(SCAMPER_PING_METHOD_IS_TCP(ping))
     {

@@ -137,71 +137,55 @@ struct tcphdr {
 #include "scamper_probe.h"
 #include "scamper_icmp_resp.h"
 #include "scamper_icmp4.h"
+#include "scamper_ip4.h"
 #include "scamper_privsep.h"
 #include "scamper_debug.h"
 #include "utils.h"
 
-#ifndef IP_DF
-#define IP_DF 0x4000
-#endif
-
-#ifndef ICMP_ECHOREPLY
-#define ICMP_ECHOREPLY 0
-#endif
-
-#ifndef ICMP_UNREACH
-#define ICMP_UNREACH 3
-#endif
-
-#ifndef ICMP_ECHO
-#define ICMP_ECHO 8
-#endif
-
-#ifndef ICMP_TIMXCEED
-#define ICMP_TIMXCEED 11
-#endif
-
-#ifndef ICMP_TIMXCEED_INTRANS
-#define ICMP_TIMXCEED_INTRANS 0
-#endif
-
-#ifndef ICMP_MINLEN
-#define	ICMP_MINLEN 8
-#endif
-
-#ifndef ICMP_UNREACH_NEEDFRAG
-#define ICMP_UNREACH_NEEDFRAG 4
-#endif
-
-/*
- * if the [linux] system has SO_TIMESTAMP, then do not use SIOCGSTAMP, as
- * that requires an extra system call
- */
-#if defined(SO_TIMESTAMP)
-#undef SIOCGSTAMP
-#endif
-
 static uint8_t *pktbuf = NULL;
 static size_t   pktbuf_len = 0;
 
+static void icmp4_header(scamper_probe_t *probe, uint8_t *buf)
+{
+  buf[0] = probe->pr_icmp_type; /* type */
+  buf[1] = probe->pr_icmp_code; /* code */
+  buf[2] = 0; buf[3] = 0;       /* checksum */
+
+  switch(probe->pr_icmp_type)
+    {
+    case ICMP_ECHO:
+    case ICMP_ECHOREPLY:
+      bytes_htons(buf+4, probe->pr_icmp_id);
+      bytes_htons(buf+6, probe->pr_icmp_seq);
+      break;
+
+    case ICMP_UNREACH:
+      memset(buf+4, 0, 4);
+      if(probe->pr_icmp_code == ICMP_UNREACH_NEEDFRAG)
+	bytes_htons(buf+6, probe->pr_icmp_mtu);
+      break;
+    }
+
+  return;
+}
+
 uint16_t scamper_icmp4_cksum(scamper_probe_t *probe)
 {
+  uint8_t hdr[8];
   uint16_t tmp, *w;
   int i, sum = 0;
 
-  sum += htons(((probe->pr_icmp_type << 8) | probe->pr_icmp_code));
-  sum += htons(probe->pr_icmp_id);
-  sum += htons(probe->pr_icmp_seq);
+  icmp4_header(probe, hdr);
+
+  w = (uint16_t *)hdr;
+  for(i=0; i<8; i+=2)
+    sum += *w++;
 
   w = (uint16_t *)probe->pr_data;
   for(i = probe->pr_len; i > 1; i -= 2)
-    {
-      sum += *w++;
-    }
+    sum += *w++;
   if(i != 0)
-    {
-      sum += ((uint8_t *)w)[0];
-    }
+    sum += ((uint8_t *)w)[0];
 
   /* fold the checksum */
   sum  = (sum >> 16) + (sum & 0xffff);
@@ -215,67 +199,37 @@ uint16_t scamper_icmp4_cksum(scamper_probe_t *probe)
   return tmp;
 }
 
-static void ip4_build(scamper_probe_t *probe, uint8_t *buf)
-{
-  struct ip *ip = (struct ip *)buf;
-
-#ifndef _WIN32
-  ip->ip_v   = 4;
-  ip->ip_hl  = 5;
-#else
-  ip->ip_vhl = 0x45;
-#endif
-
-  ip->ip_tos = probe->pr_ip_tos;
-  ip->ip_len = htons(20 + 8 + probe->pr_len);
-  ip->ip_id  = htons(probe->pr_ip_id);
-  ip->ip_off = htons(IP_DF);
-  ip->ip_ttl = probe->pr_ip_ttl;
-  ip->ip_p   = IPPROTO_ICMP;
-  ip->ip_sum = 0;
-  memcpy(&ip->ip_src, probe->pr_ip_src->addr, sizeof(ip->ip_src));
-  memcpy(&ip->ip_dst, probe->pr_ip_dst->addr, sizeof(ip->ip_dst));
-  ip->ip_sum = in_cksum(ip, sizeof(struct ip));
-
-  return;
-}
-
 static void icmp4_build(scamper_probe_t *probe, uint8_t *buf)
 {
-  struct icmp *icmp = (struct icmp *)buf;
+  uint16_t csum;
 
-  icmp->icmp_type  = probe->pr_icmp_type;
-  icmp->icmp_code  = probe->pr_icmp_code;
-  icmp->icmp_cksum = 0;
-  icmp->icmp_id    = htons(probe->pr_icmp_id);
-  icmp->icmp_seq   = htons(probe->pr_icmp_seq);
+  icmp4_header(probe, buf);
 
-  /* if there is data to include in the payload, copy it in now */
   if(probe->pr_len > 0)
-    {
-      memcpy(buf + 8, probe->pr_data, probe->pr_len);
-    }
+    memcpy(buf + 8, probe->pr_data, probe->pr_len);
 
-  icmp->icmp_cksum = in_cksum(icmp, (size_t)(probe->pr_len + 8));
+  csum = in_cksum(buf, (size_t)(probe->pr_len + 8));
+  memcpy(buf+2, &csum, 2);
 
   return;
 }
 
 int scamper_icmp4_build(scamper_probe_t *probe, uint8_t *buf, size_t *len)
 {
-  size_t req = 20 + 8 + probe->pr_len;
+  size_t ip4hlen, req;
+  int rc = 0;
+
+  ip4hlen = *len;
+  scamper_ip4_build(probe, buf, &ip4hlen);
+  req = ip4hlen + 8 + probe->pr_len;
 
   if(req <= *len)
-    {
-      ip4_build(probe, buf);
-      icmp4_build(probe, buf + 20);
-
-      *len = req;
-      return 0;
-    }
+    icmp4_build(probe, buf + ip4hlen);
+  else
+    rc = -1;
 
   *len = req;
-  return -1;
+  return rc;
 }
 
 /*
@@ -287,7 +241,7 @@ int scamper_icmp4_probe(scamper_probe_t *probe)
 {
   struct sockaddr_in  sin4;
   char                addr[128];
-  size_t              len;
+  size_t              ip4hlen, len, tmp;
   int                 i, icmphdrlen;
   uint8_t            *buf;
 
@@ -312,7 +266,10 @@ int scamper_icmp4_probe(scamper_probe_t *probe)
       return -1;
     }
 
-  len = sizeof(struct ip) + icmphdrlen + probe->pr_len;
+  scamper_ip4_hlen(probe, &ip4hlen);
+
+  len = ip4hlen + icmphdrlen + probe->pr_len;
+  //len = sizeof(struct ip) + icmphdrlen + probe->pr_len;
 
   i = len;
   if(setsockopt(probe->pr_fd,
@@ -335,7 +292,8 @@ int scamper_icmp4_probe(scamper_probe_t *probe)
     }
 
   /* build the IPv4 header from the probe structure */
-  ip4_build(probe, pktbuf);
+  tmp = len;
+  scamper_ip4_build(probe, pktbuf, &tmp);
 
   /* byte swap the length and offset fields back to host-byte order if reqd */
 #if !defined(IP_HDR_HTONS)
@@ -344,7 +302,7 @@ int scamper_icmp4_probe(scamper_probe_t *probe)
   ip->ip_off = ntohs(ip->ip_off);
 #endif
 
-  icmp4_build(probe, pktbuf + 20);
+  icmp4_build(probe, pktbuf + ip4hlen);
 
   sockaddr_compose((struct sockaddr *)&sin4, AF_INET,
 		   probe->pr_ip_dst->addr, 0);
@@ -379,7 +337,7 @@ int scamper_icmp4_probe(scamper_probe_t *probe)
 }
 
 /*
- * scamper_icmp4_icmp_ip_len
+ * icmp4_quote_ip_len
  *
  * this function returns the ip header's length field inside an icmp message
  * in a consistent fashion based on the system it is running on and the
@@ -395,7 +353,7 @@ int scamper_icmp4_probe(scamper_probe_t *probe)
  * the pragmatic way is just to use pcap, which passes packets up in network
  * byte order consistently.
  */
-static uint16_t scamper_icmp4_icmp_ip_len(const struct icmp *icmp)
+static uint16_t icmp4_quote_ip_len(const struct icmp *icmp)
 {
   uint16_t len;
 
@@ -451,12 +409,12 @@ static uint16_t scamper_icmp4_icmp_ip_len(const struct icmp *icmp)
 }
 
 /*
- * scamper_icmp4_ip_len
+ * icmp4_ip_len
  *
  * given the ip header encapsulating the icmp response, return the length
  * of the ip packet
  */
-static uint16_t scamper_icmp4_ip_len(const struct ip *ip)
+static uint16_t icmp4_ip_len(const struct ip *ip)
 {
   uint16_t len;
 
@@ -469,21 +427,146 @@ static uint16_t scamper_icmp4_ip_len(const struct ip *ip)
   return len;
 }
 
+static uint8_t ip_tsc(int fl, int len)
+{
+  if(fl == 0)
+    {
+      if(len >= 4 && (len % 4) == 0)
+	return len / 4;
+    }
+  else if(fl == 1 || fl == 3)
+    {
+      if(len >= 8 && (len % 8) == 0)
+	return len / 8;
+    }
+
+  return 0;
+}
+
+static void ip_quote_ts(scamper_icmp_resp_t *ir, int fl,
+			const uint8_t *buf, int len)
+{
+  const uint8_t *ptr = buf;
+  uint8_t i, tsc;
+
+  if((tsc = ip_tsc(fl, len)) == 0)
+    return;
+
+  if(fl == 1 || fl == 3)
+    {
+      ir->ir_inner_ipopt_tsips = malloc(sizeof(struct in_addr) * tsc);
+      if(ir->ir_inner_ipopt_tsips == NULL)
+	return;
+    }
+
+  if((ir->ir_inner_ipopt_tstss = malloc(sizeof(uint32_t) * tsc)) == NULL)
+    return;
+
+  for(i=0; i<tsc; i++)
+    {
+      if(fl == 1 || fl == 3)
+	{
+	  memcpy(&ir->ir_inner_ipopt_tsips[i], ptr, 4);
+	  ptr += 4;
+	}
+      ir->ir_inner_ipopt_tstss[i] = bytes_ntohl(ptr);
+      ptr += 4;
+    }
+
+  ir->ir_inner_ipopt_tsc = tsc;
+  return;
+}
+
+static void ip_ts(scamper_icmp_resp_t *ir, int fl, const uint8_t *buf, int len)
+{
+  const uint8_t *ptr = buf;
+  uint8_t i, tsc;
+
+  if((tsc = ip_tsc(fl, len)) == 0)
+    return;
+
+  if(fl == 1 || fl == 3)
+    {
+      if((ir->ir_ipopt_tsips = malloc(sizeof(struct in_addr) * tsc)) == NULL)
+	return;
+    }
+
+  if((ir->ir_ipopt_tstss = malloc(sizeof(uint32_t) * tsc)) == NULL)
+    return;
+
+  for(i=0; i<tsc; i++)
+    {
+      if(fl == 1 || fl == 3)
+	{
+	  memcpy(&ir->ir_ipopt_tsips[i], ptr, 4);
+	  ptr += 4;
+	}
+      ir->ir_ipopt_tstss[i] = bytes_ntohl(ptr);
+      ptr += 4;
+    }
+
+  ir->ir_ipopt_tsc = tsc;
+  return;
+}
+
+static void ipopt_parse(scamper_icmp_resp_t *ir, const uint8_t *buf, int iphl,
+			void (*ts)(scamper_icmp_resp_t *, int,
+				   const uint8_t *, int))
+{
+  int off, ol, p, fl;
+
+  off = 20;
+  while(off < iphl)
+    {
+      /* end of IP options */
+      if(buf[off] == 0)
+	break;
+
+      /* no-op */
+      if(buf[off] == 1)
+	{
+	  off++;
+	  continue;
+	}
+
+      ol = buf[off+1];
+
+      /* check to see if the option could be included */
+      if(off + ol > iphl)
+	break;
+
+      if(buf[off] == 68 && ts != NULL)
+	{
+	  /* timestamp */
+	  p  = buf[off+2] - 1;
+	  fl = buf[off+3] & 0xf;
+	  if(p <= ol)
+	    ts(ir, fl, buf+off+4, p-4);
+	}
+
+      off += ol;
+    }
+
+  return;
+}
+
 /*
- * icmp4_recv_ip_outer
+ * icmp4_recv_ip
  *
- * copy the outer-details of the ICMP message into the response structure.
- * get details of the time the packet was received.
+ * copy details of the ICMP message and the time it was received into the
+ * response structure.
  */
 #ifndef _WIN32
-static void icmp4_recv_ip_outer(int fd, scamper_icmp_resp_t *resp,
-				struct ip *ip, struct icmp *icmp,
-				struct msghdr *msg)
+static void icmp4_recv_ip(int fd, scamper_icmp_resp_t *ir, const uint8_t *buf, 
+			  int iphl, struct msghdr *msg)
 #else
-static void icmp4_recv_ip_outer(int fd, scamper_icmp_resp_t *resp,
-				struct ip *ip, struct icmp *icmp)
+static void icmp4_recv_ip(int fd, scamper_icmp_resp_t *ir, const uint8_t *buf,
+			  int iphl)
 #endif
 {
+  const struct ip *ip = (const struct ip *)buf;
+  const struct icmp *icmp = (const struct icmp *)(buf + iphl);
+
   /*
    * to start with, get a timestamp from the kernel if we can, otherwise
    * just get one from user-space.
@@ -502,34 +585,40 @@ static void icmp4_recv_ip_outer(int fd, scamper_icmp_resp_t *resp,
 	{
 	  if(cmsg->cmsg_level == SOL_SOCKET && cmsg->cmsg_type == SCM_TIMESTAMP)
 	    {
-	      timeval_cpy(&resp->ir_rx, (struct timeval *)CMSG_DATA(cmsg));
-	      resp->ir_flags |= SCAMPER_ICMP_RESP_FLAG_KERNRX;
+	      timeval_cpy(&ir->ir_rx, (struct timeval *)CMSG_DATA(cmsg));
+	      ir->ir_flags |= SCAMPER_ICMP_RESP_FLAG_KERNRX;
 	      break;
 	    }
 	  cmsg = (struct cmsghdr *)CMSG_NXTHDR(msg, cmsg);
 	}
     }  
 #elif defined(SIOCGSTAMP)
-  if(ioctl(fd, SIOCGSTAMP, &resp->ir_rx) != -1)
+  if(ioctl(fd, SIOCGSTAMP, &ir->ir_rx) != -1)
     {
-      resp->ir_flags |= SCAMPER_ICMP_RESP_FLAG_KERNRX;
+      ir->ir_flags |= SCAMPER_ICMP_RESP_FLAG_KERNRX;
     }
 #else
-  gettimeofday_wrap(&resp->ir_rx);
+  gettimeofday_wrap(&ir->ir_rx);
 #endif
 
   /* the response came from ... */
-  memcpy(&resp->ir_ip_src.v4, &ip->ip_src, sizeof(struct in_addr));
+  memcpy(&ir->ir_ip_src.v4, &ip->ip_src, sizeof(struct in_addr));
 
-  resp->ir_af        = AF_INET;
-  resp->ir_ip_ttl    = ip->ip_ttl;
-  resp->ir_ip_id     = ntohs(ip->ip_id);
-  resp->ir_ip_tos    = ip->ip_tos;
-  resp->ir_ip_size   = scamper_icmp4_ip_len(ip);
-  resp->ir_icmp_type = icmp->icmp_type;
-  resp->ir_icmp_code = icmp->icmp_code;
+  ir->ir_af        = AF_INET;
+  ir->ir_ip_ttl    = ip->ip_ttl;
+  ir->ir_ip_id     = ntohs(ip->ip_id);
+  ir->ir_ip_tos    = ip->ip_tos;
+  ir->ir_ip_size   = icmp4_ip_len(ip);
+  ir->ir_icmp_type = icmp->icmp_type;
+  ir->ir_icmp_code = icmp->icmp_code;
+  ipopt_parse(ir, buf, iphl, ip_ts);
 
   return;
+}
+
+static int ip_hl(const void *buf)
+{
+  return (((const uint8_t *)buf)[0] & 0xf) << 2;
 }
 
 int scamper_icmp4_recv(int fd, scamper_icmp_resp_t *resp)
@@ -544,7 +633,8 @@ int scamper_icmp4_recv(int fd, scamper_icmp_resp_t *resp)
   struct tcphdr       *tcp;
   uint8_t              type, code;
   uint8_t              nh;
-  int                  iphdrlen;
+  int                  iphl;
+  int                  iphlq;
   uint8_t             *ext;
   ssize_t              extlen;
 
@@ -571,8 +661,6 @@ int scamper_icmp4_recv(int fd, scamper_icmp_resp_t *resp)
       return -1;
     }
 
-  iphdrlen = ip_outer->ip_hl << 2;
-
 #else
 
   if((pbuflen = recv(fd, pbuf, sizeof(pbuf), 0)) == SOCKET_ERROR)
@@ -581,22 +669,25 @@ int scamper_icmp4_recv(int fd, scamper_icmp_resp_t *resp)
       return -1;
     }
 
-  iphdrlen = (ip_outer->ip_vhl & 0xf) << 2;
-
 #endif
+
+  if((iphl = ip_hl(ip_outer)) < 20)
+    {
+      scamper_debug(__func__, "iphl %d < 20", iphl);
+      return -1;
+    }
 
   /*
    * an ICMP header has to be at least 8 bytes:
    * 1 byte type, 1 byte code, 2 bytes checksum, 4 bytes 'data'
    */
-  if(pbuflen < iphdrlen + 8)
+  if(pbuflen < iphl + 8)
     {
-      scamper_debug(__func__, "pbuflen [%d] < iphdrlen [%d] + 8",
-		    pbuflen, iphdrlen); 
+      scamper_debug(__func__, "pbuflen [%d] < iphl [%d] + 8", pbuflen, iphl); 
       return -1;
     }
 
-  icmp = (struct icmp *)(pbuf + iphdrlen);
+  icmp = (struct icmp *)(pbuf + iphl);
   type = icmp->icmp_type;
   code = icmp->icmp_code;
 
@@ -625,9 +716,9 @@ int scamper_icmp4_recv(int fd, scamper_icmp_resp_t *resp)
 	     sizeof(struct in_addr));
 
 #ifndef _WIN32
-      icmp4_recv_ip_outer(fd, resp, ip_outer, icmp, &msg);
+      icmp4_recv_ip(fd, resp, pbuf, iphl, &msg);
 #else
-      icmp4_recv_ip_outer(fd, resp, ip_outer, icmp);
+      icmp4_recv_ip(fd, resp, pbuf, iphl);
 #endif
 
       return 0;
@@ -635,12 +726,8 @@ int scamper_icmp4_recv(int fd, scamper_icmp_resp_t *resp)
 
   ip_inner = &icmp->icmp_ip;
   nh = ip_inner->ip_p;
-
-#ifndef _WIN32
-  poffset = iphdrlen + ICMP_MINLEN + (ip_inner->ip_hl << 2);
-#else
-  poffset = iphdrlen + ICMP_MINLEN + ((ip_inner->ip_vhl & 0xf) << 2);
-#endif
+  iphlq = ip_hl(ip_inner);
+  poffset = iphl + 8 + iphlq;
 
   /* search for an ICMP / UDP / TCP header in this packet */
   while(poffset + 8 <= pbuflen)
@@ -656,9 +743,9 @@ int scamper_icmp4_recv(int fd, scamper_icmp_resp_t *resp)
 
       /* record details of the IP header and the ICMP headers */
 #ifndef _WIN32
-      icmp4_recv_ip_outer(fd, resp, ip_outer, icmp, &msg);
+      icmp4_recv_ip(fd, resp, pbuf, iphl, &msg);
 #else
-      icmp4_recv_ip_outer(fd, resp, ip_outer, icmp);
+      icmp4_recv_ip(fd, resp, pbuf, iphl);
 #endif
 
       /* record details of the IP header found in the ICMP error message */
@@ -669,7 +756,9 @@ int scamper_icmp4_recv(int fd, scamper_icmp_resp_t *resp)
       resp->ir_inner_ip_ttl   = ip_inner->ip_ttl;
       resp->ir_inner_ip_id    = ntohs(ip_inner->ip_id);
       resp->ir_inner_ip_tos   = ip_inner->ip_tos;
-      resp->ir_inner_ip_size  = scamper_icmp4_icmp_ip_len(icmp);
+      resp->ir_inner_ip_size  = icmp4_quote_ip_len(icmp);
+
+      ipopt_parse(resp, pbuf+iphl+8, iphlq, ip_quote_ts);
 
       if(type == ICMP_UNREACH && code == ICMP_UNREACH_NEEDFRAG)
 	{
@@ -707,10 +796,10 @@ int scamper_icmp4_recv(int fd, scamper_icmp_resp_t *resp)
        * and must have 4 bytes of header beyond that for there to be
        * extensions included
        */
-      if(pbuflen - (iphdrlen+8) > 128 + 4)
+      if(pbuflen - (iphl+8) > 128 + 4)
 	{
-	  ext    = pbuf    + (iphdrlen + 8 + 128);
-	  extlen = pbuflen - (iphdrlen + 8 + 128);
+	  ext    = pbuf    + (iphl + 8 + 128);
+	  extlen = pbuflen - (iphl + 8 + 128);
 
 	  if((ext[0] & 0xf0) == 0x20 &&
 	     ((ext[2] == 0 && ext[3] == 0) || in_cksum(ext, extlen) == 0))
@@ -730,19 +819,14 @@ int scamper_icmp4_recv(int fd, scamper_icmp_resp_t *resp)
 
 void scamper_icmp4_read_cb(const int fd, void *param)
 {
-  scamper_icmp_resp_t resp;
+  scamper_icmp_resp_t ir;
 
-  resp.ir_ext = NULL;
+  memset(&ir, 0, sizeof(ir));
 
-  if(scamper_icmp4_recv(fd, &resp) == 0)
-    {
-      scamper_icmp_resp_handle(&resp);
-    }
+  if(scamper_icmp4_recv(fd, &ir) == 0)
+    scamper_icmp_resp_handle(&ir);
 
-  if(resp.ir_ext != NULL)
-    {
-      free(resp.ir_ext);
-    }
+  scamper_icmp_resp_clean(&ir);
 
   return;
 }
@@ -771,14 +855,9 @@ void scamper_icmp4_close(int fd)
 int scamper_icmp4_open(const void *addr)
 {
   struct sockaddr_in sin;
+  char tmp[32];
   int fd = -1;
   int opt;
-
-#ifndef _WIN32
-  int   hdr;
-#else
-  DWORD hdr;
-#endif
 
 #if defined(ICMP_FILTER)
   struct icmp_filter filter;
@@ -786,32 +865,26 @@ int scamper_icmp4_open(const void *addr)
 
 #if defined(WITHOUT_PRIVSEP)
   if((fd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP)) == -1)
-#else
-  if((fd = scamper_privsep_open_icmp(AF_INET)) == -1)
-#endif
     {
       printerror(errno, strerror, __func__, "could not open ICMP socket");
       goto err;
     }
-
-#ifndef _WIN32
-  hdr = 1;
-  if(setsockopt(fd, IPPROTO_IP, IP_HDRINCL, &hdr, sizeof(hdr)) == -1)
-#else
-  hdr = TRUE;
-  if(setsockopt(fd, IPPROTO_IP, IP_HDRINCL, (char *)&hdr, sizeof(hdr)) == -1)
-#endif
+  opt = 1;
+  if(setsockopt(fd, IPPROTO_IP, IP_HDRINCL, (void *)&opt, sizeof(opt)) == -1)
     {
       printerror(errno, strerror, __func__, "could not set IP_HDRINCL");
       goto err;
     }
+#else
+  if((fd = scamper_privsep_open_icmp(AF_INET)) == -1)
+    {
+      printerror(errno, strerror, __func__, "could not open ICMP socket");
+      goto err;
+    }
+#endif
 
   opt = 65535 + 128;
-#ifndef _WIN32
-  if(setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &opt, sizeof(opt)) == -1)
-#else
-  if(setsockopt(fd, SOL_SOCKET, SO_RCVBUF, (char *)&opt, sizeof(opt)) == -1)
-#endif
+  if(setsockopt(fd, SOL_SOCKET, SO_RCVBUF, (void *)&opt, sizeof(opt)) == -1)
     {
       printerror(errno, strerror, __func__, "could not set SO_RCVBUF");
       goto err;
@@ -847,7 +920,8 @@ int scamper_icmp4_open(const void *addr)
       sockaddr_compose((struct sockaddr *)&sin, AF_INET, addr, 0);
       if(bind(fd, (struct sockaddr *)&sin, sizeof(sin)) != 0)
 	{
-	  printerror(errno, strerror, __func__, "could not bind");
+	  printerror(errno, strerror, __func__, "could not bind %s",
+		     sockaddr_tostr((struct sockaddr *)&sin,tmp,sizeof(tmp)));
 	  goto err;
 	}
     }

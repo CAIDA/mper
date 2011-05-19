@@ -1138,6 +1138,34 @@ void byte2hex(uint8_t byte, char *a)
   return;
 }
 
+uint16_t bytes_ntohs(const uint8_t *bytes)
+{
+  uint16_t u16;
+  memcpy(&u16, bytes, 2);
+  return ntohs(u16);
+}
+
+uint32_t bytes_ntohl(const uint8_t *bytes)
+{
+  uint32_t u32;
+  memcpy(&u32, bytes, 4);
+  return ntohl(u32);
+}
+
+void bytes_htons(uint8_t *bytes, uint16_t u16)
+{
+  uint16_t tmp = htons(u16);
+  memcpy(bytes, &tmp, 2);
+  return;
+}
+
+void bytes_htonl(uint8_t *bytes, uint32_t u32)
+{
+  uint32_t tmp = htonl(u32);
+  memcpy(bytes, &tmp, 4);
+  return;
+}
+
 int read_wrap(const int fd, void *ptr, size_t *rc_out, const size_t rt)
 {
   uint8_t *buf;

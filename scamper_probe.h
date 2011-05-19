@@ -63,6 +63,7 @@ typedef struct scamper_probe
   uint8_t                pr_ip_ttl;
   uint8_t                pr_ip_proto;
   uint16_t               pr_ip_id;        /* IPv4 ID */
+  uint16_t               pr_ip_off;
   uint32_t               pr_ip_flow;      /* IPv6 flow id */
 
   /* IPv4 options / IPv6 extension headers */
@@ -79,6 +80,7 @@ typedef struct scamper_probe
   uint16_t               pr_icmp_id;
   uint16_t               pr_icmp_seq;
   uint16_t               pr_icmp_sum;
+  uint16_t               pr_icmp_mtu;
 
   /* TCP header parameters */
   uint16_t               pr_tcp_sport;
@@ -87,6 +89,7 @@ typedef struct scamper_probe
   uint32_t               pr_tcp_ack;
   uint8_t                pr_tcp_flags;
   uint16_t               pr_tcp_win;
+  uint16_t               pr_tcp_mss;
 
   /* the contents of the packet's body */
   void                  *pr_data;

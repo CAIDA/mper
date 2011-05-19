@@ -1,7 +1,7 @@
 /*
  * scamper_tcp4.h
  *
- * $Id: scamper_tcp4.h,v 1.11 2009/03/21 09:27:16 mjl Exp $
+ * $Id: scamper_tcp4.h,v 1.12 2009/09/02 22:31:23 mjl Exp $
  *
  * Copyright (C) 2005-2009 The University of Waikato
  * Author: Matthew Luckie
@@ -28,6 +28,7 @@ int scamper_tcp4_open(const void *addr, int sport);
 void scamper_tcp4_close(int fd);
 
 #ifdef __SCAMPER_PROBE_H
+size_t scamper_tcp4_hlen(scamper_probe_t *probe);
 int scamper_tcp4_build(scamper_probe_t *probe, uint8_t *buf, size_t *len);
 #endif
 
