@@ -56,10 +56,10 @@ const char* keyword_code_names[] = {
   "udata",
   "tx",
   "rx",
-  "tsps1",
-  "tsps2",
-  "tsps3",
-  "tsps4",
+  "tsps_ip1",
+  "tsps_ip2",
+  "tsps_ip3",
+  "tsps_ip4",
   "probe_ttl",
   "probe_ipid",
   "reply_src",
@@ -68,10 +68,14 @@ const char* keyword_code_names[] = {
   "reply_icmp",
   "reply_qttl",
   "reply_tcp",
-  "reply_tsps1",
-  "reply_tsps2",
-  "reply_tsps3",
-  "reply_tsps4",
+  "reply_tsps_ts1",
+  "reply_tsps_ip1",
+  "reply_tsps_ts2",
+  "reply_tsps_ip2"
+  "reply_tsps_ts3",
+  "reply_tsps_ip3"
+  "reply_tsps_ts4",
+  "reply_tsps_ip4"
   "stop_reason",
   "stop_data",
   "spacing",
@@ -114,10 +118,10 @@ dport, KC_DPORT_OPT, KT_UINT
 udata, KC_UDATA_OPT, KT_UINT
 tx, KC_TX_OPT, KT_TIMEVAL
 rx, KC_RX_OPT, KT_TIMEVAL
-tsps1, KC_TSPS1_OPT, KT_ADDRESS
-tsps2, KC_TSPS2_OPT, KT_ADDRESS
-tsps3, KC_TSPS3_OPT, KT_ADDRESS
-tsps4, KC_TSPS4_OPT, KT_ADDRESS
+tsps_ip1, KC_TSPS_IP1_OPT, KT_ADDRESS
+tsps_ip2, KC_TSPS_IP2_OPT, KT_ADDRESS
+tsps_ip3, KC_TSPS_IP3_OPT, KT_ADDRESS
+tsps_ip4, KC_TSPS_IP4_OPT, KT_ADDRESS
 probe_ttl, KC_PROBE_TTL_OPT, KT_UINT
 probe_ipid, KC_PROBE_IPID_OPT, KT_UINT
 reply_src, KC_REPLY_SRC_OPT, KT_ADDRESS
@@ -126,10 +130,14 @@ reply_ipid, KC_REPLY_IPID_OPT, KT_UINT
 reply_icmp, KC_REPLY_ICMP_OPT, KT_UINT
 reply_qttl, KC_REPLY_QTTL_OPT, KT_UINT
 reply_tcp, KC_REPLY_TCP_OPT, KT_UINT
-reply_tsps1, KC_REPLY_TSPS1_OPT, KT_TIMEVAL
-reply_tsps2, KC_REPLY_TSPS2_OPT, KT_TIMEVAL
-reply_tsps3, KC_REPLY_TSPS3_OPT, KT_TIMEVAL
-reply_tsps4, KC_REPLY_TSPS4_OPT, KT_TIMEVAL
+reply_tsps_ts1, KC_REPLY_TSPS_TS1_OPT, KT_TIMEVAL
+reply_tsps_ip1, KC_REPLY_TSPS_IP1_OPT, KT_ADDRESS
+reply_tsps_ts2, KC_REPLY_TSPS_TS2_OPT, KT_TIMEVAL
+reply_tsps_ip2, KC_REPLY_TSPS_IP2_OPT, KT_ADDRESS
+reply_tsps_ts3, KC_REPLY_TSPS_TS3_OPT, KT_TIMEVAL
+reply_tsps_ip3, KC_REPLY_TSPS_IP3_OPT, KT_ADDRESS
+reply_tsps_ts4, KC_REPLY_TSPS_TS4_OPT, KT_TIMEVAL
+reply_tsps_ip4, KC_REPLY_TSPS_IP4_OPT, KT_ADDRESS
 stop_reason, KC_STOP_REASON_OPT, KT_UINT
 stop_data, KC_STOP_DATA_OPT, KT_UINT
 spacing, KC_SPACING_OPT, KT_UINT

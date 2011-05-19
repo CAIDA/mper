@@ -1140,6 +1140,7 @@ static void do_ping_write_reply(scamper_task_t *task, scamper_ping_t *ping,
   const char *msg = NULL;
   size_t msg_len = 0;
   char src_addr[40], dest_addr[40], reply_addr[40];
+  char *tmp_addr;
   size_t opts = 11;
   int i;
 
@@ -1174,27 +1175,44 @@ static void do_ping_write_reply(scamper_task_t *task, scamper_ping_t *ping,
 	{
 	  for(i=0;i<reply->v4ts->tsc;i++)
 	    {
+	      if((tmp_addr = malloc(40)) == NULL)
+		{
+		  return;
+		}
+	      scamper_addr_tostr(reply->v4ts->ips[i], tmp_addr, 40);
 	      opts++;
 	      switch (i) 
 		{
 		case 0:
 		  SET_TIMEVAL2_CWORD(resp_words, opts, 
-				     REPLY_TSPS1, reply->v4ts->tss[i], 0);
+				     REPLY_TSPS_TS1, reply->v4ts->tss[i], 0);
+		  opts++;
+		  SET_ADDRESS_CWORD(resp_words, opts,
+				    REPLY_TSPS_IP1, tmp_addr);
 		  break;
 		  
 		case 1:
 		  SET_TIMEVAL2_CWORD(resp_words, opts, 
-				     REPLY_TSPS2, reply->v4ts->tss[i], 0);
+				     REPLY_TSPS_TS2, reply->v4ts->tss[i], 0);
+		  opts++;
+		  SET_ADDRESS_CWORD(resp_words, opts,
+				    REPLY_TSPS_IP2, tmp_addr);
 		  break;
 		  
 		case 2:
 		  SET_TIMEVAL2_CWORD(resp_words, opts, 
-				     REPLY_TSPS3, reply->v4ts->tss[i], 0);
+				     REPLY_TSPS_TS3, reply->v4ts->tss[i], 0);
+		  opts++;
+		  SET_ADDRESS_CWORD(resp_words, opts,
+				    REPLY_TSPS_IP3, tmp_addr);
 		  break;
 		  
 		case 3:
 		  SET_TIMEVAL2_CWORD(resp_words, opts, 
-				     REPLY_TSPS4, reply->v4ts->tss[i], 0);
+				     REPLY_TSPS_TS4, reply->v4ts->tss[i], 0);
+		  opts++;
+		  SET_ADDRESS_CWORD(resp_words, opts,
+				    REPLY_TSPS_IP4, tmp_addr);
 		  break;
 		}
 	    }
@@ -1576,10 +1594,10 @@ scamper_ping_t *scamper_do_ping_alloc(const control_word_t *words,
 	  user_data = words[i].cw_uint;
 	  break;
 
-	case KC_TSPS1_OPT:
-	case KC_TSPS2_OPT:
-	case KC_TSPS3_OPT:
-	case KC_TSPS4_OPT:
+	case KC_TSPS_IP1_OPT:
+	case KC_TSPS_IP2_OPT:
+	case KC_TSPS_IP3_OPT:
+	case KC_TSPS_IP4_OPT:
 	  if(tspsc == 4)
 	    {
 	      *error_msg = "too many tsps addresses given";

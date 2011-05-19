@@ -103,7 +103,6 @@ create_control_message(control_word_t *words, size_t length,
 	      (int)words[i].cw_code, (int)i);
       RETURN_ERROR;
     }
-
     name = keyword_code_names[words[i].cw_code];
     keyword = in_word_set(name, strlen(name));
     words[i].cw_name = nbp;  nbp = strcpy_p(nbp, name);
