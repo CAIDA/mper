@@ -71,11 +71,11 @@ const char* keyword_code_names[] = {
   "reply_tsps_ts1",
   "reply_tsps_ip1",
   "reply_tsps_ts2",
-  "reply_tsps_ip2"
+  "reply_tsps_ip2",
   "reply_tsps_ts3",
-  "reply_tsps_ip3"
+  "reply_tsps_ip3",
   "reply_tsps_ts4",
-  "reply_tsps_ip4"
+  "reply_tsps_ip4",
   "stop_reason",
   "stop_data",
   "spacing",
