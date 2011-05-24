@@ -259,7 +259,7 @@ in_word_set (str, len)
       {"",KC_NONE,KT_NONE}, {"",KC_NONE,KT_NONE},
       {"",KC_NONE,KT_NONE},
 #line 139 "mper_keywords.gperf"
-      {"reply_tsps_ts4", KC_REPLY_TSPS_TS4_OPT, KT_TIMEVAL},
+      {"reply_tsps_ts4", KC_REPLY_TSPS_TS4_OPT, KT_UINT},
 #line 126 "mper_keywords.gperf"
       {"probe_ipid", KC_PROBE_IPID_OPT, KT_UINT},
 #line 118 "mper_keywords.gperf"
@@ -268,7 +268,7 @@ in_word_set (str, len)
 #line 124 "mper_keywords.gperf"
       {"tsps_ip4", KC_TSPS_IP4_OPT, KT_ADDRESS},
 #line 137 "mper_keywords.gperf"
-      {"reply_tsps_ts3", KC_REPLY_TSPS_TS3_OPT, KT_TIMEVAL},
+      {"reply_tsps_ts3", KC_REPLY_TSPS_TS3_OPT, KT_UINT},
 #line 142 "mper_keywords.gperf"
       {"stop_data", KC_STOP_DATA_OPT, KT_UINT},
       {"",KC_NONE,KT_NONE}, {"",KC_NONE,KT_NONE},
@@ -288,14 +288,14 @@ in_word_set (str, len)
       {"",KC_NONE,KT_NONE}, {"",KC_NONE,KT_NONE},
       {"",KC_NONE,KT_NONE},
 #line 135 "mper_keywords.gperf"
-      {"reply_tsps_ts2", KC_REPLY_TSPS_TS2_OPT, KT_TIMEVAL},
+      {"reply_tsps_ts2", KC_REPLY_TSPS_TS2_OPT, KT_UINT},
 #line 103 "mper_keywords.gperf"
       {"send_error", KC_SEND_ERROR_CMD, KT_NONE},
       {"",KC_NONE,KT_NONE}, {"",KC_NONE,KT_NONE},
 #line 122 "mper_keywords.gperf"
       {"tsps_ip2", KC_TSPS_IP2_OPT, KT_ADDRESS},
 #line 133 "mper_keywords.gperf"
-      {"reply_tsps_ts1", KC_REPLY_TSPS_TS1_OPT, KT_TIMEVAL},
+      {"reply_tsps_ts1", KC_REPLY_TSPS_TS1_OPT, KT_UINT},
       {"",KC_NONE,KT_NONE}, {"",KC_NONE,KT_NONE},
       {"",KC_NONE,KT_NONE},
 #line 121 "mper_keywords.gperf"
