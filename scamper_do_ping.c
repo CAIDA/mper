@@ -750,7 +750,25 @@ static void do_ping_probe(scamper_task_t *task)
   probe.pr_data      = pktbuf;
   probe.pr_len       = payload_len;
 
-  if(state->tsps != NULL)
+  if((ping->flags & SCAMPER_PING_FLAG_V4RR) != 0)
+    {
+      opt.type = SCAMPER_PROBE_IPOPTS_V4RR;
+      probe.pr_ipopts = &opt;
+      probe.pr_ipoptc = 1;
+    }
+  else if((ping->flags & SCAMPER_PING_FLAG_TSONLY) != 0)
+    {
+      opt.type = SCAMPER_PROBE_IPOPTS_V4TSO;
+      probe.pr_ipopts = &opt;
+      probe.pr_ipoptc = 1;
+    }
+  else if((ping->flags & SCAMPER_PING_FLAG_TSANDADDR) != 0)
+    {
+      opt.type = SCAMPER_PROBE_IPOPTS_V4TSAA;
+      probe.pr_ipopts = &opt;
+      probe.pr_ipoptc = 1;
+    }
+  else if(state->tsps != NULL)
     {
       opt.type = SCAMPER_PROBE_IPOPTS_V4TSPS;
       opt.val  = state->tsps;
@@ -1288,8 +1306,8 @@ static void do_ping_write_reply(scamper_task_t *task, scamper_ping_t *ping,
   const char *msg = NULL;
   size_t msg_len = 0;
   char src_addr[40], dest_addr[40], reply_addr[40];
-  char *tmp_addr;
-  size_t opts = 11;
+  char *tmp_addr, *rr = NULL;
+  size_t opts = 11, rrlen;
   int i;
 
   scamper_addr_tostr(ping->src, src_addr, 40);
@@ -1317,6 +1335,42 @@ static void do_ping_write_reply(scamper_task_t *task, scamper_ping_t *ping,
         {
 	  opts++;
 	  SET_UINT_CWORD(resp_words, opts, REPLY_QTTL, reply->icmp_q_ip_ttl);
+	}
+      
+      if(reply->v4rr != NULL)
+	{
+	  for(i=0;i<reply->v4rr->rrc;i++)
+	    {
+	      if((tmp_addr = malloc(40)) == NULL)
+		{
+		  return;
+		}
+	      scamper_addr_tostr(reply->v4rr->rr[i], tmp_addr, 40);
+	      if(rr == NULL)
+		{
+		  if((rr = strdup(tmp_addr)) == NULL)
+		    {
+		      return;
+		    }
+		}
+	      else
+		{
+		  rrlen = strlen(rr) + 1 + strlen(tmp_addr) + 1 + 1;
+		  if((rr = realloc(rr, rrlen)) == NULL)
+		    {
+		      return;
+		    }
+		  rrlen = sizeof(rr) - 1 - strlen(rr);
+		  rr = strncat(rr, ",", rrlen);
+		  rrlen = sizeof(rr) - 1 - strlen(rr);
+		  rr = strncat(rr, tmp_addr, rrlen);
+		  }
+	    }
+	  if(rr != NULL)
+	    {
+	      opts++;
+	      SET_STR_CWORD(resp_words, opts, REPLY_RR, rr, strlen(rr));
+	    }
 	}
 
       if(reply->v4ts != NULL)
@@ -1848,13 +1902,22 @@ scamper_ping_t *scamper_do_ping_alloc(const control_word_t *words,
   if(tspsc > 0)
     {
       if(ping->dst->type != SCAMPER_ADDR_TYPE_IPV4)
-	goto err;
+	{
+	  *error_msg = "tsprespec only available on IPV4";
+	  goto err;
+	}
 
       if(ipopt_flags != 0)
-	goto err;
+	{
+	  *error_msg = "only one ip option may be used at a time";
+	  goto err;
+	}
 
       if(ping_tsopt(ping, tspsc, tspsaddr) != 0)
-	goto err;
+	{
+	  *error_msg = "failed to allocate v4ts struct for tsprespec ips";
+	  goto err;
+	}
     }
 
   /*
@@ -1961,6 +2024,7 @@ scamper_ping_t *scamper_do_ping_alloc(const control_word_t *words,
   ping->reply_count  = reply_count;
   ping->spacing      = spacing;
   ping->opt_set_cksum = opt_set_cksum;
+  ping->flags        = ipopt_flags;
   return ping;
 
  err:
