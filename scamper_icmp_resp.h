@@ -120,6 +120,13 @@ typedef struct scamper_icmp_resp
   int16_t           ir_ip_ttl;  /* ir_ip_hlim; -1 if unavailable */
 
   /*
+   * if the response includes the IPv4 record route option, IP addresses
+   * are found here.
+   */
+  struct in_addr   *ir_ipopt_rrs;
+  uint8_t           ir_ipopt_rrc;
+
+  /*
    * if the response includes the IPv4 timestamp option, the results of it
    * are found in here.
    */
@@ -168,6 +175,8 @@ typedef struct scamper_icmp_resp
   uint8_t           ir_inner_ip_tos;
   uint8_t           ir_inner_ip_ttl;   /* ir_inner_ip_hlim */
   uint8_t           ir_inner_ip_proto;
+  struct in_addr   *ir_inner_ipopt_rrs;
+  uint8_t           ir_inner_ipopt_rrc;
   uint8_t           ir_inner_ipopt_tsc;
   struct in_addr   *ir_inner_ipopt_tsips;
   uint32_t         *ir_inner_ipopt_tstss;

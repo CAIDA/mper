@@ -38,7 +38,10 @@ typedef struct scamper_probe_ipopt
 
 #define SCAMPER_PROBE_IPOPTS_V6ROUTE0 0
 #define SCAMPER_PROBE_IPOPTS_V6FRAG   1
-#define SCAMPER_PROBE_IPOPTS_V4TSPS   2
+#define SCAMPER_PROBE_IPOPTS_V4RR     2
+#define SCAMPER_PROBE_IPOPTS_V4TSPS   3 /* TS: prespecified interfaces */
+#define SCAMPER_PROBE_IPOPTS_V4TSO    4 /* TS: record only timestamps */
+#define SCAMPER_PROBE_IPOPTS_V4TSAA   5 /* TS: record IP and timestamps */
 
 /*
  * scamper_probe

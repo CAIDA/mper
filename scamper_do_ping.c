@@ -993,9 +993,10 @@ static void do_ping_handle_icmp(scamper_task_t *task, scamper_icmp_resp_t *ir)
   ping_state_t              *state = task->state;
   scamper_ping_reply_t      *reply = NULL;
   scamper_addr_t             addr;
-  uint8_t                    i, tsc = 0;
-  struct in_addr            *tsips = NULL;
+  uint8_t                    i, rrc = 0, tsc = 0;
+  struct in_addr            *rrs = NULL, *tsips = NULL;
   uint32_t                  *tstss = NULL;
+  scamper_ping_reply_v4rr_t *v4rr;
   scamper_ping_reply_v4ts_t *v4ts;
 
   /* if we haven't sent a probe yet */
@@ -1014,6 +1015,145 @@ static void do_ping_handle_icmp(scamper_task_t *task, scamper_icmp_resp_t *ir)
     return;
 
   scamper_icmp_resp_print(ir);
+
+  /* if this is an echo reply packet, then check the id and sequence */
+  if(SCAMPER_ICMP_RESP_IS_ECHO_REPLY(ir))
+    {
+      /* if the response is not for us, then move on */
+      /* alistair assumes that this matching is done in match_icmp_response */
+      /*if(SCAMPER_PING_METHOD_IS_ICMP(ping) == 0)
+	return;
+      if(ir->ir_icmp_id != ping->probe_sport)
+	return;
+
+      seq = ir->ir_icmp_seq;
+      if(seq < ping->probe_dport)
+	seq = seq + 0x10000;
+      seq = seq - ping->probe_dport;
+
+      if(seq >= state->seq)
+      return; */
+
+      if(ir->ir_af == AF_INET)
+	{
+	  if(ir->ir_ipopt_rrc > 0)
+	    {
+	      rrc = ir->ir_ipopt_rrc;
+	      rrs = ir->ir_ipopt_rrs;
+	    }
+	  if(ir->ir_ipopt_tsc > 0)
+	    {
+	      tsc   = ir->ir_ipopt_tsc;
+	      tstss = ir->ir_ipopt_tstss;
+	      tsips = ir->ir_ipopt_tsips;
+	    }	     
+	}
+    }
+  else if(SCAMPER_ICMP_RESP_INNER_IS_SET(ir))
+    {
+      /* alistair, as above */
+      /*
+      if(SCAMPER_ICMP_RESP_IS_UNREACH(ir) == 0 &&
+	 SCAMPER_ICMP_RESP_IS_TTL_EXP(ir) == 0)
+	{
+	  return;
+	}
+
+      if(SCAMPER_PING_METHOD_IS_ICMP(ping))
+	{
+	  if(SCAMPER_ICMP_RESP_INNER_IS_ICMP_ECHO_REQ(ir) == 0 ||
+	     ir->ir_inner_icmp_id != ping->probe_sport)
+	    {
+	      return;
+	    }
+
+	  seq = ir->ir_inner_icmp_seq;
+	  if(seq < ping->probe_dport)
+	    seq = seq + 0x10000;
+	  seq = seq - ping->probe_dport;
+
+	  if(seq >= state->seq)
+	    return;
+	}
+      else if(SCAMPER_PING_METHOD_IS_TCP(ping))
+	{
+	  if(SCAMPER_ICMP_RESP_INNER_IS_TCP(ir) == 0 ||
+	     ir->ir_inner_tcp_dport != ping->probe_dport)
+	    {
+	      return;
+	    }
+
+	  if(ping->probe_method == SCAMPER_PING_METHOD_TCP_ACK)
+	    {
+	      if(ir->ir_inner_tcp_sport != ping->probe_sport)
+		return;
+
+	      if(ping->dst->type == SCAMPER_ADDR_TYPE_IPV4)
+		seq = match_ipid(task, ir->ir_inner_ip_id);
+	      else
+		seq = state->seq - 1;
+	    }
+	  else
+	    {
+	      if(ir->ir_inner_tcp_sport > ping->probe_sport + state->seq ||
+		 ir->ir_inner_tcp_sport < ping->probe_sport)
+		return;
+
+	      seq = ir->ir_inner_tcp_sport - ping->probe_sport;
+	    }
+	}
+      else if(SCAMPER_PING_METHOD_IS_UDP(ping))
+	{
+	  if(SCAMPER_ICMP_RESP_INNER_IS_UDP(ir) == 0 ||
+	     ir->ir_inner_udp_sport != ping->probe_sport)
+	    {
+	      return;
+	    }
+
+	  if(ping->probe_method == SCAMPER_PING_METHOD_UDP)
+	    {
+	      if(ir->ir_inner_udp_dport != ping->probe_dport)
+		return;
+
+	      if(ping->dst->type == SCAMPER_ADDR_TYPE_IPV4)
+		seq = match_ipid(task, ir->ir_inner_ip_id);
+	      else
+		seq = state->seq - 1;
+	    }
+	  else if(ping->probe_method == SCAMPER_PING_METHOD_UDP_DPORT)
+	    {
+	      if(ir->ir_inner_udp_dport > ping->probe_dport + state->seq ||
+		 ir->ir_inner_udp_dport < ping->probe_dport)
+		return;
+
+	      seq = ir->ir_inner_udp_dport - ping->probe_dport;
+	    }
+	  else
+	    {
+	      return;
+	    }
+	}
+      else
+	{
+	  return;
+	}
+      */
+      if(ir->ir_af == AF_INET)
+	{
+	  if(ir->ir_inner_ipopt_rrc > 0)
+	    {
+	      rrc = ir->ir_inner_ipopt_rrc;
+	      rrs = ir->ir_inner_ipopt_rrs;
+	    }
+	  if(ir->ir_inner_ipopt_tsc > 0)
+	    {
+	      tsc   = ir->ir_inner_ipopt_tsc;
+	      tstss = ir->ir_inner_ipopt_tstss;
+	      tsips = ir->ir_inner_ipopt_tsips;
+	    }
+	}
+    }
+  else return;
 
   /* allocate a reply structure for the response */
   if((reply = scamper_ping_reply_alloc()) == NULL)
@@ -1039,13 +1179,29 @@ static void do_ping_handle_icmp(scamper_task_t *task, scamper_icmp_resp_t *ir)
   reply->icmp_q_ip_ttl = ir->ir_inner_ip_ttl;  /* == zero if not available */
 
   if(ir->ir_af == AF_INET)
-    {
-      if(ir->ir_ipopt_tsc > 0)
+    { 
+      reply->reply_ipid = ir->ir_ip_id;
+      reply->flags |= SCAMPER_PING_REPLY_FLAG_REPLY_IPID;
+
+      reply->probe_ipid = state->ipid;
+      reply->flags |= SCAMPER_PING_REPLY_FLAG_PROBE_IPID;
+
+      reply->reply_proto = IPPROTO_ICMP;
+
+      if(rrs != NULL && rrc > 0)
 	{
-	  tsc   = ir->ir_ipopt_tsc;
-	  tstss = ir->ir_ipopt_tstss;
-	  tsips = ir->ir_ipopt_tsips;
+	  if((v4rr = scamper_ping_reply_v4rr_alloc(rrc)) == NULL)
+	    goto err;
+	  reply->v4rr = v4rr;
+
+	  for(i=0; i<rrc; i++)
+	    {
+	      v4rr->rr[i] = scamper_addrcache_get_ipv4(addrcache, &rrs[i]);
+	      if(v4rr->rr[i] == NULL)
+		goto err;
+	    }
 	}
+
       if(tsc > 0 && tstss != NULL)
 	{
 	  if(tsips != NULL)
@@ -1070,14 +1226,6 @@ static void do_ping_handle_icmp(scamper_task_t *task, scamper_icmp_resp_t *ir)
 	      v4ts->tss[i] = tstss[i];
 	    }
 	}
-      
-      reply->reply_ipid = ir->ir_ip_id;
-      reply->flags |= SCAMPER_PING_REPLY_FLAG_REPLY_IPID;
-
-      reply->probe_ipid = state->ipid;
-      reply->flags |= SCAMPER_PING_REPLY_FLAG_PROBE_IPID;
-
-      reply->reply_proto = IPPROTO_ICMP;
     }
   else if(ir->ir_af == AF_INET6)
     {
@@ -1540,6 +1688,7 @@ scamper_ping_t *scamper_do_ping_alloc(const control_word_t *words,
   uint32_t    spacing       = 0;
   int         tspsc         = 0;
   const char *tspsaddr[4];
+  uint8_t     ipopt_flags   = 0;
   uint8_t     opt_set_cksum = 0;  /* user provided checksum */
   const char *src         = NULL;
   const char *dest        = NULL;
@@ -1592,6 +1741,18 @@ scamper_ping_t *scamper_do_ping_alloc(const control_word_t *words,
 
 	case KC_UDATA_OPT:
 	  user_data = words[i].cw_uint;
+	  break;
+
+	case KC_RR_OPT:
+	  ipopt_flags |= SCAMPER_PING_FLAG_V4RR;
+	  break;
+
+	case KC_TSONLY_OPT:
+	  ipopt_flags |= SCAMPER_PING_FLAG_TSONLY;
+	  break;
+
+	case KC_TSANDADDR_OPT:
+	  ipopt_flags |= SCAMPER_PING_FLAG_TSANDADDR;
 	  break;
 
 	case KC_TSPS_IP1_OPT:
@@ -1681,6 +1842,22 @@ scamper_ping_t *scamper_do_ping_alloc(const control_word_t *words,
   ping->probe_method = probe_method;
 
   /*
+   * put together the timestamp option now so we can judge how large the
+   * options will be
+   */
+  if(tspsc > 0)
+    {
+      if(ping->dst->type != SCAMPER_ADDR_TYPE_IPV4)
+	goto err;
+
+      if(ipopt_flags != 0)
+	goto err;
+
+      if(ping_tsopt(ping, tspsc, tspsaddr) != 0)
+	goto err;
+    }
+
+  /*
   ** Note: If the user provided a checksum to set for ICMP/UDP, then we must
   ** make room for 2 bytes in the payload.  (The user can't set the TCP
   ** checksum.)
@@ -1688,13 +1865,6 @@ scamper_ping_t *scamper_do_ping_alloc(const control_word_t *words,
   /* ensure the probe size specified is suitable */
   if(ping->dst->type == SCAMPER_ADDR_TYPE_IPV4)
     {
-
-      /* create and fill the tsps address option fields if required */
-      if(tspsc > 0 && (ping_tsopt(ping, tspsc, tspsaddr) != 0))
-	{
-	  *error_msg = "could not populate the Timestamp options struct";
-	  goto err;
-	}
 
       if(SCAMPER_PING_METHOD_IS_ICMP(ping))
 	{
@@ -1708,9 +1878,15 @@ scamper_ping_t *scamper_do_ping_alloc(const control_word_t *words,
 	      probe_size = SCAMPER_DO_PING_PROBESIZE_V4_MIN + 2;
 	    }
 
-	  /* provide space for the tsps option */
-	  if(ping->probe_tsps != NULL)
+	  if(ipopt_flags & SCAMPER_PING_FLAG_V4RR)
+	    probe_size += 40;
+	  else if(ping->probe_tsps != NULL)
 	    probe_size += (8 * ping->probe_tsps->ipc) + 4;
+	  else if(ping->flags & SCAMPER_PING_FLAG_TSONLY)
+	    probe_size += 40;
+	  else if(ping->flags & SCAMPER_PING_FLAG_TSANDADDR)
+	    probe_size += 36;
+	  
 	}
       else if(SCAMPER_PING_METHOD_IS_TCP(ping))
 	{

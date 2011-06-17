@@ -83,6 +83,9 @@ const char* keyword_code_names[] = {
   "udata",
   "tx",
   "rx",
+  "rr",
+  "tsonly",
+  "tsandaddr",
   "tsps_ip1",
   "tsps_ip2",
   "tsps_ip3",
@@ -95,6 +98,7 @@ const char* keyword_code_names[] = {
   "reply_icmp",
   "reply_qttl",
   "reply_tcp",
+  "reply_rr",
   "reply_tsps_ts1",
   "reply_tsps_ip1",
   "reply_tsps_ts2",
@@ -119,15 +123,15 @@ const char* keyword_type_names[] = {
   "IP prefix",
   "timeval"
 };
-#line 97 "mper_keywords.gperf"
+#line 101 "mper_keywords.gperf"
 struct keyword;
 
-#define TOTAL_KEYWORDS 41
+#define TOTAL_KEYWORDS 45
 #define MIN_WORD_LENGTH 2
 #define MAX_WORD_LENGTH 14
 #define MIN_HASH_VALUE 3
-#define MAX_HASH_VALUE 74
-/* maximum key range = 72, duplicates = 0 */
+#define MAX_HASH_VALUE 94
+/* maximum key range = 92, duplicates = 0 */
 
 #ifdef __GNUC__
 __inline
@@ -143,32 +147,32 @@ hash (str, len)
 {
   static const unsigned char asso_values[] =
     {
-      75, 75, 75, 75, 75, 75, 75, 75, 75, 75,
-      75, 75, 75, 75, 75, 75, 75, 75, 75, 75,
-      75, 75, 75, 75, 75, 75, 75, 75, 75, 75,
-      75, 75, 75, 75, 75, 75, 75, 75, 75, 75,
-      75, 75, 75, 75, 75, 75, 75, 75, 75, 45,
-      40, 25, 20, 75, 75, 75, 75, 75, 75, 75,
-      75, 75, 75, 75, 75, 75, 75, 75, 75, 75,
-      75, 75, 75, 75, 75, 75, 75, 75, 75, 75,
-      75, 75, 75, 75, 75, 75, 75, 75, 75, 75,
-      75, 75, 75, 75, 75, 75, 75, 31, 75, 17,
-      20,  5, 75, 41,  0, 10, 75, 75,  5, 20,
-       0,  0, 15,  5, 45,  0,  0, 10,  0, 75,
-       5, 75, 75, 75, 75, 75, 75, 75, 75, 75,
-      75, 75, 75, 75, 75, 75, 75, 75, 75, 75,
-      75, 75, 75, 75, 75, 75, 75, 75, 75, 75,
-      75, 75, 75, 75, 75, 75, 75, 75, 75, 75,
-      75, 75, 75, 75, 75, 75, 75, 75, 75, 75,
-      75, 75, 75, 75, 75, 75, 75, 75, 75, 75,
-      75, 75, 75, 75, 75, 75, 75, 75, 75, 75,
-      75, 75, 75, 75, 75, 75, 75, 75, 75, 75,
-      75, 75, 75, 75, 75, 75, 75, 75, 75, 75,
-      75, 75, 75, 75, 75, 75, 75, 75, 75, 75,
-      75, 75, 75, 75, 75, 75, 75, 75, 75, 75,
-      75, 75, 75, 75, 75, 75, 75, 75, 75, 75,
-      75, 75, 75, 75, 75, 75, 75, 75, 75, 75,
-      75, 75, 75, 75, 75, 75, 75
+      95, 95, 95, 95, 95, 95, 95, 95, 95, 95,
+      95, 95, 95, 95, 95, 95, 95, 95, 95, 95,
+      95, 95, 95, 95, 95, 95, 95, 95, 95, 95,
+      95, 95, 95, 95, 95, 95, 95, 95, 95, 95,
+      95, 95, 95, 95, 95, 95, 95, 95, 95, 55,
+      50, 40, 20, 95, 95, 95, 95, 95, 95, 95,
+      95, 95, 95, 95, 95, 95, 95, 95, 95, 95,
+      95, 95, 95, 95, 95, 95, 95, 95, 95, 95,
+      95, 95, 95, 95, 95, 95, 95, 95, 95, 95,
+      95, 95, 95, 95, 95, 95, 95, 26, 95, 11,
+      35,  5, 95, 55, 41, 25, 95, 95, 15,  0,
+       5,  0, 20, 15,  5,  0,  0,  5,  0, 95,
+      15,  0, 95, 95, 95, 95, 95, 95, 95, 95,
+      95, 95, 95, 95, 95, 95, 95, 95, 95, 95,
+      95, 95, 95, 95, 95, 95, 95, 95, 95, 95,
+      95, 95, 95, 95, 95, 95, 95, 95, 95, 95,
+      95, 95, 95, 95, 95, 95, 95, 95, 95, 95,
+      95, 95, 95, 95, 95, 95, 95, 95, 95, 95,
+      95, 95, 95, 95, 95, 95, 95, 95, 95, 95,
+      95, 95, 95, 95, 95, 95, 95, 95, 95, 95,
+      95, 95, 95, 95, 95, 95, 95, 95, 95, 95,
+      95, 95, 95, 95, 95, 95, 95, 95, 95, 95,
+      95, 95, 95, 95, 95, 95, 95, 95, 95, 95,
+      95, 95, 95, 95, 95, 95, 95, 95, 95, 95,
+      95, 95, 95, 95, 95, 95, 95, 95, 95, 95,
+      95, 95, 95, 95, 95, 95, 95
     };
   register int hval = len;
 
@@ -209,107 +213,125 @@ in_word_set (str, len)
     {
       {"",KC_NONE,KT_NONE}, {"",KC_NONE,KT_NONE},
       {"",KC_NONE,KT_NONE},
-#line 112 "mper_keywords.gperf"
-      {"net", KC_NET_OPT, KT_PREFIX},
-#line 114 "mper_keywords.gperf"
-      {"meth", KC_METH_OPT, KT_SYMBOL},
 #line 116 "mper_keywords.gperf"
-      {"sport", KC_SPORT_OPT, KT_UINT},
+      {"net", KC_NET_OPT, KT_PREFIX},
       {"",KC_NONE,KT_NONE},
 #line 120 "mper_keywords.gperf"
-      {"rx", KC_RX_OPT, KT_TIMEVAL},
-#line 109 "mper_keywords.gperf"
-      {"pkt", KC_PKT_OPT, KT_BLOB},
-#line 111 "mper_keywords.gperf"
-      {"dest", KC_DEST_OPT, KT_ADDRESS},
-#line 117 "mper_keywords.gperf"
-      {"dport", KC_DPORT_OPT, KT_UINT},
-#line 141 "mper_keywords.gperf"
-      {"stop_reason", KC_STOP_REASON_OPT, KT_UINT},
-#line 104 "mper_keywords.gperf"
-      {"resp_timeout", KC_RESP_TIMEOUT_CMD, KT_NONE},
-#line 108 "mper_keywords.gperf"
-      {"txt", KC_TXT_OPT, KT_STR},
-#line 128 "mper_keywords.gperf"
-      {"reply_ttl", KC_REPLY_TTL_OPT, KT_UINT},
-#line 131 "mper_keywords.gperf"
-      {"reply_qttl", KC_REPLY_QTTL_OPT, KT_UINT},
+      {"sport", KC_SPORT_OPT, KT_UINT},
       {"",KC_NONE,KT_NONE},
-#line 119 "mper_keywords.gperf"
-      {"tx", KC_TX_OPT, KT_TIMEVAL},
-#line 113 "mper_keywords.gperf"
-      {"ttl", KC_TTL_OPT, KT_UINT},
 #line 125 "mper_keywords.gperf"
-      {"probe_ttl", KC_PROBE_TTL_OPT, KT_UINT},
-#line 110 "mper_keywords.gperf"
+      {"rr", KC_RR_OPT, KT_UINT},
+#line 112 "mper_keywords.gperf"
+      {"txt", KC_TXT_OPT, KT_STR},
+#line 115 "mper_keywords.gperf"
+      {"dest", KC_DEST_OPT, KT_ADDRESS},
+#line 121 "mper_keywords.gperf"
+      {"dport", KC_DPORT_OPT, KT_UINT},
+#line 126 "mper_keywords.gperf"
+      {"tsonly", KC_TSONLY_OPT, KT_UINT},
+#line 108 "mper_keywords.gperf"
+      {"resp_timeout", KC_RESP_TIMEOUT_CMD, KT_NONE},
+#line 140 "mper_keywords.gperf"
+      {"reply_rr", KC_REPLY_RR_OPT, KT_STR},
+#line 114 "mper_keywords.gperf"
       {"src", KC_SRC_OPT, KT_ADDRESS},
-      {"",KC_NONE,KT_NONE}, {"",KC_NONE,KT_NONE},
-      {"",KC_NONE,KT_NONE},
-#line 132 "mper_keywords.gperf"
-      {"reply_tcp", KC_REPLY_TCP_OPT, KT_UINT},
-#line 130 "mper_keywords.gperf"
-      {"reply_icmp", KC_REPLY_ICMP_OPT, KT_UINT},
+#line 107 "mper_keywords.gperf"
+      {"send_error", KC_SEND_ERROR_CMD, KT_NONE},
+#line 149 "mper_keywords.gperf"
+      {"stop_reason", KC_STOP_REASON_OPT, KT_UINT},
+#line 124 "mper_keywords.gperf"
+      {"rx", KC_RX_OPT, KT_TIMEVAL},
+#line 113 "mper_keywords.gperf"
+      {"pkt", KC_PKT_OPT, KT_BLOB},
 #line 127 "mper_keywords.gperf"
+      {"tsandaddr", KC_TSANDADDR_OPT, KT_UINT},
+#line 134 "mper_keywords.gperf"
       {"reply_src", KC_REPLY_SRC_OPT, KT_ADDRESS},
-      {"",KC_NONE,KT_NONE}, {"",KC_NONE,KT_NONE},
-#line 105 "mper_keywords.gperf"
-      {"ping_resp", KC_PING_RESP_CMD, KT_NONE},
-#line 129 "mper_keywords.gperf"
-      {"reply_ipid", KC_REPLY_IPID_OPT, KT_UINT},
+      {"",KC_NONE,KT_NONE},
+#line 123 "mper_keywords.gperf"
+      {"tx", KC_TX_OPT, KT_TIMEVAL},
+#line 117 "mper_keywords.gperf"
+      {"ttl", KC_TTL_OPT, KT_UINT},
+#line 135 "mper_keywords.gperf"
+      {"reply_ttl", KC_REPLY_TTL_OPT, KT_UINT},
+#line 138 "mper_keywords.gperf"
+      {"reply_qttl", KC_REPLY_QTTL_OPT, KT_UINT},
       {"",KC_NONE,KT_NONE}, {"",KC_NONE,KT_NONE},
       {"",KC_NONE,KT_NONE},
 #line 139 "mper_keywords.gperf"
-      {"reply_tsps_ts4", KC_REPLY_TSPS_TS4_OPT, KT_UINT},
-#line 126 "mper_keywords.gperf"
-      {"probe_ipid", KC_PROBE_IPID_OPT, KT_UINT},
-#line 118 "mper_keywords.gperf"
+      {"reply_tcp", KC_REPLY_TCP_OPT, KT_UINT},
+#line 137 "mper_keywords.gperf"
+      {"reply_icmp", KC_REPLY_ICMP_OPT, KT_UINT},
+#line 122 "mper_keywords.gperf"
       {"udata", KC_UDATA_OPT, KT_UINT},
       {"",KC_NONE,KT_NONE},
-#line 124 "mper_keywords.gperf"
+#line 131 "mper_keywords.gperf"
       {"tsps_ip4", KC_TSPS_IP4_OPT, KT_ADDRESS},
-#line 137 "mper_keywords.gperf"
-      {"reply_tsps_ts3", KC_REPLY_TSPS_TS3_OPT, KT_UINT},
-#line 142 "mper_keywords.gperf"
+#line 147 "mper_keywords.gperf"
+      {"reply_tsps_ts4", KC_REPLY_TSPS_TS4_OPT, KT_UINT},
+#line 150 "mper_keywords.gperf"
       {"stop_data", KC_STOP_DATA_OPT, KT_UINT},
       {"",KC_NONE,KT_NONE}, {"",KC_NONE,KT_NONE},
-#line 123 "mper_keywords.gperf"
-      {"tsps_ip3", KC_TSPS_IP3_OPT, KT_ADDRESS},
-#line 140 "mper_keywords.gperf"
-      {"reply_tsps_ip4", KC_REPLY_TSPS_IP4_OPT, KT_ADDRESS},
-#line 115 "mper_keywords.gperf"
+      {"",KC_NONE,KT_NONE},
+#line 132 "mper_keywords.gperf"
+      {"probe_ttl", KC_PROBE_TTL_OPT, KT_UINT},
+#line 119 "mper_keywords.gperf"
       {"cksum", KC_CKSUM_OPT, KT_UINT},
       {"",KC_NONE,KT_NONE}, {"",KC_NONE,KT_NONE},
-#line 143 "mper_keywords.gperf"
-      {"spacing", KC_SPACING_OPT, KT_UINT},
-#line 138 "mper_keywords.gperf"
-      {"reply_tsps_ip3", KC_REPLY_TSPS_IP3_OPT, KT_ADDRESS},
-#line 101 "mper_keywords.gperf"
-      {"ping", KC_PING_CMD, KT_NONE},
+      {"",KC_NONE,KT_NONE},
+#line 109 "mper_keywords.gperf"
+      {"ping_resp", KC_PING_RESP_CMD, KT_NONE},
+#line 136 "mper_keywords.gperf"
+      {"reply_ipid", KC_REPLY_IPID_OPT, KT_UINT},
       {"",KC_NONE,KT_NONE}, {"",KC_NONE,KT_NONE},
       {"",KC_NONE,KT_NONE},
-#line 135 "mper_keywords.gperf"
-      {"reply_tsps_ts2", KC_REPLY_TSPS_TS2_OPT, KT_UINT},
-#line 103 "mper_keywords.gperf"
-      {"send_error", KC_SEND_ERROR_CMD, KT_NONE},
+#line 106 "mper_keywords.gperf"
+      {"cmd_error", KC_CMD_ERROR_CMD, KT_NONE},
+#line 118 "mper_keywords.gperf"
+      {"meth", KC_METH_OPT, KT_SYMBOL},
       {"",KC_NONE,KT_NONE}, {"",KC_NONE,KT_NONE},
-#line 122 "mper_keywords.gperf"
-      {"tsps_ip2", KC_TSPS_IP2_OPT, KT_ADDRESS},
+#line 130 "mper_keywords.gperf"
+      {"tsps_ip3", KC_TSPS_IP3_OPT, KT_ADDRESS},
+#line 145 "mper_keywords.gperf"
+      {"reply_tsps_ts3", KC_REPLY_TSPS_TS3_OPT, KT_UINT},
+      {"",KC_NONE,KT_NONE}, {"",KC_NONE,KT_NONE},
+      {"",KC_NONE,KT_NONE}, {"",KC_NONE,KT_NONE},
+#line 148 "mper_keywords.gperf"
+      {"reply_tsps_ip4", KC_REPLY_TSPS_IP4_OPT, KT_ADDRESS},
 #line 133 "mper_keywords.gperf"
+      {"probe_ipid", KC_PROBE_IPID_OPT, KT_UINT},
+      {"",KC_NONE,KT_NONE},
+#line 151 "mper_keywords.gperf"
+      {"spacing", KC_SPACING_OPT, KT_UINT},
+#line 129 "mper_keywords.gperf"
+      {"tsps_ip2", KC_TSPS_IP2_OPT, KT_ADDRESS},
+#line 143 "mper_keywords.gperf"
+      {"reply_tsps_ts2", KC_REPLY_TSPS_TS2_OPT, KT_UINT},
+      {"",KC_NONE,KT_NONE}, {"",KC_NONE,KT_NONE},
+      {"",KC_NONE,KT_NONE},
+#line 128 "mper_keywords.gperf"
+      {"tsps_ip1", KC_TSPS_IP1_OPT, KT_ADDRESS},
+#line 141 "mper_keywords.gperf"
       {"reply_tsps_ts1", KC_REPLY_TSPS_TS1_OPT, KT_UINT},
       {"",KC_NONE,KT_NONE}, {"",KC_NONE,KT_NONE},
+      {"",KC_NONE,KT_NONE}, {"",KC_NONE,KT_NONE},
+#line 105 "mper_keywords.gperf"
+      {"ping", KC_PING_CMD, KT_NONE},
+      {"",KC_NONE,KT_NONE}, {"",KC_NONE,KT_NONE},
+      {"",KC_NONE,KT_NONE}, {"",KC_NONE,KT_NONE},
+#line 146 "mper_keywords.gperf"
+      {"reply_tsps_ip3", KC_REPLY_TSPS_IP3_OPT, KT_ADDRESS},
+      {"",KC_NONE,KT_NONE}, {"",KC_NONE,KT_NONE},
+      {"",KC_NONE,KT_NONE}, {"",KC_NONE,KT_NONE},
+      {"",KC_NONE,KT_NONE}, {"",KC_NONE,KT_NONE},
+      {"",KC_NONE,KT_NONE}, {"",KC_NONE,KT_NONE},
       {"",KC_NONE,KT_NONE},
-#line 121 "mper_keywords.gperf"
-      {"tsps_ip1", KC_TSPS_IP1_OPT, KT_ADDRESS},
-#line 136 "mper_keywords.gperf"
+#line 144 "mper_keywords.gperf"
       {"reply_tsps_ip2", KC_REPLY_TSPS_IP2_OPT, KT_ADDRESS},
       {"",KC_NONE,KT_NONE}, {"",KC_NONE,KT_NONE},
       {"",KC_NONE,KT_NONE}, {"",KC_NONE,KT_NONE},
-#line 134 "mper_keywords.gperf"
-      {"reply_tsps_ip1", KC_REPLY_TSPS_IP1_OPT, KT_ADDRESS},
-      {"",KC_NONE,KT_NONE}, {"",KC_NONE,KT_NONE},
-      {"",KC_NONE,KT_NONE}, {"",KC_NONE,KT_NONE},
-#line 102 "mper_keywords.gperf"
-      {"cmd_error", KC_CMD_ERROR_CMD, KT_NONE}
+#line 142 "mper_keywords.gperf"
+      {"reply_tsps_ip1", KC_REPLY_TSPS_IP1_OPT, KT_ADDRESS}
     };
 
   if (len <= MAX_WORD_LENGTH && len >= MIN_WORD_LENGTH)
@@ -326,6 +348,6 @@ in_word_set (str, len)
     }
   return 0;
 }
-#line 144 "mper_keywords.gperf"
+#line 152 "mper_keywords.gperf"
 
 /* functions */

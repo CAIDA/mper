@@ -195,11 +195,13 @@ int scamper_ip6_build(scamper_probe_t *probe, uint8_t *buf, size_t *len)
 			     uint8_t *, size_t *) = {
     ip6_ext_route0,  /* SCAMPER_PROBE_IPOPTS_V6ROUTE0 */
     ip6_ext_frag,    /* SCAMPER_PROBE_IPOPTS_V6FRAG */
+    NULL,            /* SCAMPER_PROBE_IPOPTS_V4RR */
   };
 
   static const int nxthdrval[] = {
     43, /* SCAMPER_PROBE_IPOPTS_V6ROUTE0 */
     44, /* SCAMPER_PROBE_IPOPTS_V6FRAG */
+    -1, /* SCAMPER_PROBE_IPOPTS_V4RR */
   };
 
   struct ip6_hdr        *ip6;

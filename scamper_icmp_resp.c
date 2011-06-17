@@ -196,6 +196,7 @@ void scamper_icmp_resp_print(const scamper_icmp_resp_t *ir)
   char inner_transport[256];
   char ext[256];
   int  i, j;
+  size_t off;
 
   assert(ir->ir_af == AF_INET || ir->ir_af == AF_INET6);
 
@@ -203,9 +204,14 @@ void scamper_icmp_resp_print(const scamper_icmp_resp_t *ir)
     {
       addr_tostr(AF_INET, &ir->ir_ip_src.v4, addr, sizeof(addr));
 
-      snprintf(ip, sizeof(ip),
-	       "from %s size %d ttl %d tos 0x%02x ipid 0x%04x", addr,
-	       ir->ir_ip_size, ir->ir_ip_ttl, ir->ir_ip_tos, ir->ir_ip_id);
+      off = 0;
+      string_concat(ip, sizeof(ip), &off,
+		    "from %s size %d ttl %d tos 0x%02x ipid 0x%04x",
+		    addr, ir->ir_ip_size, ir->ir_ip_ttl, ir->ir_ip_tos,
+		    ir->ir_ip_id);
+
+      if(ir->ir_ipopt_rrc > 0)
+	string_concat(ip, sizeof(ip), &off, " rr %d", ir->ir_ipopt_rrc);
 
       switch(ir->ir_icmp_type)
         {
@@ -400,10 +406,15 @@ void scamper_icmp_resp_print(const scamper_icmp_resp_t *ir)
       if(ir->ir_af == AF_INET)
 	{
 	  addr_tostr(AF_INET, &ir->ir_inner_ip_dst.v4, addr, sizeof(addr));
-	  snprintf(inner_ip, sizeof(inner_ip),
-		   " to %s size %d ttl %d tos 0x%02x ipid 0x%04x", addr,
-		   ir->ir_inner_ip_size, ir->ir_inner_ip_ttl,
-		   ir->ir_inner_ip_tos, ir->ir_inner_ip_id);
+
+	  off = 0;
+	  string_concat(inner_ip, sizeof(inner_ip), &off,
+			" to %s size %d ttl %d tos 0x%02x ipid 0x%04x",
+			addr, ir->ir_inner_ip_size, ir->ir_inner_ip_ttl,
+			ir->ir_inner_ip_tos, ir->ir_inner_ip_id);
+	  if(ir->ir_inner_ipopt_rrc > 0)
+	    string_concat(inner_ip, sizeof(inner_ip), &off, " rr %d",
+			  ir->ir_inner_ipopt_rrc);
 	}
       else /* if(ir->ir_af == AF_INET6) */
 	{
@@ -518,11 +529,17 @@ void scamper_icmp_resp_clean(scamper_icmp_resp_t *ir)
   if(ir->ir_ext != NULL)
     free(ir->ir_ext);
 
+  if(ir->ir_ipopt_rrs != NULL)
+    free(ir->ir_ipopt_rrs);
+
   if(ir->ir_ipopt_tsips != NULL)
     free(ir->ir_ipopt_tsips);
 
   if(ir->ir_ipopt_tstss != NULL)
     free(ir->ir_ipopt_tstss);
+
+  if(ir->ir_inner_ipopt_rrs != NULL)
+    free(ir->ir_inner_ipopt_rrs);
 
   if(ir->ir_inner_ipopt_tsips != NULL)
     free(ir->ir_inner_ipopt_tsips);

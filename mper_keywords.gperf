@@ -56,6 +56,9 @@ const char* keyword_code_names[] = {
   "udata",
   "tx",
   "rx",
+  "rr",
+  "tsonly",
+  "tsandaddr",
   "tsps_ip1",
   "tsps_ip2",
   "tsps_ip3",
@@ -68,6 +71,7 @@ const char* keyword_code_names[] = {
   "reply_icmp",
   "reply_qttl",
   "reply_tcp",
+  "reply_rr",
   "reply_tsps_ts1",
   "reply_tsps_ip1",
   "reply_tsps_ts2",
@@ -118,6 +122,9 @@ dport, KC_DPORT_OPT, KT_UINT
 udata, KC_UDATA_OPT, KT_UINT
 tx, KC_TX_OPT, KT_TIMEVAL
 rx, KC_RX_OPT, KT_TIMEVAL
+rr, KC_RR_OPT, KT_UINT
+tsonly, KC_TSONLY_OPT, KT_UINT
+tsandaddr, KC_TSANDADDR_OPT, KT_UINT
 tsps_ip1, KC_TSPS_IP1_OPT, KT_ADDRESS
 tsps_ip2, KC_TSPS_IP2_OPT, KT_ADDRESS
 tsps_ip3, KC_TSPS_IP3_OPT, KT_ADDRESS
@@ -130,6 +137,7 @@ reply_ipid, KC_REPLY_IPID_OPT, KT_UINT
 reply_icmp, KC_REPLY_ICMP_OPT, KT_UINT
 reply_qttl, KC_REPLY_QTTL_OPT, KT_UINT
 reply_tcp, KC_REPLY_TCP_OPT, KT_UINT
+reply_rr, KC_REPLY_RR_OPT, KT_STR
 reply_tsps_ts1, KC_REPLY_TSPS_TS1_OPT, KT_UINT
 reply_tsps_ip1, KC_REPLY_TSPS_IP1_OPT, KT_ADDRESS
 reply_tsps_ts2, KC_REPLY_TSPS_TS2_OPT, KT_UINT

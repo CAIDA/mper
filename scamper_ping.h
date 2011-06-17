@@ -84,6 +84,19 @@
 #define SCAMPER_PING_METHOD_UDP           0x03
 #define SCAMPER_PING_METHOD_UDP_DPORT     0x04
 
+#define SCAMPER_PING_FLAG_V4RR            0x01 /* -R: IPv4 record route */
+#define SCAMPER_PING_FLAG_SPOOF           0x02 /* -O spoof: spoof src */
+#define SCAMPER_PING_FLAG_PAYLOAD         0x04 /* probe_data is payload */
+#define SCAMPER_PING_FLAG_TSONLY          0x08 /* -T tsonly */
+#define SCAMPER_PING_FLAG_TSANDADDR       0x10 /* -T tsandaddr */
+#define SCAMPER_PING_FLAG_ICMPSUM         0x20 /* -C csum */
+
+typedef struct scamper_ping_reply_v4rr
+{
+  scamper_addr_t **rr;
+  uint8_t          rrc;
+} scamper_ping_reply_v4rr_t;
+
 typedef struct scamper_ping_reply_v4ts
 {
   scamper_addr_t **ips;
@@ -135,6 +148,7 @@ typedef struct scamper_ping_reply
   uint8_t                    tcp_flags;
 
   /* data found in IP options, if any */
+  scamper_ping_reply_v4rr_t *v4rr;
   scamper_ping_reply_v4ts_t *v4ts;
 
   /* if a single probe gets more than one response, they get chained */
@@ -181,6 +195,7 @@ typedef struct scamper_ping
   uint16_t               reply_count;  /* -o option to ping */
   uint32_t               spacing;      /* in ms */
   scamper_ping_v4ts_t   *probe_tsps;   /* -T option to ping */
+  uint8_t                flags;
 
   uint8_t                opt_set_cksum;  /* user provided checksum */
 
@@ -199,6 +214,9 @@ scamper_ping_reply_t *scamper_ping_reply_alloc(void);
 void scamper_ping_reply_free(scamper_ping_reply_t *reply);
 int scamper_ping_reply_append(scamper_ping_t *p, scamper_ping_reply_t *reply);
 uint32_t scamper_ping_reply_count(const scamper_ping_t *ping);
+
+scamper_ping_reply_v4rr_t *scamper_ping_reply_v4rr_alloc(uint8_t rrc);
+void scamper_ping_reply_v4rr_free(scamper_ping_reply_v4rr_t *rr);
 
 scamper_ping_reply_v4ts_t *scamper_ping_reply_v4ts_alloc(uint8_t tsc, int ip);
 void scamper_ping_reply_v4ts_free(scamper_ping_reply_v4ts_t *ts);

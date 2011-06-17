@@ -427,6 +427,21 @@ static uint16_t icmp4_ip_len(const struct ip *ip)
   return len;
 }
 
+static void ip_quote_rr(scamper_icmp_resp_t *ir, int rrc, void *rrs)
+{
+  ir->ir_inner_ipopt_rrc = rrc;
+  ir->ir_inner_ipopt_rrs = rrs;
+  return;
+}
+
+static void ip_rr(scamper_icmp_resp_t *ir, int rrc, void *rrs)
+{
+  ir->ir_ipopt_rrc = rrc;
+  ir->ir_ipopt_rrs = rrs;
+  return;
+}
+
+
 static uint8_t ip_tsc(int fl, int len)
 {
   if(fl == 0)
@@ -510,10 +525,12 @@ static void ip_ts(scamper_icmp_resp_t *ir, int fl, const uint8_t *buf, int len)
 }
 
 static void ipopt_parse(scamper_icmp_resp_t *ir, const uint8_t *buf, int iphl,
+			void (*rr)(scamper_icmp_resp_t *, int, void *),
 			void (*ts)(scamper_icmp_resp_t *, int,
 				   const uint8_t *, int))
 {
-  int off, ol, p, fl;
+  int off, ol, p, fl, rrc;
+  void *rrs;
 
   off = 20;
   while(off < iphl)
@@ -535,6 +552,16 @@ static void ipopt_parse(scamper_icmp_resp_t *ir, const uint8_t *buf, int iphl,
       if(off + ol > iphl)
 	break;
 
+      if(buf[off] == 7 && rr != NULL)
+	{
+	  /* record route */
+	  p = buf[off+2];
+	  if(p >= 4 && (p % 4) == 0 && (rrc = (p / 4) - 1) != 0 &&
+	     (rrs = memdup(buf+off+3, rrc * 4)) != NULL)
+	    {
+	      rr(ir, rrc, rrs);
+	    }
+	}
       if(buf[off] == 68 && ts != NULL)
 	{
 	  /* timestamp */
@@ -611,7 +638,7 @@ static void icmp4_recv_ip(int fd, scamper_icmp_resp_t *ir, const uint8_t *buf,
   ir->ir_ip_size   = icmp4_ip_len(ip);
   ir->ir_icmp_type = icmp->icmp_type;
   ir->ir_icmp_code = icmp->icmp_code;
-  ipopt_parse(ir, buf, iphl, ip_ts);
+  ipopt_parse(ir, buf, iphl, ip_rr, ip_ts);
 
   return;
 }
@@ -758,7 +785,7 @@ int scamper_icmp4_recv(int fd, scamper_icmp_resp_t *resp)
       resp->ir_inner_ip_tos   = ip_inner->ip_tos;
       resp->ir_inner_ip_size  = icmp4_quote_ip_len(icmp);
 
-      ipopt_parse(resp, pbuf+iphl+8, iphlq, ip_quote_ts);
+      ipopt_parse(resp, pbuf+iphl+8, iphlq, ip_quote_rr, ip_quote_ts);
 
       if(type == ICMP_UNREACH && code == ICMP_UNREACH_NEEDFRAG)
 	{

@@ -50,7 +50,19 @@ int scamper_ip4_build(scamper_probe_t *probe, uint8_t *buf, size_t *len)
   for(i=0; i<probe->pr_ipoptc; i++)
     {
       opt = &probe->pr_ipopts[i];
-      if(opt->type == SCAMPER_PROBE_IPOPTS_V4TSPS)
+      if(opt->type == SCAMPER_PROBE_IPOPTS_V4RR)
+	{
+	  /*
+	   * want the ability to record at least one IP address otherwise
+	   * the option is useless.
+	   */
+	  if(ip4hlen + 8 > 60)
+	    return -1;
+
+	  /* for now assume this option fills the rest of the option space */
+	  ip4hlen = 60;
+	}
+      else if(opt->type == SCAMPER_PROBE_IPOPTS_V4TSPS)
 	{
 	  if((opt->len % 4) != 0 || opt->len == 0 || opt->len > 16)
 	    return -1;
@@ -59,7 +71,18 @@ int scamper_ip4_build(scamper_probe_t *probe, uint8_t *buf, size_t *len)
 	  if(ip4hlen > 60)
 	    return -1;
 	}
-      else return -1;
+      else if(opt->type == SCAMPER_PROBE_IPOPTS_V4TSO)
+	{
+	  ip4hlen += 40;
+	  if(ip4hlen > 60)
+	    return -1;
+	}
+      else if(opt->type == SCAMPER_PROBE_IPOPTS_V4TSAA)
+	{
+	  ip4hlen += 36;
+	  if(ip4hlen > 60)
+	    return -1;
+	}      else return -1;
     }
 
   if(ip4hlen > *len)
@@ -106,13 +129,21 @@ int scamper_ip4_build(scamper_probe_t *probe, uint8_t *buf, size_t *len)
   for(i=0; i<probe->pr_ipoptc; i++)
     {
       opt = &probe->pr_ipopts[i];
-      if(opt->type == SCAMPER_PROBE_IPOPTS_V4TSPS)
+      if(opt->type == SCAMPER_PROBE_IPOPTS_V4RR)
+	{
+	  memset(buf+off+3, 0, 37);
+	  buf[off+0] = 7;
+	  buf[off+1] = 39;
+	  buf[off+2] = 4;
+	  off = 60;
+	}
+      if(opt->type == SCAMPER_PROBE_IPOPTS_V4TSPS ||
+	      opt->type == SCAMPER_PROBE_IPOPTS_V4TSO  ||
+	      opt->type == SCAMPER_PROBE_IPOPTS_V4TSAA)
 	{
 	  buf[off+0] = 68;
 	  buf[off+2] = 5;
 
-	  /* redundant check left in to demonstrate where other
-	     options should be checked for in future */
 	  if(opt->type == SCAMPER_PROBE_IPOPTS_V4TSPS)
 	    {
 	      buf[off+1] = (opt->len * 2) + 4;
@@ -123,6 +154,19 @@ int scamper_ip4_build(scamper_probe_t *probe, uint8_t *buf, size_t *len)
 		  memcpy(buf+off, opt->val+j, 4); off += 4;
 		  memset(buf+off, 0, 4); off += 4;
 		}
+	    }
+	  else if(opt->type == SCAMPER_PROBE_IPOPTS_V4TSO)
+	    {
+	      buf[off+1] = 40;
+	      memset(buf+off+3, 0, 41);
+	      off += 40;
+	    }
+	  else if(opt->type == SCAMPER_PROBE_IPOPTS_V4TSAA)
+	    {
+	      buf[off+1] = 36;
+	      buf[off+3] = 1;
+	      memset(buf+off+4, 0, 36);
+	      off += 36;
 	    }
 	}
       else return -1;

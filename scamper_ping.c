@@ -132,6 +132,46 @@ scamper_ping_v4ts_t *scamper_ping_v4ts_alloc(uint8_t ipc)
   return NULL;
 }
 
+void scamper_ping_reply_v4rr_free(scamper_ping_reply_v4rr_t *rr)
+{
+  uint8_t i;
+
+  if(rr == NULL)
+    return;
+
+  if(rr->rr != NULL)
+    {
+      for(i=0; i<rr->rrc; i++)
+	if(rr->rr[i] != NULL)
+	  scamper_addr_free(rr->rr[i]);
+      free(rr->rr);
+    }
+
+  free(rr);
+  return;
+}
+
+scamper_ping_reply_v4rr_t *scamper_ping_reply_v4rr_alloc(uint8_t rrc)
+{
+  scamper_ping_reply_v4rr_t *rr = NULL;
+
+  if(rrc == 0)
+    goto err;
+
+  if((rr = malloc_zero(sizeof(scamper_ping_reply_v4rr_t))) == NULL)
+    goto err;
+  rr->rrc = rrc;
+
+  if((rr->rr = malloc_zero(sizeof(scamper_addr_t *) * rrc)) == NULL)
+    goto err;
+
+  return rr;
+
+ err:
+  scamper_ping_reply_v4rr_free(rr);
+  return NULL;
+}
+
 scamper_ping_t *scamper_ping_alloc()
 {
   return (scamper_ping_t *)malloc_zero(sizeof(scamper_ping_t));
