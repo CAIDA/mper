@@ -85,6 +85,9 @@ parse_control_message(const char *message, size_t *length_out)
   char *s = message_buf;
   size_t length;
 
+  if(strcmp(message, "shutdown") == 0)
+    exit(0);
+
   memset(&words[0], 0, sizeof(control_word_t));
 
   if (!copy_message(message)) RETURN_ERROR;
