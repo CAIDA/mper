@@ -1306,8 +1306,13 @@ static void do_ping_write_reply(scamper_task_t *task, scamper_ping_t *ping,
   const char *msg = NULL;
   size_t msg_len = 0;
   char src_addr[40], dest_addr[40], reply_addr[40];
-  char *tmp_addr, *rr = NULL;
-  size_t opts = 11, rrlen;
+  char tsps_ips[4][40];
+
+  /* 9 IPs, 8 commas, 1 null byte, and a partridge in a pear tree */
+  char rr[39*9+8+1];
+  char rr_ip[40];
+
+  size_t opts = 11, rrlen = 0;
   int i;
 
   scamper_addr_tostr(ping->src, src_addr, 40);
@@ -1341,32 +1346,20 @@ static void do_ping_write_reply(scamper_task_t *task, scamper_ping_t *ping,
 	{
 	  for(i=0;i<reply->v4rr->rrc;i++)
 	    {
-	      if((tmp_addr = malloc(40)) == NULL)
+	      scamper_addr_tostr(reply->v4rr->rr[i], rr_ip, 40);
+	    
+	      /* current string + comma + ip + comma + null byte */
+	      /* rrlen = strlen(rr) + 1 + strlen(tmp_addr) + 1 + 1; */
+
+	      if(rrlen > 0)
 		{
-		  return;
+		  rr[rrlen++] = ',';
 		}
-	      scamper_addr_tostr(reply->v4rr->rr[i], tmp_addr, 40);
-	      if(rr == NULL)
-		{
-		  if((rr = strdup(tmp_addr)) == NULL)
-		    {
-		      return;
-		    }
-		}
-	      else
-		{
-		  rrlen = strlen(rr) + 1 + strlen(tmp_addr) + 1 + 1;
-		  if((rr = realloc(rr, rrlen)) == NULL)
-		    {
-		      return;
-		    }
-		  rrlen = sizeof(rr) - 1 - strlen(rr);
-		  rr = strncat(rr, ",", rrlen);
-		  rrlen = sizeof(rr) - 1 - strlen(rr);
-		  rr = strncat(rr, tmp_addr, rrlen);
-		  }
+	      memcpy(&rr[rrlen], rr_ip, strlen(rr_ip));
+	      rrlen += strlen(rr_ip);
 	    }
-	  if(rr != NULL)
+	  rr[rrlen] = '\0';
+	  if(rrlen > 0)
 	    {
 	      opts++;
 	      SET_STR_CWORD(resp_words, opts, REPLY_RR, rr, strlen(rr));
@@ -1377,11 +1370,7 @@ static void do_ping_write_reply(scamper_task_t *task, scamper_ping_t *ping,
 	{
 	  for(i=0;i<reply->v4ts->tsc;i++)
 	    {
-	      if((tmp_addr = malloc(40)) == NULL)
-		{
-		  return;
-		}
-	      scamper_addr_tostr(reply->v4ts->ips[i], tmp_addr, 40);
+	      scamper_addr_tostr(reply->v4ts->ips[i], tsps_ips[i], 40);
 	      opts++;
 	      switch (i) 
 		{
@@ -1390,7 +1379,7 @@ static void do_ping_write_reply(scamper_task_t *task, scamper_ping_t *ping,
 				     REPLY_TSPS_TS1, reply->v4ts->tss[i], 0);
 		  opts++;
 		  SET_ADDRESS_CWORD(resp_words, opts,
-				    REPLY_TSPS_IP1, tmp_addr);
+				    REPLY_TSPS_IP1, tsps_ips[i]);
 		  break;
 		  
 		case 1:
@@ -1398,7 +1387,7 @@ static void do_ping_write_reply(scamper_task_t *task, scamper_ping_t *ping,
 				     REPLY_TSPS_TS2, reply->v4ts->tss[i], 0);
 		  opts++;
 		  SET_ADDRESS_CWORD(resp_words, opts,
-				    REPLY_TSPS_IP2, tmp_addr);
+				    REPLY_TSPS_IP2, tsps_ips[i]);
 		  break;
 		  
 		case 2:
@@ -1406,7 +1395,7 @@ static void do_ping_write_reply(scamper_task_t *task, scamper_ping_t *ping,
 				     REPLY_TSPS_TS3, reply->v4ts->tss[i], 0);
 		  opts++;
 		  SET_ADDRESS_CWORD(resp_words, opts,
-				    REPLY_TSPS_IP3, tmp_addr);
+				    REPLY_TSPS_IP3, tsps_ips[i]);
 		  break;
 		  
 		case 3:
@@ -1414,7 +1403,7 @@ static void do_ping_write_reply(scamper_task_t *task, scamper_ping_t *ping,
 				     REPLY_TSPS_TS4, reply->v4ts->tss[i], 0);
 		  opts++;
 		  SET_ADDRESS_CWORD(resp_words, opts,
-				    REPLY_TSPS_IP4, tmp_addr);
+				    REPLY_TSPS_IP4, tsps_ips[i]);
 		  break;
 		}
 	    }
