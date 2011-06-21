@@ -301,6 +301,9 @@ void scamper_ping_reply_free(scamper_ping_reply_t *reply)
       scamper_addr_free(reply->addr);
     }
 
+  if(reply->v4rr != NULL)
+    scamper_ping_reply_v4rr_free(reply->v4rr);
+
   if(reply->v4ts != NULL)
     scamper_ping_reply_v4ts_free(reply->v4ts);
 
