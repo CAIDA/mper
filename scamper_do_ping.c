@@ -1934,9 +1934,9 @@ scamper_ping_t *scamper_do_ping_alloc(const control_word_t *words,
 	    probe_size += 40;
 	  else if(ping->probe_tsps != NULL)
 	    probe_size += (8 * ping->probe_tsps->ipc) + 4;
-	  else if(ping->flags & SCAMPER_PING_FLAG_TSONLY)
+	  else if(flags & SCAMPER_PING_FLAG_TSONLY)
 	    probe_size += 40;
-	  else if(ping->flags & SCAMPER_PING_FLAG_TSANDADDR)
+	  else if(flags & SCAMPER_PING_FLAG_TSANDADDR)
 	    probe_size += 36;
 	  
 	}
