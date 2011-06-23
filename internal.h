@@ -162,11 +162,13 @@ typedef unsigned short sa_family_t;
 #include <stropts.h>
 #endif
 
+#if 0
 #if defined(__FreeBSD__) || defined(__APPLE__)
 #define HAVE_IPFW
 #include <netinet/ip_fw.h>
 #if __FreeBSD_version < 700017 || defined(__APPLE__)
 #include <netinet6/ip6_fw.h>
+#endif
 #endif
 #endif
 
