@@ -862,6 +862,22 @@ static void do_ping_probe(scamper_task_t *task)
 	}
 #endif
 
+      /* keep the checksum constant between probes */
+      if(g_use_paris)
+	{
+	  if(ping->opt_set_cksum)
+	    {
+	      u16 = htons(ping->probe_cksum);
+	    }
+	  else
+	    {
+	      u16 = htons(scamper_checksum_get());
+	    }
+	  memcpy(probe.pr_data, &u16, 2);
+	  u16 = scamper_udp4_cksum(&probe);
+	  memcpy(probe.pr_data, &u16, 2);
+	}
+
       if (g_debug_match) { DEBUG_MATCH_SETUP;
 	  scamper_debug_match("probe udp %s %d:%d %d", dest_addr,
 	      ping->probe_sport, ping->probe_dport, state->ipid); }
