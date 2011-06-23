@@ -112,7 +112,9 @@ static uint32_t options = 0;
 #define OPT_GATEWAY     0x00400000 /* G: */
 #define OPT_INTERFACE   0x00800000 /* I: */
 #define OPT_USE_TCP     0x01000000 /* T */
-#define OPT_SIMULATE    0x01000000 /* S */
+#define OPT_SIMULATE    0x02000000 /* S */
+#define OPT_PARIS       0x04000000 /* K */
+#define OPT_CHECKSUM    0x10000000 /* k */
 
 /*
  * parameters configurable by the command line:
@@ -132,6 +134,7 @@ static uint32_t options = 0;
  * interface:   datalink interface index to use if manually specifying gateway
  * use_tcp:     use a TCP server socket instead of a Unix domain socket
  * simulate:    don't actually probe--simulate a non-response for each probe
+ * use_paris:   use 'paris ping' to avoid per-flow load balancing
  */
 static char  *command      = NULL;
 static int    pps          = SCAMPER_PPS_DEF;
@@ -145,12 +148,14 @@ static char  *debugfile    = NULL;
 static char  *matchfile    = NULL;
 static char  *firewall     = NULL;
 static int   use_tcp       = 0;
+static int   checksum      = SCAMPER_CHECKSUM_DEF;
 
 /* don't make these static: need in scamper_do_ping.c */
 scamper_addr_t *g_gateway_sa = NULL;
-int g_interface = 1;
+int g_interface   = 1;
 int g_debug_match = 0;  /* whether to write out probe-response info */
-int g_simulate = 0;
+int g_simulate    = 0;
+int g_use_paris   = 1;
 
 /*
  * parameters calculated by scamper at run time:
@@ -187,7 +192,7 @@ static void usage(uint32_t opt_mask)
     "               [-M monitorname] [-H holdtime]\n"
     "               [-F firewall] [-d debugfile] [-Z matchfile]\n"
     "               [-G gateway] [-I interface-index]\n"
-    "               [-D port] [-T] [-S]\n");
+    "               [-D port] [-T] [-S] [-K] [-k checksum]\n");
 
   if(opt_mask == 0) return;
 
@@ -219,6 +224,12 @@ static void usage(uint32_t opt_mask)
 
   if((opt_mask & OPT_INTERFACE) != 0)
     usage_str('G', "use a given interface index when manually setting gateway");
+
+  if((opt_mask & OPT_PARIS) != 0)
+    usage_str('K', "disable paris-ping mode");
+
+  if((opt_mask & OPT_CHECKSUM) != 0)
+    usage_str('k', "use given value for probe checksum value");
 
   if((opt_mask & OPT_MONITORNAME) != 0)
     usage_str('M', "specify the canonical name of the monitor");
@@ -267,9 +278,9 @@ static int check_options(int argc, char *argv[])
 {
   int   i;
   long  lo;
-  char *opts = "d:D:F:G:H:I:M:p:PSTvw:Z:?";
+  char *opts = "d:D:F:G:H:I:Kk:M:p:PSTvw:Z:?";
   char *opt_daemon = NULL, *opt_holdtime = NULL, *opt_monitorname = NULL;
-  char *opt_pps = NULL, *opt_window = NULL;
+  char *opt_checksum = NULL, *opt_pps = NULL, *opt_window = NULL;
   char *opt_debugfile = NULL, *opt_matchfile = NULL, *opt_firewall = NULL;
   char *opt_gateway = NULL, *opt_interface = NULL;
 
@@ -306,6 +317,16 @@ static int check_options(int argc, char *argv[])
           options |= OPT_INTERFACE;
           opt_interface = optarg;
           break;
+
+	case 'K':
+	  options |= OPT_PARIS;
+	  g_use_paris = 0;
+	  break;
+
+	case 'k':
+	  options |= OPT_CHECKSUM;
+	  opt_checksum = optarg;
+	  break;
 
 	case 'M':
 	  options |= OPT_MONITORNAME;
@@ -411,6 +432,13 @@ static int check_options(int argc, char *argv[])
      set_opt(OPT_INTERFACE, opt_interface, scamper_interface_set) == -1)
     {
       usage(OPT_INTERFACE);
+      return -1;
+    }
+
+  if(options & OPT_CHECKSUM &&
+     set_opt(OPT_CHECKSUM, opt_checksum, scamper_checksum_set) == -1)
+    {
+      usage(OPT_CHECKSUM);
       return -1;
     }
 
@@ -522,6 +550,22 @@ int scamper_interface_set(const int n)
 {
   g_interface = n;
   return 0;
+}
+
+int scamper_checksum_get()
+{
+  return checksum;
+}
+
+int scamper_checksum_set(const int c)
+{
+  if(c >= SCAMPER_CHECKSUM_MIN && c <= SCAMPER_CHECKSUM_MAX)
+    {
+      checksum = c;
+      return 0;
+    }
+
+  return -1;
 }
 
 int scamper_pps_get()

@@ -97,6 +97,7 @@ typedef __int16 int16_t;
 
 extern int g_debug_match;  /* whether to write out probe-response info */
 extern int g_simulate;   /* don't actually probe--simulate a non-response */
+extern int g_use_paris;  /* use paris ping */
 
 /* ---------------------------------------------------------------------- */
 
@@ -793,10 +794,18 @@ static void do_ping_probe(scamper_task_t *task)
       probe.pr_icmp_seq  = state->seq = next_icmp_seq();
       probe.pr_fd        = scamper_fd_fd_get(state->icmp);
 
-      /* hack to get the icmp csum to be a particular value, and be valid */
-      if(ping->opt_set_cksum)  /* XXX not supported with IPv6 */
-        {
-	  u16 = htons(ping->probe_cksum);
+      if(g_use_paris)
+	{
+	  /* hack to get the icmp csum to be a particular value, and be valid */
+	  /* if the user doesn't care about the checksum, we use 0 */
+	  if(ping->opt_set_cksum)  /* XXX not supported with IPv6 */
+	    {
+	      u16 = htons(ping->probe_cksum);
+	    }
+	  else
+	    {
+	      u16 = htons(scamper_checksum_get());
+	    }
 	  memcpy(probe.pr_data, &u16, 2);
 	  u16 = scamper_icmp4_cksum(&probe);
 	  memcpy(probe.pr_data, &u16, 2);
@@ -1934,9 +1943,9 @@ scamper_ping_t *scamper_do_ping_alloc(const control_word_t *words,
 	    probe_size += 40;
 	  else if(ping->probe_tsps != NULL)
 	    probe_size += (8 * ping->probe_tsps->ipc) + 4;
-	  else if(flags & SCAMPER_PING_FLAG_TSONLY)
+	  else if(ipopt_flags & SCAMPER_PING_FLAG_TSONLY)
 	    probe_size += 40;
-	  else if(flags & SCAMPER_PING_FLAG_TSANDADDR)
+	  else if(ipopt_flags & SCAMPER_PING_FLAG_TSANDADDR)
 	    probe_size += 36;
 	  
 	}

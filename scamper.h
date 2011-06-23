@@ -38,6 +38,12 @@ int scamper_interface_set(const int n);
 int scamper_pps_get(void);
 int scamper_pps_set(const int pps);
 
+#define SCAMPER_CHECKSUM_MIN  0
+#define SCAMPER_CHECKSUM_DEF  0
+#define SCAMPER_CHECKSUM_MAX  65535
+int scamper_checksum_get(void);
+int scamper_checksum_set(const int checksum);
+
 #define SCAMPER_WINDOW_MIN    0
 #define SCAMPER_WINDOW_DEF    0
 #define SCAMPER_WINDOW_MAX    65535
