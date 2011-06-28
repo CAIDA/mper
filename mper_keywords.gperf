@@ -35,6 +35,7 @@ const char* keyword_code_names[] = {
   "<NONE>",
   "<ERROR>",
   "<REQNUM>",
+
   "<CMD_MIN>",
   "ping",
   "cmd_error",
@@ -42,6 +43,7 @@ const char* keyword_code_names[] = {
   "resp_timeout",
   "ping_resp",
   "<CMD_MAX>",
+
   "<OPT_MIN>",
   "txt",
   "pkt",
@@ -49,13 +51,15 @@ const char* keyword_code_names[] = {
   "dest",
   "net",
   "ttl",
+  "max_ttl",
   "meth",
   "cksum",
   "sport",
   "dport",
-  "udata",
-  "tx",
-  "rx",
+  "spacing",
+  "reply_cnt",
+  "timeout",
+  "tos",
   "rr",
   "tsonly",
   "tsandaddr",
@@ -63,6 +67,10 @@ const char* keyword_code_names[] = {
   "tsps_ip2",
   "tsps_ip3",
   "tsps_ip4",
+  "udata",
+  "tx",
+  "rx",
+
   "probe_ttl",
   "probe_ipid",
   "reply_src",
@@ -82,7 +90,6 @@ const char* keyword_code_names[] = {
   "reply_tsps_ip4",
   "stop_reason",
   "stop_data",
-  "spacing",
   "<OPT_MAX>"
 };
 
@@ -115,13 +122,15 @@ src, KC_SRC_OPT, KT_ADDRESS
 dest, KC_DEST_OPT, KT_ADDRESS
 net, KC_NET_OPT, KT_PREFIX
 ttl, KC_TTL_OPT, KT_UINT
+max_ttl, KC_MAX_TTL_OPT, KT_UINT
 meth, KC_METH_OPT, KT_SYMBOL
 cksum, KC_CKSUM_OPT, KT_UINT
 sport, KC_SPORT_OPT, KT_UINT
 dport, KC_DPORT_OPT, KT_UINT
-udata, KC_UDATA_OPT, KT_UINT
-tx, KC_TX_OPT, KT_TIMEVAL
-rx, KC_RX_OPT, KT_TIMEVAL
+spacing, KC_SPACING_OPT, KT_UINT
+reply_cnt, KC_REPLY_CNT_OPT, KT_UINT
+timeout, KC_TIMEOUT_OPT, KT_UINT
+tos, KC_TOS_OPT, KT_UINT
 rr, KC_RR_OPT, KT_UINT
 tsonly, KC_TSONLY_OPT, KT_UINT
 tsandaddr, KC_TSANDADDR_OPT, KT_UINT
@@ -129,6 +138,11 @@ tsps_ip1, KC_TSPS_IP1_OPT, KT_ADDRESS
 tsps_ip2, KC_TSPS_IP2_OPT, KT_ADDRESS
 tsps_ip3, KC_TSPS_IP3_OPT, KT_ADDRESS
 tsps_ip4, KC_TSPS_IP4_OPT, KT_ADDRESS
+udata, KC_UDATA_OPT, KT_UINT
+tx, KC_TX_OPT, KT_TIMEVAL
+rx, KC_RX_OPT, KT_TIMEVAL
+#
+# reply keywords
 probe_ttl, KC_PROBE_TTL_OPT, KT_UINT
 probe_ipid, KC_PROBE_IPID_OPT, KT_UINT
 reply_src, KC_REPLY_SRC_OPT, KT_ADDRESS
@@ -148,6 +162,5 @@ reply_tsps_ts4, KC_REPLY_TSPS_TS4_OPT, KT_UINT
 reply_tsps_ip4, KC_REPLY_TSPS_IP4_OPT, KT_ADDRESS
 stop_reason, KC_STOP_REASON_OPT, KT_UINT
 stop_data, KC_STOP_DATA_OPT, KT_UINT
-spacing, KC_SPACING_OPT, KT_UINT
 %%
 /* functions */
