@@ -1,4 +1,4 @@
-/*
+*
  * scamper_do_ping.c
  *
  * $Id: scamper_do_ping.c,v 1.72 2009/05/19 04:40:39 mjl Exp $
@@ -91,6 +91,8 @@ typedef __int16 int16_t;
 #include "scamper_debug.h"
 #include "scamper_do_ping.h"
 #include "scamper_options.h"
+#include "scamper_udp4.h"
+#include "scamper_udp6.h"
 #include "scamper_icmp4.h"
 #include "scamper_icmp6.h"
 #include "utils.h"
