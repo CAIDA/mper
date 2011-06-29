@@ -1,4 +1,4 @@
-*
+/*
  * scamper_do_ping.c
  *
  * $Id: scamper_do_ping.c,v 1.72 2009/05/19 04:40:39 mjl Exp $
@@ -748,6 +748,7 @@ static void do_ping_probe(scamper_task_t *task)
   memset(&probe, 0, sizeof(probe));
   probe.pr_ip_src    = ping->src;
   probe.pr_ip_dst    = ping->dst;
+  probe.pr_ip_tos    = ping->probe_tos;
   probe.pr_ip_ttl    = ping->probe_ttl;
   probe.pr_ip_id     = state->ipid;
   probe.pr_data      = pktbuf;
@@ -972,7 +973,9 @@ static int match_icmp_response(scamper_task_t *task, scamper_icmp_resp_t *ir)
     }
     else if (SCAMPER_PING_METHOD_IS_TCP(ping)) {
       if (SCAMPER_ICMP_RESP_INNER_IS_TCP(ir) == 0 ||
-	  SCAMPER_ICMP_RESP_IS_UNREACH(ir) == 0) return 0;
+	  (SCAMPER_ICMP_RESP_IS_UNREACH(ir) == 0 &&
+	   SCAMPER_ICMP_RESP_IS_TTL_EXP(ir) == 0)) 
+	return 0;
 
       if(ir->ir_inner_tcp_sport != ping->probe_sport ||
 	 ir->ir_inner_tcp_dport != ping->probe_dport)
@@ -1002,7 +1005,8 @@ static int match_icmp_response(scamper_task_t *task, scamper_icmp_resp_t *ir)
     }
     else if (SCAMPER_PING_METHOD_IS_UDP(ping)) {
       if (SCAMPER_ICMP_RESP_INNER_IS_UDP(ir) == 0 ||
-	  SCAMPER_ICMP_RESP_IS_UNREACH(ir) == 0) return 0;
+	  (SCAMPER_ICMP_RESP_IS_UNREACH(ir) == 0 &&
+	   SCAMPER_ICMP_RESP_IS_TTL_EXP(ir) == 0)) return 0;
 
       if(ir->ir_inner_udp_sport != ping->probe_sport ||
 	 ir->ir_inner_udp_dport != ping->probe_dport)
@@ -1402,32 +1406,32 @@ static void do_ping_write_reply(scamper_task_t *task, scamper_ping_t *ping,
 	      switch (i) 
 		{
 		case 0:
-		  SET_TIMEVAL2_CWORD(resp_words, opts, 
-				     REPLY_TSPS_TS1, reply->v4ts->tss[i], 0);
+		  SET_UINT_CWORD(resp_words, opts, 
+				     REPLY_TSPS_TS1, reply->v4ts->tss[i]);
 		  opts++;
 		  SET_ADDRESS_CWORD(resp_words, opts,
 				    REPLY_TSPS_IP1, tsps_ips[i]);
 		  break;
 		  
 		case 1:
-		  SET_TIMEVAL2_CWORD(resp_words, opts, 
-				     REPLY_TSPS_TS2, reply->v4ts->tss[i], 0);
+		  SET_UINT_CWORD(resp_words, opts, 
+				     REPLY_TSPS_TS2, reply->v4ts->tss[i]);
 		  opts++;
 		  SET_ADDRESS_CWORD(resp_words, opts,
 				    REPLY_TSPS_IP2, tsps_ips[i]);
 		  break;
 		  
 		case 2:
-		  SET_TIMEVAL2_CWORD(resp_words, opts, 
-				     REPLY_TSPS_TS3, reply->v4ts->tss[i], 0);
+		  SET_UINT_CWORD(resp_words, opts, 
+				 REPLY_TSPS_TS3, reply->v4ts->tss[i]);
 		  opts++;
 		  SET_ADDRESS_CWORD(resp_words, opts,
 				    REPLY_TSPS_IP3, tsps_ips[i]);
 		  break;
 		  
 		case 3:
-		  SET_TIMEVAL2_CWORD(resp_words, opts, 
-				     REPLY_TSPS_TS4, reply->v4ts->tss[i], 0);
+		  SET_UINT_CWORD(resp_words, opts, 
+				     REPLY_TSPS_TS4, reply->v4ts->tss[i]);
 		  opts++;
 		  SET_ADDRESS_CWORD(resp_words, opts,
 				    REPLY_TSPS_IP4, tsps_ips[i]);
@@ -1743,7 +1747,7 @@ scamper_ping_t *scamper_do_ping_alloc(const control_word_t *words,
 				      size_t word_count,
 				      const char **error_msg)
 {
-  uint8_t     probe_wait    = SCAMPER_DO_PING_PROBEWAIT_DEF;
+  uint32_t    probe_wait    = SCAMPER_DO_PING_PROBEWAIT_DEF;
   uint8_t     probe_ttl     = SCAMPER_DO_PING_PROBETTL_DEF;
   uint8_t     probe_tos     = SCAMPER_DO_PING_PROBETOS_DEF;
   uint8_t     probe_method  = SCAMPER_DO_PING_PROBEMETHOD_DEF;
@@ -1772,6 +1776,10 @@ scamper_ping_t *scamper_do_ping_alloc(const control_word_t *words,
     {
       switch(words[i].cw_code)
 	{
+	case KC_SRC_OPT:
+	  src = words[i].cw_address;
+	  break;
+
 	case KC_DEST_OPT:
 	  dest = words[i].cw_address;
 	  break;
@@ -1814,7 +1822,8 @@ scamper_ping_t *scamper_do_ping_alloc(const control_word_t *words,
 	  break;
 
 	case KC_RR_OPT:
-	  ipopt_flags |= SCAMPER_PING_FLAG_V4RR;
+	  if(words[i].cw_uint != 0)
+	    ipopt_flags |= SCAMPER_PING_FLAG_V4RR;
 	  break;
 
 	case KC_TSONLY_OPT:
@@ -1842,20 +1851,23 @@ scamper_ping_t *scamper_do_ping_alloc(const control_word_t *words,
 		     : (int)words[i].cw_uint);
 	  break;
 
+	case KC_REPLY_CNT_OPT:
+	  reply_count = words[i].cw_uint;
+	  break;
+
+	case KC_TIMEOUT_OPT:
+	  probe_wait = words[i].cw_uint;
+	  break;
+
+	case KC_TOS_OPT:
+	  probe_tos = words[i].cw_uint;
+	  break;
+
 	default: /* XXX need better reporting */
 	  *error_msg = "invalid option to 'ping' command";
 	  return NULL;
 
 #if 0
-        /* how long to wait between sending probes */
-        case PING_OPT_PROBEWAIT:
-          probe_wait = (uint8_t)tmp;
-          break;
-
-        /* how many unique replies are required before the ping completes */
-        case PING_OPT_REPLYCOUNT:
-          reply_count = (uint16_t)tmp;
-          break;
 
         /* the pattern to fill each probe with */
         case PING_OPT_PATTERN:
@@ -1882,17 +1894,6 @@ scamper_ping_t *scamper_do_ping_alloc(const control_word_t *words,
         /* the size of each probe */
         case PING_OPT_PROBESIZE:
           probe_size = (uint16_t)tmp;
-          break;
-
-        case PING_OPT_SRCADDR:
-          if(src != NULL)
-            goto err;
-          src = opt->str;
-          break;
-
-        /* the tos bits to include in each probe */
-        case PING_OPT_PROBETOS:
-          probe_tos = (uint8_t)tmp;
           break;
 #endif
 	}
