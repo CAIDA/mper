@@ -46,7 +46,6 @@ typedef enum {
   KC_DEST_OPT,
   KC_NET_OPT,
   KC_TTL_OPT,
-  KC_MAX_TTL_OPT,
   KC_METH_OPT,
   KC_CKSUM_OPT,
   KC_SPORT_OPT,
