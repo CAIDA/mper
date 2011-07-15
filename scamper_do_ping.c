@@ -117,7 +117,7 @@ static void send_response(scamper_task_t *task, const char *message)
 /* ---------------------------------------------------------------------- */
 
 #define SCAMPER_DO_PING_PROBESIZE_V4_MIN  28
-#define SCAMPER_DO_PING_PROBESIZE_V4_DEF  (28+56)
+#define SCAMPER_DO_PING_PROBESIZE_V4_DEF  (28+16)
 #define SCAMPER_DO_PING_PROBESIZE_V4_MAX  65535
 
 #define SCAMPER_DO_PING_PROBESIZE_V6_MIN  48
