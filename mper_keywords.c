@@ -105,6 +105,7 @@ const char* keyword_code_names[] = {
   "reply_icmp",
   "reply_qttl",
   "reply_tcp",
+  "reply_ipopt_cmp",
   "reply_rr",
   "reply_tsps_ts1",
   "reply_tsps_ip1",
@@ -129,22 +130,20 @@ const char* keyword_type_names[] = {
   "IP prefix",
   "timeval"
 };
-#line 107 "mper_keywords.gperf"
+#line 108 "mper_keywords.gperf"
 struct keyword;
 
-#define TOTAL_KEYWORDS 48
+#define TOTAL_KEYWORDS 49
 #define MIN_WORD_LENGTH 2
-#define MAX_WORD_LENGTH 14
+#define MAX_WORD_LENGTH 15
 #define MIN_HASH_VALUE 2
 #define MAX_HASH_VALUE 89
 /* maximum key range = 88, duplicates = 0 */
 
-#ifdef __GNUC__
-__inline
-#else
-#ifdef __cplusplus
+#if (defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L) || defined(__cplusplus) || defined(__GNUC_STDC_INLINE__)
 inline
-#endif
+#elif defined(__GNUC__)
+__inline
 #endif
 static unsigned int
 hash (str, len)
@@ -162,7 +161,7 @@ hash (str, len)
       90, 90, 90, 90, 90, 90, 90, 90, 90, 90,
       90, 90, 90, 90, 90, 90, 90, 90, 90, 90,
       90, 90, 90, 90, 90, 90, 90, 90, 90, 90,
-      90, 90, 90, 90, 90, 90, 90, 31, 90, 27,
+      90, 90, 90, 90, 90, 35, 90, 31, 90, 27,
       30,  0, 90, 60,  0, 25, 90, 90, 20, 15,
        0, 30, 10, 15, 10,  0,  5,  5,  5, 90,
        0,  0, 90, 90, 90, 90, 90, 90, 90, 90,
@@ -218,124 +217,125 @@ in_word_set (str, len)
   static const struct keyword wordlist[] =
     {
       {"",KC_NONE,KT_NONE}, {"",KC_NONE,KT_NONE},
-#line 141 "mper_keywords.gperf"
+#line 142 "mper_keywords.gperf"
       {"rx", KC_RX_OPT, KT_TIMEVAL},
       {"",KC_NONE,KT_NONE},
-#line 124 "mper_keywords.gperf"
+#line 125 "mper_keywords.gperf"
       {"meth", KC_METH_OPT, KT_SYMBOL},
       {"",KC_NONE,KT_NONE}, {"",KC_NONE,KT_NONE},
-#line 140 "mper_keywords.gperf"
+#line 141 "mper_keywords.gperf"
       {"tx", KC_TX_OPT, KT_TIMEVAL},
-#line 131 "mper_keywords.gperf"
-      {"tos", KC_TOS_OPT, KT_UINT},
-#line 121 "mper_keywords.gperf"
-      {"dest", KC_DEST_OPT, KT_ADDRESS},
-#line 127 "mper_keywords.gperf"
-      {"dport", KC_DPORT_OPT, KT_UINT},
-#line 133 "mper_keywords.gperf"
-      {"tsonly", KC_TSONLY_OPT, KT_UINT},
 #line 132 "mper_keywords.gperf"
+      {"tos", KC_TOS_OPT, KT_UINT},
+#line 122 "mper_keywords.gperf"
+      {"dest", KC_DEST_OPT, KT_ADDRESS},
+#line 128 "mper_keywords.gperf"
+      {"dport", KC_DPORT_OPT, KT_UINT},
+#line 134 "mper_keywords.gperf"
+      {"tsonly", KC_TSONLY_OPT, KT_UINT},
+#line 133 "mper_keywords.gperf"
       {"rr", KC_RR_OPT, KT_UINT},
-#line 118 "mper_keywords.gperf"
+#line 119 "mper_keywords.gperf"
       {"txt", KC_TXT_OPT, KT_STR},
-#line 129 "mper_keywords.gperf"
-      {"reply_cnt", KC_REPLY_CNT_OPT, KT_UINT},
-#line 126 "mper_keywords.gperf"
-      {"sport", KC_SPORT_OPT, KT_UINT},
-#line 161 "mper_keywords.gperf"
-      {"stop_reason", KC_STOP_REASON_OPT, KT_UINT},
 #line 130 "mper_keywords.gperf"
+      {"reply_cnt", KC_REPLY_CNT_OPT, KT_UINT},
+#line 127 "mper_keywords.gperf"
+      {"sport", KC_SPORT_OPT, KT_UINT},
+#line 163 "mper_keywords.gperf"
+      {"stop_reason", KC_STOP_REASON_OPT, KT_UINT},
+#line 131 "mper_keywords.gperf"
       {"timeout", KC_TIMEOUT_OPT, KT_UINT},
-#line 152 "mper_keywords.gperf"
+#line 154 "mper_keywords.gperf"
       {"reply_rr", KC_REPLY_RR_OPT, KT_STR},
-#line 151 "mper_keywords.gperf"
+#line 152 "mper_keywords.gperf"
       {"reply_tcp", KC_REPLY_TCP_OPT, KT_UINT},
-#line 149 "mper_keywords.gperf"
+#line 150 "mper_keywords.gperf"
       {"reply_icmp", KC_REPLY_ICMP_OPT, KT_UINT},
       {"",KC_NONE,KT_NONE},
-#line 114 "mper_keywords.gperf"
+#line 115 "mper_keywords.gperf"
       {"resp_timeout", KC_RESP_TIMEOUT_CMD, KT_NONE},
-#line 119 "mper_keywords.gperf"
+#line 120 "mper_keywords.gperf"
       {"pkt", KC_PKT_OPT, KT_BLOB},
-#line 134 "mper_keywords.gperf"
+#line 135 "mper_keywords.gperf"
       {"tsandaddr", KC_TSANDADDR_OPT, KT_UINT},
-#line 113 "mper_keywords.gperf"
+#line 114 "mper_keywords.gperf"
       {"send_error", KC_SEND_ERROR_CMD, KT_NONE},
       {"",KC_NONE,KT_NONE}, {"",KC_NONE,KT_NONE},
-#line 123 "mper_keywords.gperf"
+#line 124 "mper_keywords.gperf"
       {"ttl", KC_TTL_OPT, KT_UINT},
-#line 147 "mper_keywords.gperf"
+#line 148 "mper_keywords.gperf"
       {"reply_ttl", KC_REPLY_TTL_OPT, KT_UINT},
-#line 150 "mper_keywords.gperf"
+#line 151 "mper_keywords.gperf"
       {"reply_qttl", KC_REPLY_QTTL_OPT, KT_UINT},
       {"",KC_NONE,KT_NONE}, {"",KC_NONE,KT_NONE},
-#line 138 "mper_keywords.gperf"
+#line 139 "mper_keywords.gperf"
       {"tsps_ip4", KC_TSPS_IP4_OPT, KT_ADDRESS},
-#line 115 "mper_keywords.gperf"
+#line 116 "mper_keywords.gperf"
       {"ping_resp", KC_PING_RESP_CMD, KT_NONE},
-#line 120 "mper_keywords.gperf"
+#line 121 "mper_keywords.gperf"
       {"src", KC_SRC_OPT, KT_ADDRESS},
-#line 146 "mper_keywords.gperf"
+#line 147 "mper_keywords.gperf"
       {"reply_src", KC_REPLY_SRC_OPT, KT_ADDRESS},
       {"",KC_NONE,KT_NONE},
-#line 122 "mper_keywords.gperf"
+#line 123 "mper_keywords.gperf"
       {"net", KC_NET_OPT, KT_PREFIX},
-#line 159 "mper_keywords.gperf"
+#line 161 "mper_keywords.gperf"
       {"reply_tsps_ts4", KC_REPLY_TSPS_TS4_OPT, KT_UINT},
-#line 148 "mper_keywords.gperf"
+#line 149 "mper_keywords.gperf"
       {"reply_ipid", KC_REPLY_IPID_OPT, KT_UINT},
-#line 139 "mper_keywords.gperf"
+#line 140 "mper_keywords.gperf"
       {"udata", KC_UDATA_OPT, KT_UINT},
       {"",KC_NONE,KT_NONE}, {"",KC_NONE,KT_NONE},
-#line 144 "mper_keywords.gperf"
+#line 145 "mper_keywords.gperf"
       {"probe_ttl", KC_PROBE_TTL_OPT, KT_UINT},
-#line 162 "mper_keywords.gperf"
+#line 164 "mper_keywords.gperf"
       {"stop_data", KC_STOP_DATA_OPT, KT_UINT},
       {"",KC_NONE,KT_NONE}, {"",KC_NONE,KT_NONE},
-#line 137 "mper_keywords.gperf"
+#line 138 "mper_keywords.gperf"
       {"tsps_ip3", KC_TSPS_IP3_OPT, KT_ADDRESS},
-#line 112 "mper_keywords.gperf"
+#line 113 "mper_keywords.gperf"
       {"cmd_error", KC_CMD_ERROR_CMD, KT_NONE},
-#line 125 "mper_keywords.gperf"
+#line 126 "mper_keywords.gperf"
       {"cksum", KC_CKSUM_OPT, KT_UINT},
       {"",KC_NONE,KT_NONE}, {"",KC_NONE,KT_NONE},
       {"",KC_NONE,KT_NONE},
-#line 157 "mper_keywords.gperf"
+#line 159 "mper_keywords.gperf"
       {"reply_tsps_ts3", KC_REPLY_TSPS_TS3_OPT, KT_UINT},
-#line 145 "mper_keywords.gperf"
+#line 146 "mper_keywords.gperf"
       {"probe_ipid", KC_PROBE_IPID_OPT, KT_UINT},
       {"",KC_NONE,KT_NONE}, {"",KC_NONE,KT_NONE},
-#line 136 "mper_keywords.gperf"
+#line 137 "mper_keywords.gperf"
       {"tsps_ip2", KC_TSPS_IP2_OPT, KT_ADDRESS},
-#line 160 "mper_keywords.gperf"
+#line 162 "mper_keywords.gperf"
       {"reply_tsps_ip4", KC_REPLY_TSPS_IP4_OPT, KT_ADDRESS},
+#line 153 "mper_keywords.gperf"
+      {"reply_ipopt_cmp", KC_REPLY_IPOPT_CMP_OPT, KT_UINT},
       {"",KC_NONE,KT_NONE}, {"",KC_NONE,KT_NONE},
-      {"",KC_NONE,KT_NONE},
-#line 135 "mper_keywords.gperf"
+#line 136 "mper_keywords.gperf"
       {"tsps_ip1", KC_TSPS_IP1_OPT, KT_ADDRESS},
-#line 155 "mper_keywords.gperf"
+#line 157 "mper_keywords.gperf"
       {"reply_tsps_ts2", KC_REPLY_TSPS_TS2_OPT, KT_UINT},
       {"",KC_NONE,KT_NONE}, {"",KC_NONE,KT_NONE},
       {"",KC_NONE,KT_NONE}, {"",KC_NONE,KT_NONE},
-#line 153 "mper_keywords.gperf"
+#line 155 "mper_keywords.gperf"
       {"reply_tsps_ts1", KC_REPLY_TSPS_TS1_OPT, KT_UINT},
       {"",KC_NONE,KT_NONE}, {"",KC_NONE,KT_NONE},
-#line 128 "mper_keywords.gperf"
+#line 129 "mper_keywords.gperf"
       {"spacing", KC_SPACING_OPT, KT_UINT},
       {"",KC_NONE,KT_NONE},
-#line 158 "mper_keywords.gperf"
+#line 160 "mper_keywords.gperf"
       {"reply_tsps_ip3", KC_REPLY_TSPS_IP3_OPT, KT_ADDRESS},
       {"",KC_NONE,KT_NONE}, {"",KC_NONE,KT_NONE},
       {"",KC_NONE,KT_NONE}, {"",KC_NONE,KT_NONE},
-#line 111 "mper_keywords.gperf"
+#line 112 "mper_keywords.gperf"
       {"ping", KC_PING_CMD, KT_NONE},
       {"",KC_NONE,KT_NONE}, {"",KC_NONE,KT_NONE},
       {"",KC_NONE,KT_NONE}, {"",KC_NONE,KT_NONE},
-#line 156 "mper_keywords.gperf"
+#line 158 "mper_keywords.gperf"
       {"reply_tsps_ip2", KC_REPLY_TSPS_IP2_OPT, KT_ADDRESS},
       {"",KC_NONE,KT_NONE}, {"",KC_NONE,KT_NONE},
       {"",KC_NONE,KT_NONE}, {"",KC_NONE,KT_NONE},
-#line 154 "mper_keywords.gperf"
+#line 156 "mper_keywords.gperf"
       {"reply_tsps_ip1", KC_REPLY_TSPS_IP1_OPT, KT_ADDRESS}
     };
 
@@ -353,6 +353,6 @@ in_word_set (str, len)
     }
   return 0;
 }
-#line 163 "mper_keywords.gperf"
+#line 165 "mper_keywords.gperf"
 
 /* functions */

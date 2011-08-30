@@ -78,6 +78,7 @@ const char* keyword_code_names[] = {
   "reply_icmp",
   "reply_qttl",
   "reply_tcp",
+  "reply_ipopt_cmp",
   "reply_rr",
   "reply_tsps_ts1",
   "reply_tsps_ip1",
@@ -149,6 +150,7 @@ reply_ipid, KC_REPLY_IPID_OPT, KT_UINT
 reply_icmp, KC_REPLY_ICMP_OPT, KT_UINT
 reply_qttl, KC_REPLY_QTTL_OPT, KT_UINT
 reply_tcp, KC_REPLY_TCP_OPT, KT_UINT
+reply_ipopt_cmp, KC_REPLY_IPOPT_CMP_OPT, KT_UINT
 reply_rr, KC_REPLY_RR_OPT, KT_STR
 reply_tsps_ts1, KC_REPLY_TSPS_TS1_OPT, KT_UINT
 reply_tsps_ip1, KC_REPLY_TSPS_IP1_OPT, KT_ADDRESS

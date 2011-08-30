@@ -754,19 +754,19 @@ static void do_ping_probe(scamper_task_t *task)
   probe.pr_data      = pktbuf;
   probe.pr_len       = payload_len;
 
-  if((ping->flags & SCAMPER_PING_FLAG_V4RR) != 0)
+  if((ping->ipopt_flags & SCAMPER_ICMP_RESP_IPOPT_FLAG_V4RR) != 0)
     {
       opt.type = SCAMPER_PROBE_IPOPTS_V4RR;
       probe.pr_ipopts = &opt;
       probe.pr_ipoptc = 1;
     }
-  else if((ping->flags & SCAMPER_PING_FLAG_TSONLY) != 0)
+  else if((ping->ipopt_flags & SCAMPER_ICMP_RESP_IPOPT_FLAG_TSONLY) != 0)
     {
       opt.type = SCAMPER_PROBE_IPOPTS_V4TSO;
       probe.pr_ipopts = &opt;
       probe.pr_ipoptc = 1;
     }
-  else if((ping->flags & SCAMPER_PING_FLAG_TSANDADDR) != 0)
+  else if((ping->ipopt_flags & SCAMPER_ICMP_RESP_IPOPT_FLAG_TSANDADDR) != 0)
     {
       opt.type = SCAMPER_PROBE_IPOPTS_V4TSAA;
       probe.pr_ipopts = &opt;
@@ -1237,6 +1237,8 @@ static void do_ping_handle_icmp(scamper_task_t *task, scamper_icmp_resp_t *ir)
 
       reply->reply_proto = IPPROTO_ICMP;
 
+      reply->ipopt_flags = ir->ir_ipopt;
+
       if(rrs != NULL && rrc > 0)
 	{
 	  if((v4rr = scamper_ping_reply_v4rr_alloc(rrc)) == NULL)
@@ -1343,7 +1345,7 @@ static void do_ping_write_reply(scamper_task_t *task, scamper_ping_t *ping,
   char rr[39*9+8+1];
   char rr_ip[40];
 
-  size_t opts = 11, rrlen = 0;
+  size_t opts = 10, rrlen = 0;
   int i;
 
   scamper_addr_tostr(ping->src, src_addr, 40);
@@ -1361,11 +1363,19 @@ static void do_ping_write_reply(scamper_task_t *task, scamper_ping_t *ping,
   SET_ADDRESS_CWORD(resp_words, 8, REPLY_SRC, reply_addr);
   SET_UINT_CWORD(resp_words, 9, REPLY_TTL, reply->reply_ttl);
   SET_UINT_CWORD(resp_words, 10, REPLY_IPID, reply->reply_ipid);
+  
+  if(ping->ipopt_flags-reply->ipopt_flags != 0)
+    {
+      opts++;
+      SET_UINT_CWORD(resp_words, opts, REPLY_IPOPT_CMP, 
+		     (ping->ipopt_flags-reply->ipopt_flags));
+    }
 
   if(SCAMPER_PING_REPLY_IS_ICMP(reply))
     {
-      uint32_t icmp_value = (reply->icmp_type << 8) | reply->icmp_code;
-      SET_UINT_CWORD(resp_words, 11, REPLY_ICMP, icmp_value);
+      uint32_t icmp_value = (reply->icmp_type << 8) | reply->icmp_code;\
+      opts++;
+      SET_UINT_CWORD(resp_words, opts, REPLY_ICMP, icmp_value);
 
       if(!SCAMPER_PING_REPLY_IS_ICMP_ECHO_REPLY(reply))
         {
@@ -1823,15 +1833,15 @@ scamper_ping_t *scamper_do_ping_alloc(const control_word_t *words,
 
 	case KC_RR_OPT:
 	  if(words[i].cw_uint != 0)
-	    ipopt_flags |= SCAMPER_PING_FLAG_V4RR;
+	    ipopt_flags |= SCAMPER_ICMP_RESP_IPOPT_FLAG_V4RR;
 	  break;
 
 	case KC_TSONLY_OPT:
-	  ipopt_flags |= SCAMPER_PING_FLAG_TSONLY;
+	  ipopt_flags |= SCAMPER_ICMP_RESP_IPOPT_FLAG_TSONLY;
 	  break;
 
 	case KC_TSANDADDR_OPT:
-	  ipopt_flags |= SCAMPER_PING_FLAG_TSANDADDR;
+	  ipopt_flags |= SCAMPER_ICMP_RESP_IPOPT_FLAG_TSANDADDR;
 	  break;
 
 	case KC_TSPS_IP1_OPT:
@@ -1843,6 +1853,7 @@ scamper_ping_t *scamper_do_ping_alloc(const control_word_t *words,
 	      *error_msg = "too many tsps addresses given";
 	      goto err;
 	    }
+	  ipopt_flags |= SCAMPER_ICMP_RESP_IPOPT_FLAG_TSPS;
 	  tspsaddr[tspsc++] = words[i].cw_address;
 	  break;
 
@@ -1924,7 +1935,7 @@ scamper_ping_t *scamper_do_ping_alloc(const control_word_t *words,
 	  goto err;
 	}
 
-      if(ipopt_flags != 0)
+      if(ipopt_flags != SCAMPER_ICMP_RESP_IPOPT_FLAG_TSPS)
 	{
 	  *error_msg = "only one ip option may be used at a time";
 	  goto err;
@@ -1958,13 +1969,13 @@ scamper_ping_t *scamper_do_ping_alloc(const control_word_t *words,
 	      probe_size = SCAMPER_DO_PING_PROBESIZE_V4_MIN + 2;
 	    }
 
-	  if(ipopt_flags & SCAMPER_PING_FLAG_V4RR)
+	  if(ipopt_flags & SCAMPER_ICMP_RESP_IPOPT_FLAG_V4RR)
 	    probe_size += 40;
 	  else if(ping->probe_tsps != NULL)
 	    probe_size += (8 * ping->probe_tsps->ipc) + 4;
-	  else if(ipopt_flags & SCAMPER_PING_FLAG_TSONLY)
+	  else if(ipopt_flags & SCAMPER_ICMP_RESP_IPOPT_FLAG_TSONLY)
 	    probe_size += 40;
-	  else if(ipopt_flags & SCAMPER_PING_FLAG_TSANDADDR)
+	  else if(ipopt_flags & SCAMPER_ICMP_RESP_IPOPT_FLAG_TSANDADDR)
 	    probe_size += 36;
 	  
 	}
@@ -2041,7 +2052,7 @@ scamper_ping_t *scamper_do_ping_alloc(const control_word_t *words,
   ping->reply_count  = reply_count;
   ping->spacing      = spacing;
   ping->opt_set_cksum = opt_set_cksum;
-  ping->flags        = ipopt_flags;
+  ping->ipopt_flags        = ipopt_flags;
   return ping;
 
  err:

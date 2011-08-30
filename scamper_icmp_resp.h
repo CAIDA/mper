@@ -27,6 +27,12 @@
 #define SCAMPER_ICMP_RESP_FLAG_KERNRX   (0x01)
 #define SCAMPER_ICMP_RESP_FLAG_INNER_IP (0x02)
 
+#define SCAMPER_ICMP_RESP_IPOPT_FLAG_NOOP            0x01
+#define SCAMPER_ICMP_RESP_IPOPT_FLAG_V4RR            0x02 /* -R: IPv4 RR */
+#define SCAMPER_ICMP_RESP_IPOPT_FLAG_TSONLY          0x04 /* -T tsonly */
+#define SCAMPER_ICMP_RESP_IPOPT_FLAG_TSANDADDR       0x08 /* -T tsandaddr */
+#define SCAMPER_ICMP_RESP_IPOPT_FLAG_TSPS            0x10 /* -T tsprespec */
+
 #define SCAMPER_ICMP_RESP_IS_ECHO_REPLY(ir) ( \
  (ir->ir_af == AF_INET  && ir->ir_icmp_type == 0) || \
  (ir->ir_af == AF_INET6 && ir->ir_icmp_type == 129))
@@ -118,6 +124,8 @@ typedef struct scamper_icmp_resp
   uint16_t          ir_ip_id;
   uint8_t           ir_ip_tos;
   int16_t           ir_ip_ttl;  /* ir_ip_hlim; -1 if unavailable */
+
+  uint8_t           ir_ipopt; /* the IP Options type(s) */
 
   /*
    * if the response includes the IPv4 record route option, IP addresses

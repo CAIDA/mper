@@ -543,6 +543,7 @@ static void ipopt_parse(scamper_icmp_resp_t *ir, const uint8_t *buf, int iphl,
       if(buf[off] == 1)
 	{
 	  off++;
+	  ir->ir_ipopt |= SCAMPER_ICMP_RESP_IPOPT_FLAG_NOOP;
 	  continue;
 	}
 
@@ -555,6 +556,7 @@ static void ipopt_parse(scamper_icmp_resp_t *ir, const uint8_t *buf, int iphl,
       if(buf[off] == 7 && rr != NULL)
 	{
 	  /* record route */
+	  ir->ir_ipopt |= SCAMPER_ICMP_RESP_IPOPT_FLAG_V4RR;
 	  p = buf[off+2];
 	  if(p >= 4 && (p % 4) == 0 && (rrc = (p / 4) - 1) != 0 &&
 	     (rrs = memdup(buf+off+3, rrc * 4)) != NULL)
@@ -567,6 +569,18 @@ static void ipopt_parse(scamper_icmp_resp_t *ir, const uint8_t *buf, int iphl,
 	  /* timestamp */
 	  p  = buf[off+2] - 1;
 	  fl = buf[off+3] & 0xf;
+	  if(fl == 0)
+	    {
+	      ir->ir_ipopt |= SCAMPER_ICMP_RESP_IPOPT_FLAG_TSONLY;
+	    }
+	  else if(fl == 1)
+	    {
+	      ir->ir_ipopt |= SCAMPER_ICMP_RESP_IPOPT_FLAG_TSANDADDR;
+	    }
+	  else if(fl == 3)
+	    {
+	      ir->ir_ipopt |= SCAMPER_ICMP_RESP_IPOPT_FLAG_TSPS;
+	    }
 	  if(p <= ol)
 	    ts(ir, fl, buf+off+4, p-4);
 	}

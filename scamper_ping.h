@@ -84,11 +84,14 @@
 #define SCAMPER_PING_METHOD_UDP           0x03
 #define SCAMPER_PING_METHOD_UDP_DPORT     0x04
 
-#define SCAMPER_PING_FLAG_V4RR            0x01 /* -R: IPv4 record route */
+#define SCAMPER_PING_IPOPT_FLAG_NOOP            0x01
+#define SCAMPER_PING_IPOPT_FLAG_V4RR            0x02 /* -R: IPv4 record route */
+#define SCAMPER_PING_IPOPT_FLAG_TSONLY          0x04 /* -T tsonly */
+#define SCAMPER_PING_IPOPT_FLAG_TSANDADDR       0x08 /* -T tsandaddr */
+#define SCAMPER_PING_IPOPT_FLAG_TSPS            0x10 /* -T tsprespec */
+
 #define SCAMPER_PING_FLAG_SPOOF           0x02 /* -O spoof: spoof src */
 #define SCAMPER_PING_FLAG_PAYLOAD         0x04 /* probe_data is payload */
-#define SCAMPER_PING_FLAG_TSONLY          0x08 /* -T tsonly */
-#define SCAMPER_PING_FLAG_TSANDADDR       0x10 /* -T tsandaddr */
 #define SCAMPER_PING_FLAG_ICMPSUM         0x20 /* -C csum */
 
 typedef struct scamper_ping_reply_v4rr
@@ -148,6 +151,7 @@ typedef struct scamper_ping_reply
   uint8_t                    tcp_flags;
 
   /* data found in IP options, if any */
+  uint8_t                    ipopt_flags;
   scamper_ping_reply_v4rr_t *v4rr;
   scamper_ping_reply_v4ts_t *v4ts;
 
@@ -195,7 +199,7 @@ typedef struct scamper_ping
   uint16_t               reply_count;  /* -o option to ping */
   uint32_t               spacing;      /* in ms */
   scamper_ping_v4ts_t   *probe_tsps;   /* -T option to ping */
-  uint8_t                flags;
+  uint8_t                ipopt_flags;
 
   uint8_t                opt_set_cksum;  /* user provided checksum */
 
