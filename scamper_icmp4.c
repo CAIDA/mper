@@ -569,18 +569,14 @@ static void ipopt_parse(scamper_icmp_resp_t *ir, const uint8_t *buf, int iphl,
 	  /* timestamp */
 	  p  = buf[off+2] - 1;
 	  fl = buf[off+3] & 0xf;
+
 	  if(fl == 0)
-	    {
-	      ir->ir_ipopt |= SCAMPER_ICMP_RESP_IPOPT_FLAG_TSONLY;
-	    }
+	    ir->ir_ipopt |= SCAMPER_ICMP_RESP_IPOPT_FLAG_TSONLY;
 	  else if(fl == 1)
-	    {
-	      ir->ir_ipopt |= SCAMPER_ICMP_RESP_IPOPT_FLAG_TSANDADDR;
-	    }
+	    ir->ir_ipopt |= SCAMPER_ICMP_RESP_IPOPT_FLAG_TSANDADDR;
 	  else if(fl == 3)
-	    {
-	      ir->ir_ipopt |= SCAMPER_ICMP_RESP_IPOPT_FLAG_TSPS;
-	    }
+	    ir->ir_ipopt |= SCAMPER_ICMP_RESP_IPOPT_FLAG_TSPS;
+
 	  if(p <= ol)
 	    ts(ir, fl, buf+off+4, p-4);
 	}
