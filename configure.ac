@@ -100,6 +100,9 @@ if test "x$with_dmalloc" = xyes; then
 
 fi
 
+# check for gperf
+AM_MISSING_PROG([GPERF], [gperf])
+
 # Checks for libraries.
 AC_CHECK_LIB([iphlpapi], [GetIpNetTable])
 AC_CHECK_LIB([ws2_32], [WSAStartup])

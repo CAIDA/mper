@@ -48,6 +48,52 @@ mper_SOURCES = \
 	mper_msg_reader.c \
 	mper_msg_writer.c
 
+include_HEADERS = \
+	internal.h \
+	mjl_heap.h \
+	mjl_list.h \
+	mjl_splaytree.h \
+	mper_base64.h \
+	mper_keywords.h \
+	mper_keywords.gperf \
+	mper_msg.h \
+	mper_msg_reader.h \
+	mper_msg_writer.h \
+	scamper.h \
+	scamper_addr.h \
+	scamper_addr2mac.h \
+	scamper_control.h \
+	scamper_debug.h \
+	scamper_dl.h \
+	scamper_do_ping.h \
+	scamper_fds.h \
+	scamper_firewall.h \
+	scamper_getsrc.h \
+	scamper_icmp4.h \
+	scamper_icmp6.h \
+	scamper_icmp_resp.h \
+	scamper_icmpext.h \
+	scamper_if.h \
+	scamper_ip4.h \
+	scamper_ip6.h \
+	scamper_linepoll.h \
+	scamper_options.h \
+	scamper_ping.h \
+	scamper_privsep.h \
+	scamper_probe.h \
+	scamper_queue.h \
+	scamper_rtsock.h \
+	scamper_target.h \
+	scamper_task.h \
+	scamper_tcp4.h \
+	scamper_tcp6.h \
+	scamper_tlv.h \
+	scamper_udp4.h \
+	scamper_udp6.h \
+	scamper_writebuf.h \
+	systypes.h \
+	utils.h
+
 test_msg_reader_SOURCES = \
 	mper_base64.c \
 	mper_keywords.c \
@@ -64,6 +110,15 @@ test_msg_writer_SOURCES = \
 BUILT_SOURCES = mper_keywords.c
 
 mper_keywords.c: Makefile mper_keywords.h mper_keywords.gperf
-	gperf mper_keywords.gperf >$@
+	if $(GPERF) $(GPERFFLAGS) \
+                mper_keywords.gperf >$@~; then \
+               mv $@~ $@; \
+             elif $(GPERF) --version >/dev/null 2>&1; then \
+               rm $@~; \
+               exit 0; \
+             else \
+               rm $@~; \
+               touch $@; \
+             fi
 
-CLEANFILES = *~ mper_keywords.c
+CLEANFILES = *~
