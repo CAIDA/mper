@@ -25,28 +25,10 @@
  * 
  */
 
-#include <sys/types.h>
-
-#ifndef _WIN32
-#include <netinet/in.h>
+#ifdef HAVE_CONFIG_H
+#include "config.h"
 #endif
-
-#if defined(_MSC_VER)
-typedef unsigned __int8 uint8_t;
-#endif
-
-#include <stdlib.h>
-#include <string.h>
-
-#if defined(__APPLE__)
-#include <stdint.h>
-#endif
-
-#include <assert.h>
-
-#if defined(DMALLOC)
-#include <dmalloc.h>
-#endif
+#include "internal.h"
 
 #include "scamper_linepoll.h"
 

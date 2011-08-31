@@ -21,58 +21,10 @@
  * 
  */
 
-#ifndef _WIN32
-#include <sys/param.h>
+#ifdef HAVE_CONFIG_H
+#include "config.h"
 #endif
-
-#if !defined(__sun__) && !defined(_WIN32)
-#include <sys/sysctl.h>
-#endif
-
-#include <sys/types.h>
-
-#if defined(_MSC_VER)
-typedef unsigned __int8 uint8_t;
-typedef unsigned __int16 uint16_t;
-typedef unsigned __int32 uint32_t;
-#define __func__ __FUNCTION__
-#endif
-
-#ifdef _WIN32
-#include <winsock2.h>
-#include <iphlpapi.h>
-#endif
-
-#ifndef _WIN32
-#include <sys/socket.h>
-#include <net/if.h>
-#endif
-
-#if defined(__linux__)
-#define __FAVOR_BSD
-#elif !defined(_WIN32)
-#include <net/if_dl.h>
-#endif
-
-#if defined(__sun__)
-#define BSD_COMP
-#endif
-
-#ifndef _WIN32
-#include <sys/ioctl.h>
-#include <netinet/in.h>
-#include <unistd.h>
-#endif
-
-#include <stdlib.h>
-#include <string.h>
-#include <errno.h>
-
-#if defined(DMALLOC)
-#include <dmalloc.h>
-#endif
-
-#include <assert.h>
+#include "internal.h"
 
 #include "scamper_debug.h"
 #include "scamper_fds.h"

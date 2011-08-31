@@ -21,43 +21,10 @@
  *
  */
 
-#if defined(__APPLE__)
-#include <stdint.h>
+#ifdef HAVE_CONFIG_H
+#include "config.h"
 #endif
-
-#include <sys/types.h>
-
-#if defined(_MSC_VER)
-typedef unsigned __int8 uint8_t;
-typedef unsigned __int16 uint16_t;
-typedef unsigned __int32 uint32_t;
-#endif
-
-#ifndef _WIN32
-#include <sys/socket.h>
-#include <sys/time.h>
-#include <sys/uio.h>
-#include <netinet/in.h>
-#include <unistd.h>
-#endif
-
-#include <stdlib.h>
-#include <string.h>
-#include <errno.h>
-#include <assert.h>
-
-#ifdef _WIN32
-#include <winsock2.h>
-struct iovec
-{
-  void   *iov_base;
-  size_t  iov_len;
-};
-#endif
-
-#if defined(DMALLOC)
-#include <dmalloc.h>
-#endif
+#include "internal.h"
 
 #include "scamper_fds.h"
 #include "scamper_writebuf.h"

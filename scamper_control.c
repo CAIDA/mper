@@ -30,58 +30,10 @@
  *
  */
 
-#if defined(_MSC_VER)
-typedef unsigned __int8 uint8_t;
-typedef unsigned __int16 uint16_t;
-typedef unsigned __int32 uint32_t;
-typedef int ssize_t;
-typedef int pid_t;
-typedef int socklen_t;
-#define __func__ __FUNCTION__
+#ifdef HAVE_CONFIG_H
+#include "config.h"
 #endif
-
-#ifdef _WIN32
-#include <winsock2.h>
-#include <io.h>
-#include <process.h>
-#define close _close
-#define read _read
-#define snprintf _snprintf
-#define strcasecmp _stricmp
-#define SHUT_RDWR SD_BOTH
-#define O_NONBLOCK _O_NONBLOCK
-#endif
-
-#if defined(__APPLE__)
-#define _BSD_SOCKLEN_T_
-#include <stdint.h>
-#endif
-
-#include <sys/types.h>
-
-#ifndef _WIN32
-#include <sys/socket.h>
-#include <sys/un.h>
-#include <sys/time.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>  /* for TCP_NODELAY */
-#include <unistd.h>
-#include <sys/stat.h>
-#endif
-
-#include <errno.h>
-#include <string.h>
-#include <stdlib.h>
-#include <fcntl.h>
-#include <stdio.h>
-#include <ctype.h>
-#include <stdarg.h>
-
-#include <assert.h>
-
-#if defined(DMALLOC)
-#include <dmalloc.h>
-#endif
+#include "internal.h"
 
 #include "scamper.h"
 #include "scamper_debug.h"

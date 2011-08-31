@@ -21,31 +21,10 @@
  *
  */
 
-#include <sys/types.h>
-
-#if defined(_MSC_VER)
-typedef unsigned __int8 uint8_t;
-typedef unsigned __int16 uint16_t;
+#ifdef HAVE_CONFIG_H
+#include "config.h"
 #endif
-
-#ifndef _WIN32
-#include <sys/time.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#endif
-
-#include <stdlib.h>
-#include <string.h>
-#include <ctype.h>
-#include <assert.h>
-
-#if defined(__APPLE__)
-#include <stdint.h>
-#endif
-
-#if defined(DMALLOC)
-#include <dmalloc.h>
-#endif
+#include "internal.h"
 
 #include "scamper_options.h"
 #include "utils.h"

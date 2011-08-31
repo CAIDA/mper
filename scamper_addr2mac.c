@@ -24,6 +24,11 @@
  *
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+#include "internal.h"
+
 #if defined(__APPLE__)
 #define HAVE_BSD_ARPCACHE
 #include <stdint.h>
@@ -45,67 +50,10 @@
 #define HAVE_BSD_ARPCACHE
 #endif
 
-#include <sys/types.h>
-
-#if defined(_MSC_VER)
-typedef unsigned __int8 uint8_t;
-typedef unsigned __int16 uint16_t;
-typedef unsigned __int32 uint32_t;
-#define __func__ __FUNCTION__
-#endif
-
-#ifdef _WIN32
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#include <iphlpapi.h>
-struct ip6_hdr
-{
-  uint32_t        ip6_vfc_flow;
-  uint16_t        ip6_plen;
-  uint8_t         ip6_nxt;
-  uint8_t         ip6_hlim;
-  struct in6_addr ip6_src;
-  struct in6_addr ip6_dst;
-};
-struct icmp6_hdr
-{
-  uint8_t  icmp6_type;
-  uint8_t  icmp6_code;
-  uint16_t icmp6_cksum;
-  uint32_t icmp6_data32;
-};
-#endif
-
-#ifndef _WIN32
-#include <sys/uio.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netinet/ip6.h>
-#include <netinet/icmp6.h>
-#include <arpa/inet.h>
-#endif
-
 #if defined(HAVE_BSD_ARPCACHE)
-#include <sys/param.h>
-#include <sys/sysctl.h>
-#include <net/if.h>
-#include <net/if_dl.h>
-#include <net/if_types.h>
-#include <net/route.h>
-#include <netinet/if_ether.h>
 #define ROUNDUP(size) \
         ((size > 0) ? (1 + ((size - 1) | (sizeof(long) - 1))) : sizeof(long))
 #endif
-
-#include <string.h>
-#include <stdlib.h>
-#include <errno.h>
-
-#ifndef _WIN32
-#include <unistd.h>
-#endif
-
-#include <assert.h>
 
 #if defined(__linux__)
 
@@ -180,35 +128,11 @@ struct rtattr
 
 #endif /* __linux__ */
 
-#if defined(DMALLOC)
-#include <dmalloc.h>
-#endif
-
 #include "scamper_addr.h"
 #include "scamper_addr2mac.h"
 #include "scamper_debug.h"
 #include "utils.h"
 #include "mjl_splaytree.h"
-
-#if !defined(ETHERTYPE_IP)
-#define ETHERTYPE_IP   0x0800
-#endif
-
-#if !defined(ETHERTYPE_IPV6)
-#define ETHERTYPE_IPV6 0x86DD
-#endif
-
-#if !defined(ETHERTYPE_ARP)
-#define ETHERTYPE_ARP  0x0806
-#endif
-
-#ifndef ND_NEIGHBOR_SOLICIT
-#define ND_NEIGHBOR_SOLICIT 135
-#endif
-
-#ifndef ND_NEIGHBOR_ADVERT
-#define ND_NEIGHBOR_ADVERT 136
-#endif
 
 typedef struct addr2mac
 {

@@ -21,102 +21,10 @@
  *
  */
 
-#if defined(__FreeBSD__)
-#include <sys/param.h>
+#ifdef HAVE_CONFIG_H
+#include "config.h"
 #endif
-
-#if defined(__sun__)
-#define _XPG4_2
-#define __EXTENSIONS__
-#endif
-
-#include <sys/types.h>
-
-#if defined(_MSC_VER)
-typedef unsigned __int8 uint8_t;
-typedef unsigned __int16 uint16_t;
-typedef unsigned __int32 uint32_t;
-typedef __int16 int16_t;
-typedef int ssize_t;
-#define __func__ __FUNCTION__
-#endif
-
-#ifdef _WIN32
-#include <winsock2.h>
-#include <ws2tcpip.h>
-struct ip6_hdr
-{
-  uint32_t        ip6_vfc_flow;
-  uint16_t        ip6_plen;
-  uint8_t         ip6_nxt;
-  uint8_t         ip6_hlim;
-  struct in6_addr ip6_src;
-  struct in6_addr ip6_dst;
-};
-struct icmp6_hdr
-{
-  uint8_t  icmp6_type;
-  uint8_t  icmp6_code;
-  uint16_t icmp6_cksum;
-  uint16_t icmp6_id;
-  uint16_t icmp6_seq;
-};
-struct udphdr
-{
-  uint16_t uh_sport;
-  uint16_t uh_dport;
-  uint16_t uh_ulen;
-  uint16_t uh_sum;
-};
-struct tcphdr {
-  uint16_t th_sport;
-  uint16_t th_dport;
-  uint32_t th_seq;
-  uint32_t th_ack;
-  uint8_t  th_offx2;
-  uint8_t  th_flags;
-  uint16_t th_win;
-  uint16_t th_sum;
-  uint16_t th_urp;
-};
-#endif
-
-#ifndef _WIN32
-#include <sys/time.h>
-#include <sys/socket.h>
-#include <sys/uio.h>
-#include <netinet/in.h>
-#endif
-
-#if defined(__linux__)
-#define __FAVOR_BSD
-#include <sys/ioctl.h>
-#endif
-
-#ifndef _WIN32
-#include <netinet/in_systm.h>
-#include <netinet/ip6.h>
-#include <netinet/icmp6.h>
-#include <netinet/udp.h>
-#include <netinet/tcp.h>
-#include <arpa/inet.h>
-#include <unistd.h>
-#endif
-
-#include <errno.h>
-#include <string.h>
-#include <stdio.h>
-#include <stdlib.h>
-
-#if defined(__APPLE__)
-#include <stdint.h>
-#endif
-
-#include <assert.h>
-
-#if defined(DMALLOC)
-#include <dmalloc.h>
-#endif
+#include "internal.h"
 
 #include "scamper.h"
 #include "scamper_addr.h"

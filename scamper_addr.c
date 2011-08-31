@@ -21,50 +21,14 @@
  *
  */
 
-#if defined(_MSC_VER)
-typedef unsigned __int8 uint8_t;
-typedef unsigned __int16 uint16_t;
-typedef unsigned __int32 uint32_t;
+#ifdef HAVE_CONFIG_H
+#include "config.h"
 #endif
-
-#ifdef _WIN32
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#define snprintf _snprintf
-#endif
-
-#include <sys/types.h>
-
-#ifndef _WIN32
-#include <sys/time.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <netdb.h>
-#endif
-
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
-#include <assert.h>
-
-#if defined(__APPLE__)
-#include <stdint.h>
-#endif
-
-#if defined(DMALLOC)
-#include <dmalloc.h>
-#endif
+#include "internal.h"
 
 #include "mjl_splaytree.h"
 #include "scamper_addr.h"
 #include "utils.h"
-
-#if defined(__sun__)
-# define s6_addr32 _S6_un._S6_u32
-#elif !defined(s6_addr32)
-# define s6_addr32 __u6_addr.__u6_addr32
-#endif
 
 /*
  * convenient table for masking off portions of addresses for checking

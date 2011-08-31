@@ -21,56 +21,10 @@
  * 
  */
 
-#if defined(_MSC_VER)
-typedef unsigned __int8 uint8_t;
-typedef unsigned __int16 uint16_t;
-typedef unsigned __int32 uint32_t;
-typedef __int16 int16_t;
-#define __func__ __FUNCTION__
+#ifdef HAVE_CONFIG_H
+#include "config.h"
 #endif
-
-#ifdef _WIN32
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#define snprintf _snprintf
-#define strcasecmp _stricmp
-#endif
-
-#include <sys/types.h>
-
-#if defined(__linux__)
-#define __FAVOR_BSD
-#endif
-
-#ifndef _WIN32
-#include <sys/time.h>
-#include <sys/socket.h>
-#include <net/if.h>
-#include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#include <netinet/ip_icmp.h>
-#include <netinet/ip6.h>
-#include <netinet/icmp6.h>
-#include <netinet/tcp.h>
-#include <unistd.h>
-#endif
-
-#if defined(__APPLE__)
-#include <stdint.h>
-#endif
-
-#include <stdlib.h>
-#include <stdio.h>
-#include <errno.h>
-
-#include <string.h>
-
-#if defined(DMALLOC)
-#include <dmalloc.h>
-#endif
-
-#include <assert.h>
+#include "internal.h"
 
 #include "mper_keywords.h"
 #include "mper_msg.h"

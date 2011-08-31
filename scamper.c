@@ -23,48 +23,10 @@
  *
  */
 
-#if defined(_MSC_VER)
-typedef unsigned __int8 uint8_t;
-typedef unsigned __int16 uint16_t;
-typedef unsigned __int32 uint32_t;
-#define __func__ __FUNCTION__
+#ifdef HAVE_CONFIG_H
+#include "config.h"
 #endif
-
-#ifdef _WIN32
-#include <winsock2.h>
-#include "wingetopt.h"
-#define snprintf _snprintf
-#define strdup _strdup
-#define strcasecmp _stricmp
-#endif
-
-#include <sys/types.h>
-
-#ifndef _WIN32
-#include <sys/time.h>
-#include <sys/uio.h>
-#include <sys/socket.h>
-#include <sys/wait.h>
-#include <sys/resource.h>
-#include <netinet/in.h>
-#include <unistd.h>
-#endif
-
-#include <stdio.h>
-#include <errno.h>
-#include <string.h>
-#include <stdlib.h>
-#include <signal.h>
-
-#include <assert.h>
-
-#if defined(__APPLE__)
-#include <stdint.h>
-#endif
-
-#if defined(DMALLOC)
-#include <dmalloc.h>
-#endif
+#include "internal.h"
 
 #include "mper_keywords.h"
 #include "mper_msg.h"

@@ -21,55 +21,13 @@
  *
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #ifndef WITHOUT_PRIVSEP
 
-#if defined(__APPLE__)
-#include <stdint.h>
-#endif
-
-#if defined(__sun__)
-#define HAVE_ACCRIGHTS
-#endif
-
-#if defined(__FreeBSD__)
-#define HAVE_SETPROCTITLE
-#endif
-
-#if defined(__NetBSD__)
-#define HAVE_SETPROCTITLE
-#endif
-
-#if defined(__OpenBSD__)
-#define HAVE_SETPROCTITLE
-#endif
-
-#if defined(__DragonFly__)
-#define HAVE_SETPROCTITLE
-#endif
-
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/uio.h>
-#include <sys/time.h>
-#include <sys/stat.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <stdio.h>
-#include <errno.h>
-#include <string.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <fcntl.h>
-#include <pwd.h>
-#include <time.h>
-#include <grp.h>
-#include <netdb.h>
-
-#include <assert.h>
-
-#if defined(DMALLOC)
-#include <dmalloc.h>
-#endif
+#include "internal.h"
 
 #include "scamper_privsep.h"
 #include "scamper_debug.h"
@@ -77,22 +35,6 @@
 
 #include "scamper_dl.h"
 #include "scamper_rtsock.h"
-
-#ifndef PRIVSEP_DIR
-#define PRIVSEP_DIR "/var/empty"
-#endif
-
-#ifndef PRIVSEP_DIR_USER
-#define PRIVSEP_DIR_USER "root"
-#endif
-
-#ifndef PRIVSEP_DIR_GROUP
-#define PRIVSEP_DIR_GROUP "wheel"
-#endif
-
-#ifndef PRIVSEP_USER
-#define PRIVSEP_USER "nobody"
-#endif
 
 typedef struct privsep_msg
 {

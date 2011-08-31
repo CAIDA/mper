@@ -23,47 +23,10 @@
  *
  */
 
-#if defined(_MSC_VER)
-typedef unsigned __int8 uint8_t;
-typedef unsigned __int16 uint16_t;
-typedef unsigned __int32 uint32_t;
-typedef int mode_t;
-#define __func__ __FUNCTION__
+#ifdef HAVE_CONFIG_H
+#include "config.h"
 #endif
-
-#ifdef _WIN32
-#include <winsock2.h>
-#include <io.h>
-#endif
-
-#include <sys/types.h>
-#include <sys/stat.h>
-
-#ifndef _WIN32
-#include <sys/time.h>
-#include <sys/socket.h>
-#include <netdb.h>
-#include <unistd.h>
-#endif
-
-#include <time.h>
-#include <stdio.h>
-#include <stdarg.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <string.h>
-
-#include <assert.h>
-
-#ifdef _WIN32
-#define snprintf _snprintf
-#define open _open
-#define fdopen _fdopen
-#endif
-
-#if defined(__APPLE__)
-#include <stdint.h>
-#endif
+#include "internal.h"
 
 #include "scamper.h"
 #include "scamper_debug.h"

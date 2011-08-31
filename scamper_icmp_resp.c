@@ -21,41 +21,10 @@
  *
  */
 
-#if defined(_MSC_VER)
-typedef unsigned __int8 uint8_t;
-typedef unsigned __int16 uint16_t;
-typedef unsigned __int32 uint32_t;
-typedef __int16 int16_t;
+#ifdef HAVE_CONFIG_H
+#include "config.h"
 #endif
-
-#ifdef _WIN32
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#define snprintf _snprintf
-#endif
-
-#include <sys/types.h>
-
-#ifndef _WIN32
-#include <sys/time.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#include <netinet/ip_icmp.h>
-#include <netinet/ip6.h>
-#include <netinet/icmp6.h>
-#include <arpa/inet.h>
-#endif
-
-#if defined(__APPLE__)
-#include <stdint.h>
-#endif
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <assert.h>
+#include "internal.h"
 
 #include "utils.h"
 #include "scamper_addr.h"
@@ -63,126 +32,6 @@ typedef __int16 int16_t;
 #include "scamper_target.h"
 #include "scamper_icmp_resp.h"
 #include "scamper_debug.h"
-
-#ifndef ICMP_ECHOREPLY
-#define ICMP_ECHOREPLY 0
-#endif
-
-#ifndef ICMP_UNREACH
-#define ICMP_UNREACH 3
-#endif
-
-#ifndef ICMP_UNREACH_NET
-#define ICMP_UNREACH_NET 0
-#endif
-
-#ifndef ICMP_UNREACH_HOST
-#define ICMP_UNREACH_HOST 1
-#endif
-
-#ifndef ICMP_UNREACH_PROTOCOL
-#define ICMP_UNREACH_PROTOCOL 2
-#endif
-
-#ifndef ICMP_UNREACH_PORT
-#define ICMP_UNREACH_PORT 3
-#endif
-
-#ifndef ICMP_UNREACH_NEEDFRAG
-#define ICMP_UNREACH_NEEDFRAG 4
-#endif
-
-#ifndef ICMP_UNREACH_SRCFAIL
-#define ICMP_UNREACH_SRCFAIL 5
-#endif
-
-#ifndef ICMP_UNREACH_NET_UNKNOWN
-#define ICMP_UNREACH_NET_UNKNOWN 6
-#endif
-
-#ifndef ICMP_UNREACH_HOST_UNKNOWN
-#define ICMP_UNREACH_HOST_UNKNOWN 7
-#endif
-
-#ifndef ICMP_UNREACH_ISOLATED
-#define ICMP_UNREACH_ISOLATED 8
-#endif
-
-#ifndef ICMP_UNREACH_NET_PROHIB
-#define ICMP_UNREACH_NET_PROHIB 9
-#endif
-
-#ifndef ICMP_UNREACH_HOST_PROHIB
-#define ICMP_UNREACH_HOST_PROHIB 10
-#endif
-
-#ifndef ICMP_UNREACH_TOSNET
-#define ICMP_UNREACH_TOSNET 11
-#endif
-
-#ifndef ICMP_UNREACH_TOSHOST
-#define ICMP_UNREACH_TOSHOST 12
-#endif
-
-#ifndef ICMP_UNREACH_FILTER_PROHIB
-#define ICMP_UNREACH_FILTER_PROHIB 13
-#endif
-
-#ifndef ICMP_TIMXCEED
-#define ICMP_TIMXCEED 11
-#endif
-
-#ifndef ICMP_TIMXCEED_INTRANS
-#define ICMP_TIMXCEED_INTRANS 0
-#endif
-
-#ifndef ICMP_TIMXCEED_REASS
-#define ICMP_TIMXCEED_REASS 1
-#endif
-
-#ifndef ICMP6_DST_UNREACH
-#define ICMP6_DST_UNREACH 1
-#endif
-
-#ifndef ICMP6_PACKET_TOO_BIG
-#define ICMP6_PACKET_TOO_BIG 2
-#endif
-
-#ifndef ICMP6_DST_UNREACH_NOROUTE
-#define ICMP6_DST_UNREACH_NOROUTE 0
-#endif
-
-#ifndef ICMP6_DST_UNREACH_ADMIN
-#define ICMP6_DST_UNREACH_ADMIN 1
-#endif
-
-#ifndef ICMP6_DST_UNREACH_BEYONDSCOPE
-#define ICMP6_DST_UNREACH_BEYONDSCOPE 2
-#endif
-
-#ifndef ICMP6_DST_UNREACH_ADDR
-#define ICMP6_DST_UNREACH_ADDR 3
-#endif
-
-#ifndef ICMP6_DST_UNREACH_NOPORT
-#define ICMP6_DST_UNREACH_NOPORT 4
-#endif
-
-#ifndef ICMP6_TIME_EXCEEDED
-#define ICMP6_TIME_EXCEEDED 3
-#endif
-
-#ifndef ICMP6_TIME_EXCEED_TRANSIT
-#define ICMP6_TIME_EXCEED_TRANSIT 0
-#endif
-
-#ifndef ICMP6_TIME_EXCEED_REASSEMBLY
-#define ICMP6_TIME_EXCEED_REASSEMBLY 1
-#endif
-
-#ifndef ICMP6_ECHO_REPLY
-#define ICMP6_ECHO_REPLY 129
-#endif
 
 #if !defined(NDEBUG) && !defined(WITHOUT_DEBUGFILE)
 void scamper_icmp_resp_print(const scamper_icmp_resp_t *ir)

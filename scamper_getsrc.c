@@ -21,34 +21,10 @@
  *
  */
 
-#if defined(__APPLE__)
-#define _BSD_SOCKLEN_T_
-#include <stdint.h>
+#ifdef HAVE_CONFIG_H
+#include "config.h"
 #endif
-
-#include <sys/types.h>
-
-#if defined(_MSC_VER)
-typedef unsigned __int8 uint8_t;
-typedef unsigned __int16 uint16_t;
-typedef unsigned __int32 uint32_t;
-#define __func__ __FUNCTION__
-#endif
-
-#ifdef _WIN32
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#endif
-
-#ifndef _WIN32
-#include <sys/socket.h>
-#include <sys/time.h>
-#include <netinet/in.h>
-#include <unistd.h>
-#endif
-
-#include <string.h>
-#include <errno.h>
+#include "internal.h"
 
 #include "scamper.h"
 #include "scamper_addr.h"

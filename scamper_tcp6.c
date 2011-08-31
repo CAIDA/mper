@@ -21,70 +21,10 @@
  *
  */
 
-#if defined(__APPLE__)
-#include <stdint.h>
+#ifdef HAVE_CONFIG_H
+#include "config.h"
 #endif
-
-#include <sys/types.h>
-
-#if defined(_MSC_VER)
-typedef unsigned __int8 uint8_t;
-typedef unsigned __int16 uint16_t;
-typedef unsigned __int32 uint32_t;
-#define __func__ __FUNCTION__
-#endif
-
-#ifdef _WIN32
-#include <winsock2.h>
-#include <ws2tcpip.h>
-struct ip6_hdr
-{
-  uint32_t        ip6_vfc_flow;
-  uint16_t        ip6_plen;
-  uint8_t         ip6_nxt;
-  uint8_t         ip6_hlim;
-  struct in6_addr ip6_src;
-  struct in6_addr ip6_dst;
-};
-struct tcphdr {
-  uint16_t th_sport;
-  uint16_t th_dport;
-  uint32_t th_seq;
-  uint32_t th_ack;
-  uint8_t  th_offx2;
-  uint8_t  th_flags;
-  uint16_t th_win;
-  uint16_t th_sum;
-  uint16_t th_urp;
-};
-#endif
-
-#ifndef _WIN32
-#include <sys/time.h>
-#include <sys/socket.h>
-#endif
-
-#if defined(__linux__)
-#define __FAVOR_BSD
-#endif
-
-#ifndef _WIN32
-#include <netinet/in.h>
-#include <netinet/ip6.h>
-#include <netinet/tcp.h>
-#include <arpa/inet.h>
-#include <unistd.h>
-#endif
-
-#include <stdlib.h>
-#include <string.h>
-#include <errno.h>
-#include <assert.h>
-#include <stdio.h>
-
-#if defined(DMALLOC)
-#include <dmalloc.h>
-#endif
+#include "internal.h"
 
 #include "scamper_addr.h"
 #include "scamper_dl.h"

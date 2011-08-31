@@ -38,73 +38,19 @@
  *
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+#include "internal.h"
+
 #if defined(__APPLE__)
-#define _BSD_SOCKLEN_T_
-#define HAVE_BSD_ROUTE_SOCKET
-#include <stdint.h>
+static int broken = 0;
 #endif
-
-#if defined(__sun__)
-#define HAVE_BSD_ROUTE_SOCKET
-#endif
-
-#if defined(__FreeBSD__)
-#define HAVE_BSD_ROUTE_SOCKET
-#endif
-
-#if defined(__NetBSD__)
-#define HAVE_BSD_ROUTE_SOCKET
-#endif
-
-#if defined(__OpenBSD__)
-#define HAVE_BSD_ROUTE_SOCKET
-#endif
-
-#if defined(__DragonFly__)
-#define HAVE_BSD_ROUTE_SOCKET
-#endif
-
-#include <sys/types.h>
-
-#if defined(_MSC_VER)
-typedef unsigned __int8 uint8_t;
-typedef unsigned __int16 uint16_t;
-typedef unsigned __int32 uint32_t;
-#endif
-
-#ifdef _WIN32
-#include <winsock2.h>
-#include <iphlpapi.h>
-#endif
-
-#ifndef _WIN32
-#include <sys/uio.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <unistd.h>
-#endif
-
-#include <errno.h>
-#include <string.h>
-#include <stdio.h>
-#include <stdlib.h>
 
 /* include support for the routing socket */
 #if defined(HAVE_BSD_ROUTE_SOCKET)
-#include <net/if.h>
-#include <net/if_dl.h>
-#include <net/if_types.h>
-#include <net/route.h>
-#include <netinet/if_ether.h>
 #define ROUNDUP(size) \
         ((size > 0) ? (1 + ((size - 1) | (sizeof(long) - 1))) : sizeof(long))
-#endif
-
-#if defined(__sun__)
-#define RTAX_MAX       RTA_NUMBITS
-#define RTAX_GATEWAY   1
-#define RTAX_IFP       4
-#define ETHER_ADDR_LEN 6
 #endif
 
 /* include support for the netlink socket in linux */
