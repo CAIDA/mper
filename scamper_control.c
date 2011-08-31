@@ -1122,6 +1122,12 @@ static int command_probe_handle(scamper_source_t *source, command_t *command,
   if((task = scamper_do_ping_alloctask(command->data,
 				       source->client->wb)) == NULL)
     {
+      /* even if scamper_do_ping_alloctask fails, it will free the
+	 ping structure. we shouldn't do it */
+      command->data = NULL;
+      send_response(source, 
+		    create_error_response(-1, 
+					  "could not allocate task"));
       goto err;
     }
 

@@ -152,7 +152,7 @@ static int   checksum      = SCAMPER_CHECKSUM_DEF;
 
 /* don't make these static: need in scamper_do_ping.c */
 scamper_addr_t *g_gateway_sa = NULL;
-int g_interface   = 1;
+char *g_interface   = NULL;
 int g_debug_match = 0;  /* whether to write out probe-response info */
 int g_simulate    = 0;
 int g_use_paris   = 1;
@@ -429,8 +429,9 @@ static int check_options(int argc, char *argv[])
     }
 
   if(options & OPT_INTERFACE &&
-     set_opt(OPT_INTERFACE, opt_interface, scamper_interface_set) == -1)
+     (g_interface = strdup(opt_interface)) == NULL)
     {
+      fprintf(stderr, "invalid -I interface value '%s'\n", opt_interface);
       usage(OPT_INTERFACE);
       return -1;
     }
@@ -546,11 +547,11 @@ int scamper_holdtime_set(const int ht)
   return -1;
 }
 
-int scamper_interface_set(const int n)
+/*int scamper_interface_set(const char *n)
 {
-  g_interface = n;
+  g_interface = strdup(n);
   return 0;
-}
+  }*/
 
 int scamper_checksum_get()
 {

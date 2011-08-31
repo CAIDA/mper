@@ -45,6 +45,7 @@ typedef __int16 int16_t;
 #ifndef _WIN32
 #include <sys/time.h>
 #include <sys/socket.h>
+#include <net/if.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -152,7 +153,7 @@ static void send_response(scamper_task_t *task, const char *message)
 #define SCAMPER_DO_PING_PATTERN_MAX       32
 
 extern scamper_addr_t *g_gateway_sa;  /* in scamper.c */
-extern int g_interface;  /* in scamper.c */
+extern char *g_interface;  /* in scamper.c */
 
 /* the callback functions registered with the ping task */
 static scamper_task_funcs_t ping_funcs;
@@ -1539,6 +1540,7 @@ static void do_ping_free(scamper_task_t *task)
   if((ping = task->data) != NULL)
     {
       scamper_ping_free(ping);
+      ping = task->data = NULL;
     }
 
   if((state = task->state) != NULL)
@@ -2066,7 +2068,7 @@ scamper_task_t *scamper_do_ping_alloctask(scamper_ping_t *ping,
   scamper_task_t *task;
   ping_state_t   *state;
   void           *addr;
-  int i;
+  int i, ifindex;
 
 #ifdef _WIN32
   scamper_rt_rec_t rr;
@@ -2132,9 +2134,15 @@ scamper_task_t *scamper_do_ping_alloctask(scamper_ping_t *ping,
 #else
       if(g_gateway_sa)
         {
-	  if((state->pr = scamper_fd_dl(g_interface)) == NULL)
+	  /* get the interface index from the number */
+	  if((ifindex = if_nametoindex(g_interface)) == 0)
 	    {
-	      scamper_debug(__func__, "could not get dl for %d", g_interface);
+	      scamper_debug(__func__, 
+			    "could not resolve index for %s", g_interface);
+	    }
+	  if((state->pr = scamper_fd_dl(ifindex)) == NULL)
+	    {
+	      scamper_debug(__func__, "could not get dl for %d", ifindex);
 	      goto err;
 	    }
 	  state->dl_hdr = scamper_dl_hdr_alloc(state->pr, ping->src, ping->dst,
