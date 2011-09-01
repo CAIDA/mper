@@ -109,7 +109,8 @@ test_msg_writer_SOURCES = \
 
 BUILT_SOURCES = mper_keywords.c
 
-mper_keywords.c: Makefile mper_keywords.h mper_keywords.gperf
+mper_keywords.c: Makefile mper_keywords.gperf.sh mper_keywords.h \
+	 mper_keywords.gperf
 	./mper_keywords.gperf.sh "$(GPERF)" "$(GPERFFLAGS)" "$@"
 
 CLEANFILES = *~
