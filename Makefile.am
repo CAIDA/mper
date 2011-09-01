@@ -112,11 +112,13 @@ BUILT_SOURCES = mper_keywords.c
 mper_keywords.c: Makefile mper_keywords.h mper_keywords.gperf
 	if $(GPERF) $(GPERFFLAGS) \
                 mper_keywords.gperf >$@~; then \
-               mv $@~ $@; \
+		mv $@~ $@; \
              elif $(GPERF) --version >/dev/null 2>&1; then \
+		echo "WARNING: gperf failed. $@ may not be up to date"; \
                rm $@~; \
                exit 0; \
              else \
+		echo "WARNING: gperf not installed. $@ may not be up to date"; \
                rm $@~; \
                touch $@; \
              fi
