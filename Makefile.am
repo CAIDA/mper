@@ -56,6 +56,7 @@ include_HEADERS = \
 	mper_base64.h \
 	mper_keywords.h \
 	mper_keywords.gperf \
+	mper_keywords.gperf.sh \
 	mper_msg.h \
 	mper_msg_reader.h \
 	mper_msg_writer.h \
@@ -110,17 +111,6 @@ test_msg_writer_SOURCES = \
 BUILT_SOURCES = mper_keywords.c
 
 mper_keywords.c: Makefile mper_keywords.h mper_keywords.gperf
-	if $(GPERF) $(GPERFFLAGS) \
-                mper_keywords.gperf >$@~; then \
-		mv $@~ $@; \
-             elif $(GPERF) --version >/dev/null 2>&1; then \
-		echo "WARNING: gperf failed. $@ may not be up to date"; \
-               rm $@~; \
-               exit 0; \
-             else \
-		echo "WARNING: gperf not installed. $@ may not be up to date"; \
-               rm $@~; \
-               touch $@; \
-             fi
+	./mper_keywords.gperf.sh "$(GPERF)" "$(GPERFFLAGS)" "$@"
 
 CLEANFILES = *~
