@@ -25,8 +25,6 @@
 #endif
 #include "internal.h"
 
-#include "systypes.h"
-
 #include "mper_keywords.h"
 #include "mper_msg.h"
 #include "mper_msg_reader.h"

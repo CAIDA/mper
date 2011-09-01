@@ -92,7 +92,6 @@ include_HEADERS = \
 	scamper_udp4.h \
 	scamper_udp6.h \
 	scamper_writebuf.h \
-	systypes.h \
 	utils.h
 
 test_msg_reader_SOURCES = \
