@@ -1407,7 +1407,8 @@ static void do_ping_write_reply(scamper_task_t *task, scamper_ping_t *ping,
     }
   else /* tcp */
     {
-      SET_UINT_CWORD(resp_words, 11, REPLY_TCP, reply->tcp_flags);
+      opts++;
+      SET_UINT_CWORD(resp_words, opts, REPLY_TCP, reply->tcp_flags);
     }
   msg = create_control_message(resp_words, CMESSAGE_LEN(opts), &msg_len);
   assert(msg_len != 0);
