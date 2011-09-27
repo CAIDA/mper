@@ -164,7 +164,6 @@ int scamper_icmp4_probe(scamper_probe_t *probe)
   scamper_ip4_hlen(probe, &ip4hlen);
 
   len = ip4hlen + icmphdrlen + probe->pr_len;
-  //len = sizeof(struct ip) + icmphdrlen + probe->pr_len;
 
   i = len;
   if(setsockopt(probe->pr_fd,
