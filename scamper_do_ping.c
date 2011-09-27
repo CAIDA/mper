@@ -1819,6 +1819,7 @@ scamper_ping_t *scamper_do_ping_alloc(const control_word_t *words,
 		     : (int)words[i].cw_uint);
 	  break;
 
+	  /* how many unique replies are required before the ping completes */
 	case KC_REPLY_COUNT_OPT:
 	  reply_count = words[i].cw_uint;
 	  break;
@@ -1828,6 +1829,7 @@ scamper_ping_t *scamper_do_ping_alloc(const control_word_t *words,
 	  probe_wait = words[i].cw_uint;
 	  break;
 
+	  /* the tos bits to include in each probe */
 	case KC_TOS_OPT:
 	  probe_tos = words[i].cw_uint;
 	  break;
