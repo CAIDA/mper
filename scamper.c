@@ -191,7 +191,7 @@ static void usage(uint32_t opt_mask)
     usage_str('K', "disable paris-ping mode");
 
   if((opt_mask & OPT_CHECKSUM) != 0)
-    usage_str('k', "use given value for probe checksum value");
+    usage_str('k', "use given value for default probe checksum value");
 
   if((opt_mask & OPT_MONITORNAME) != 0)
     usage_str('M', "specify the canonical name of the monitor");
