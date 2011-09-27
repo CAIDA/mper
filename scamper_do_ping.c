@@ -2112,8 +2112,16 @@ scamper_task_t *scamper_do_ping_alloctask(scamper_ping_t *ping,
 	}
       else
         {
+	  scamper_debug(__func__, "gateway address must be specified when using tcp");
+	  goto err;
+	  /* 
+	   * this fails with:
+	   * Assertion failed: (sdl->sdl_family == AF_LINK), function 
+	   * rtsock_parsemsg, file scamper_rtsock.c, line 578.
+	   */
+	  /*
 	  if((state->rt = scamper_fd_rtsock()) == NULL)
-	    goto err;
+	  goto err; */
 	}
 #endif
     }
