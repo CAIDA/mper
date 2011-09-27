@@ -1819,10 +1819,11 @@ scamper_ping_t *scamper_do_ping_alloc(const control_word_t *words,
 		     : (int)words[i].cw_uint);
 	  break;
 
-	case KC_REPLY_CNT_OPT:
+	case KC_REPLY_COUNT_OPT:
 	  reply_count = words[i].cw_uint;
 	  break;
 
+	  /* how long to wait between sending probes */
 	case KC_TIMEOUT_OPT:
 	  probe_wait = words[i].cw_uint;
 	  break;
