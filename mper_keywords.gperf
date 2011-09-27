@@ -56,7 +56,7 @@ const char* keyword_code_names[] = {
   "sport",
   "dport",
   "spacing",
-  "reply_cnt",
+  "reply_count",
   "timeout",
   "tos",
   "rr",
@@ -127,7 +127,7 @@ cksum, KC_CKSUM_OPT, KT_UINT
 sport, KC_SPORT_OPT, KT_UINT
 dport, KC_DPORT_OPT, KT_UINT
 spacing, KC_SPACING_OPT, KT_UINT
-reply_cnt, KC_REPLY_COUNT_OPT, KT_UINT
+reply_count, KC_REPLY_COUNT_OPT, KT_UINT
 timeout, KC_TIMEOUT_OPT, KT_UINT
 tos, KC_TOS_OPT, KT_UINT
 rr, KC_RR_OPT, KT_UINT

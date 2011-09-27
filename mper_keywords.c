@@ -83,7 +83,7 @@ const char* keyword_code_names[] = {
   "sport",
   "dport",
   "spacing",
-  "reply_cnt",
+  "reply_count",
   "timeout",
   "tos",
   "rr",
@@ -161,9 +161,9 @@ hash (str, len)
       90, 90, 90, 90, 90, 90, 90, 90, 90, 90,
       90, 90, 90, 90, 90, 90, 90, 90, 90, 90,
       90, 90, 90, 90, 90, 90, 90, 90, 90, 90,
-      90, 90, 90, 90, 90, 35, 90, 31, 90, 27,
-      30,  0, 90, 60,  0, 25, 90, 90, 20, 15,
-       0, 30, 10, 15, 10,  0,  5,  5,  5, 90,
+      90, 90, 90, 90, 90, 35, 90,  0, 90, 27,
+      30,  0, 90, 60, 41, 25, 90, 90, 20, 10,
+       5, 30, 10, 15, 10,  0,  5,  5,  0, 90,
        0,  0, 90, 90, 90, 90, 90, 90, 90, 90,
       90, 90, 90, 90, 90, 90, 90, 90, 90, 90,
       90, 90, 90, 90, 90, 90, 90, 90, 90, 90,
@@ -219,10 +219,10 @@ in_word_set (str, len)
       {"",KC_NONE,KT_NONE}, {"",KC_NONE,KT_NONE},
 #line 142 "mper_keywords.gperf"
       {"rx", KC_RX_OPT, KT_TIMEVAL},
-      {"",KC_NONE,KT_NONE},
-#line 125 "mper_keywords.gperf"
-      {"meth", KC_METH_OPT, KT_SYMBOL},
       {"",KC_NONE,KT_NONE}, {"",KC_NONE,KT_NONE},
+#line 140 "mper_keywords.gperf"
+      {"udata", KC_UDATA_OPT, KT_UINT},
+      {"",KC_NONE,KT_NONE},
 #line 141 "mper_keywords.gperf"
       {"tx", KC_TX_OPT, KT_TIMEVAL},
 #line 132 "mper_keywords.gperf"
@@ -237,12 +237,12 @@ in_word_set (str, len)
       {"rr", KC_RR_OPT, KT_UINT},
 #line 119 "mper_keywords.gperf"
       {"txt", KC_TXT_OPT, KT_STR},
-#line 130 "mper_keywords.gperf"
-      {"reply_cnt", KC_REPLY_COUNT_OPT, KT_UINT},
+#line 164 "mper_keywords.gperf"
+      {"stop_data", KC_STOP_DATA_OPT, KT_UINT},
 #line 127 "mper_keywords.gperf"
       {"sport", KC_SPORT_OPT, KT_UINT},
-#line 163 "mper_keywords.gperf"
-      {"stop_reason", KC_STOP_REASON_OPT, KT_UINT},
+#line 130 "mper_keywords.gperf"
+      {"reply_count", KC_REPLY_COUNT_OPT, KT_UINT},
 #line 131 "mper_keywords.gperf"
       {"timeout", KC_TIMEOUT_OPT, KT_UINT},
 #line 154 "mper_keywords.gperf"
@@ -251,7 +251,8 @@ in_word_set (str, len)
       {"reply_tcp", KC_REPLY_TCP_OPT, KT_UINT},
 #line 150 "mper_keywords.gperf"
       {"reply_icmp", KC_REPLY_ICMP_OPT, KT_UINT},
-      {"",KC_NONE,KT_NONE},
+#line 163 "mper_keywords.gperf"
+      {"stop_reason", KC_STOP_REASON_OPT, KT_UINT},
 #line 115 "mper_keywords.gperf"
       {"resp_timeout", KC_RESP_TIMEOUT_CMD, KT_NONE},
 #line 120 "mper_keywords.gperf"
@@ -283,20 +284,19 @@ in_word_set (str, len)
       {"reply_tsps_ts4", KC_REPLY_TSPS_TS4_OPT, KT_UINT},
 #line 149 "mper_keywords.gperf"
       {"reply_ipid", KC_REPLY_IPID_OPT, KT_UINT},
-#line 140 "mper_keywords.gperf"
-      {"udata", KC_UDATA_OPT, KT_UINT},
       {"",KC_NONE,KT_NONE}, {"",KC_NONE,KT_NONE},
+      {"",KC_NONE,KT_NONE},
 #line 145 "mper_keywords.gperf"
       {"probe_ttl", KC_PROBE_TTL_OPT, KT_UINT},
-#line 164 "mper_keywords.gperf"
-      {"stop_data", KC_STOP_DATA_OPT, KT_UINT},
+#line 126 "mper_keywords.gperf"
+      {"cksum", KC_CKSUM_OPT, KT_UINT},
       {"",KC_NONE,KT_NONE}, {"",KC_NONE,KT_NONE},
 #line 138 "mper_keywords.gperf"
       {"tsps_ip3", KC_TSPS_IP3_OPT, KT_ADDRESS},
 #line 113 "mper_keywords.gperf"
       {"cmd_error", KC_CMD_ERROR_CMD, KT_NONE},
-#line 126 "mper_keywords.gperf"
-      {"cksum", KC_CKSUM_OPT, KT_UINT},
+#line 125 "mper_keywords.gperf"
+      {"meth", KC_METH_OPT, KT_SYMBOL},
       {"",KC_NONE,KT_NONE}, {"",KC_NONE,KT_NONE},
       {"",KC_NONE,KT_NONE},
 #line 159 "mper_keywords.gperf"
