@@ -238,7 +238,7 @@ in_word_set (str, len)
 #line 119 "mper_keywords.gperf"
       {"txt", KC_TXT_OPT, KT_STR},
 #line 130 "mper_keywords.gperf"
-      {"reply_cnt", KC_REPLY_CNT_OPT, KT_UINT},
+      {"reply_cnt", KC_REPLY_COUNT_OPT, KT_UINT},
 #line 127 "mper_keywords.gperf"
       {"sport", KC_SPORT_OPT, KT_UINT},
 #line 163 "mper_keywords.gperf"
