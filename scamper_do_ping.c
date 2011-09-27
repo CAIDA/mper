@@ -107,7 +107,7 @@ static void send_response(scamper_task_t *task, const char *message)
 #define SCAMPER_DO_PING_PATTERN_MAX       32
 
 extern scamper_addr_t *g_gateway_sa;  /* in scamper.c */
-extern char *g_interface;  /* in scamper.c */
+extern int g_interface;  /* in scamper.c */
 
 /* the callback functions registered with the ping task */
 static scamper_task_funcs_t ping_funcs;
@@ -2092,15 +2092,15 @@ scamper_task_t *scamper_do_ping_alloctask(scamper_ping_t *ping,
 #else
       if(g_gateway_sa)
         {
-	  /* get the interface index from the number */
-	  if((ifindex = if_nametoindex(g_interface)) == 0)
+	  if(g_interface == -1)
 	    {
 	      scamper_debug(__func__, 
-			    "could not resolve index for %s", g_interface);
+			    "gateway interface must be specified when using tcp");
+	      goto err;
 	    }
-	  if((state->pr = scamper_fd_dl(ifindex)) == NULL)
+	  if((state->pr = scamper_fd_dl(g_interface)) == NULL)
 	    {
-	      scamper_debug(__func__, "could not get dl for %d", ifindex);
+	      scamper_debug(__func__, "could not get dl for %d", g_interface);
 	      goto err;
 	    }
 	  state->dl_hdr = scamper_dl_hdr_alloc(state->pr, ping->src, ping->dst,

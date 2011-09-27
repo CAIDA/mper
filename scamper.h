@@ -30,7 +30,7 @@
 int scamper_holdtime_get(void);
 int scamper_holdtime_set(const int holdtime);
 
-int scamper_interface_set(const int n);
+int scamper_interface_set(const char *inteface);
 
 #define SCAMPER_PPS_MIN       1
 #define SCAMPER_PPS_DEF       20
