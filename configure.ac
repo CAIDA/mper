@@ -170,6 +170,8 @@ AC_CHECK_FUNCS(strncasecmp)
 AC_CHECK_FUNCS(strtol)
 AC_CHECK_FUNCS(uname)
 AC_CHECK_FUNCS(getifaddrs)
+AC_CHECK_FUNCS(if_nametoindex,,AC_MSG_ERROR(if_nametoindex not found))
+AC_CHECK_FUNCS(if_indextoname,,AC_MSG_ERROR(if_indextoname not found))
 
 AC_CHECK_MEMBER([struct sockaddr.sa_len],
 	[AC_DEFINE([HAVE_STRUCT_SOCKADDR_SA_LEN],[1],
