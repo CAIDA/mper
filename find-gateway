@@ -1,0 +1,44 @@
+#! /usr/bin/env perl
+# usage: find-gateway
+# Attempts to find the gateway and interface for the default route.
+# Ken Keys, CAIDA
+
+my $saw_header = 0;
+my $gateway_col = undef;
+my $iface_col = undef;
+my $gateway = undef;
+my $iface = undef;
+
+$ENV{"PATH"} .= ":/usr/bin:/sbin";
+$ENV{"LC_MESSAGES"} = "C";
+
+open NETSTAT, "netstat -rn |" or die "netstat: $!\n";
+while (<NETSTAT>) {
+    chomp;
+    if (/(?i)^\s*Destination/) {
+	$saw_header = 1;
+	my @columns = split;
+	for (my $i = 0; $i < @columns; ++$i) {
+	    if ($columns[$i] =~ /(?i)^(gateway|gw)$/) {
+		$gateway_col = $i;
+	    }
+	    if ($columns[$i] =~ /(?i)^(iface|interface|netif|if)$/) {
+		$iface_col = $i;
+	    }
+	}
+    } elsif ($saw_header) {
+	my @columns = split;
+	next unless $columns[0] =~ /(?i)^(default|0\.0\.0\.0)$/;
+	next unless $columns[$gateway_col] =~ /^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/;
+	$gateway = $columns[$gateway_col];
+	$iface = $columns[$iface_col];
+	last;
+    }
+}
+
+if (defined $gateway) {
+    print "gateway=$gateway\n";
+    print "iface=$iface\n";
+} else {
+    die "Could not determine default gateway.\n";
+}
