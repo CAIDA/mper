@@ -1,0 +1,99 @@
+=============================================================================
+INTRODUCTION
+=============================================================================
+
+mper is a probing engine that clients can use to conduct network
+measurements using ICMP, UDP, and TCP probes.  Currently, you must
+write mper clients in Ruby and use the (separately distributed)
+rb-mperio RubyGem (also available from CAIDA) to communicate with
+mper.
+
+
+=============================================================================
+INSTALLATION
+=============================================================================
+
+Build mper with
+
+   $ ./configure
+   $ make
+
+To install mper, copy the 'mper' binary to any location of your
+choice.  (Executing 'make install' will copy mper to
+/usr/local/bin/mper by default, which you can override with the
+--prefix option to configure.)  You can also directly execute
+'mper' from the build directory.
+
+
+=============================================================================
+STARTING MPER
+=============================================================================
+
+mper only runs as a server.  Unlike scamper, you can't execute
+measurements from the command line.  You must write a client in Ruby
+that interacts with mper over a Unix domain socket to execute
+measurements.
+
+Suppose mper is installed in /usr/local/bin/mper.  You need to choose
+a 'port' for mper to listen to for client connections.  Suppose you chose
+8746 as the port, then start up mper with:
+
+   $ sudo /usr/local/bin/mper -D 8746
+
+mper will listen for clients on the Unix domain socket '/tmp/mper.8746'.
+
+If you only wish to send ICMP or UDP probes, then you're done.
+However, if you wish to send TCP probes, then you need to start up
+mper with additional parameters; namely, the IP address of the gateway
+and the name of the active network interface on the host running mper.
+The easiest way to find this information is to run the 'find-gateway'
+script included in the mper distribution:
+
+   $ ./find-gateway 
+   gateway=192.168.0.1
+   iface=en0
+
+Then start up mper with the following:
+
+   $ sudo /usr/local/bin/mper -D 8746 -G 192.168.0.1 -I en0
+
+
+=============================================================================
+TESTING MPER
+=============================================================================
+
+The easiest way to test mper is to install the rb-mperio RubyGem and
+run the mper-ping script included with the gem.
+
+
+
+=============================================================================
+AUTHORS
+=============================================================================
+
+mper is based on the scamper source tree of 2009-06-04 with further ports
+of code from later scamper releases.
+
+mper is written and maintained by Young Hyun as a part of CAIDA's work
+on the Archipelago Measurement Infrastructure
+(http://www.caida.org/projects/ark/).
+
+scamper is written and maintained by Matthew Luckie, member of the
+WAND group in the Computer Science Department at the University of
+Waikato (http://www.wand.net.nz/scamper).
+
+Thanks to Alistair King for porting code from later scamper releases
+into mper in Jun-Sep 2011.
+
+
+=============================================================================
+LICENSE
+=============================================================================
+
+The source files derived from scamper are licensed under GPLv2, due to
+the original scamper license.
+
+Other source files, such as mper_base64.c, written entirely by Young
+Hyun are licensed under GPLv2 or (at your option) any later version.
+Please check the header of each source file for the exact licensing
+terms.

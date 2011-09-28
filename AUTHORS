@@ -1,0 +1,13 @@
+mper is based on the scamper source tree of 2009-06-04 with further ports
+of code from later scamper releases.
+
+mper is written and maintained by Young Hyun as a part of CAIDA's work
+on the Archipelago Measurement Infrastructure
+(http://www.caida.org/projects/ark/).
+
+scamper is written and maintained by Matthew Luckie, member of the
+WAND group in the Computer Science Department at the University of
+Waikato (http://www.wand.net.nz/scamper).
+
+Thanks to Alistair King for porting code from later scamper releases
+into mper in Jun-Sep 2011.
