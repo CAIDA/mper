@@ -1,6 +1,6 @@
 # Process this file with autoconf to produce a configure script.
 
-AC_INIT([mper], [20110831], [alistair@caida.org])
+AC_INIT([mper], [20110929], [alistair@caida.org])
 
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR([scamper.c])
@@ -32,10 +32,10 @@ fi
 
 # No privilege separation
 AC_ARG_ENABLE([privsep],
-  [AS_HELP_STRING([--disable-privsep], [disable privilege separation])])
+  [AS_HELP_STRING([--enable-privsep], [enable privilege separation])])
 
-if test "x$enable_privsep" = xno; then
-  AC_DEFINE([WITHOUT_PRIVSEP], [1], [Defined to 1 if we don't want privilege separation])
+if test "x$enable_privsep" != xyes; then
+  AC_DEFINE([WITHOUT_PRIVSEP], [1], [Defined to 1 if we want privilege separation])
 fi
 
 # privsep parameters
