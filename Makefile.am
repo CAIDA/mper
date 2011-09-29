@@ -4,7 +4,11 @@ ACLOCAL_AMFLAGS = -I m4
 
 INCLUDES = -I$(top_srcdir)
 
-bin_PROGRAMS = mper test-msg-reader test-msg-writer
+dist_bin_SCRIPTS = find-gateway
+
+bin_PROGRAMS = mper
+
+noinst_PROGRAMS = test-msg-reader test-msg-writer
 
 mper_SOURCES = \
 	scamper.c \
@@ -46,9 +50,7 @@ mper_SOURCES = \
 	mper_base64.c \
 	mper_keywords.c \
 	mper_msg_reader.c \
-	mper_msg_writer.c
-
-include_HEADERS = \
+	mper_msg_writer.c \
 	internal.h \
 	mjl_heap.h \
 	mjl_list.h \
