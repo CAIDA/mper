@@ -93,7 +93,7 @@ static uint32_t options = 0;
  * matchfile:   place to write probe-response matching information
  * firewall:    scamper should use the system firewall when needed
  * gateway:     IP address of the gateway to use
- * interface:   datalink interface index to use if manually specifying gateway
+ * interface:   datalink interface name to use if manually specifying gateway
  * use_tcp:     use a TCP server socket instead of a Unix domain socket
  * simulate:    don't actually probe--simulate a non-response for each probe
  * use_paris:   use 'paris ping' to avoid per-flow load balancing
@@ -141,7 +141,8 @@ static void usage_str(char c, char *str)
 
 static void version(void)
 {
-  fprintf(stderr, "mper version %s\n", MPER_VERSION);
+  fprintf(stderr, "mper version %s; client protocol version %d.%d\n",
+          MPER_VERSION, CLIENT_PROTOCOL_MAJOR, CLIENT_PROTOCOL_MINOR);
   return;
 }
 
@@ -153,8 +154,8 @@ static void usage(uint32_t opt_mask)
     "usage: mper    [-?Pv] [-p pps] [-w window]\n"
     "               [-M monitorname] [-H holdtime]\n"
     "               [-F firewall] [-d debugfile] [-Z matchfile]\n"
-    "               [-G gateway] [-I interface-index]\n"
-    "               [-D port] [-T] [-S] [-K] [-k checksum]\n");
+    "               [-G gateway-address] [-I interface-name]\n"
+    "               [-D port] [-T] [-S] [-K] [-k default-checksum]\n");
 
   if(opt_mask == 0) return;
 
@@ -185,7 +186,7 @@ static void usage(uint32_t opt_mask)
     }
 
   if((opt_mask & OPT_INTERFACE) != 0)
-    usage_str('I', "use a given interface index when manually setting gateway");
+    usage_str('I', "use a given interface when manually setting gateway");
 
   if((opt_mask & OPT_PARIS) != 0)
     usage_str('K', "disable paris-ping mode");
