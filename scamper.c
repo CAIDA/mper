@@ -161,7 +161,7 @@ static void usage(uint32_t opt_mask)
   fprintf(stderr, "\n");
 
   if((opt_mask & OPT_HELP) != 0)
-    usage_str('?', "give an overview of the usage of scamper");
+    usage_str('?', "give an overview of the usage of mper");
 
   if((opt_mask & OPT_DEBUGFILE) != 0)
     usage_str('d', "write debugging information to the specified file");
@@ -212,7 +212,7 @@ static void usage(uint32_t opt_mask)
     usage_str('S', "don't actually probe--simulate a non-response for each probe");
 
   if((opt_mask & OPT_VERSION) != 0)
-    usage_str('v', "output the version of scamper this binary is");
+    usage_str('v', "output the version of mper this binary is");
 
   if((opt_mask & OPT_WINDOW) != 0)
     usage_str('w', "limit the window of actively probing tasks");
