@@ -185,7 +185,7 @@ static void usage(uint32_t opt_mask)
     }
 
   if((opt_mask & OPT_INTERFACE) != 0)
-    usage_str('G', "use a given interface index when manually setting gateway");
+    usage_str('I', "use a given interface index when manually setting gateway");
 
   if((opt_mask & OPT_PARIS) != 0)
     usage_str('K', "disable paris-ping mode");
@@ -447,6 +447,12 @@ static int check_options(int argc, char *argv[])
 	}
 
       daemon_port = lo;
+    }
+  else
+    {
+      fprintf(stderr, "missing -D daemon port\n");
+      usage(OPT_DAEMON);
+      return -1;
     }
 
 #ifdef _WIN32
