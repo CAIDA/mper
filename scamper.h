@@ -33,7 +33,7 @@ int scamper_holdtime_set(const int holdtime);
 int scamper_interface_set(const char *inteface);
 
 #define SCAMPER_PPS_MIN       1
-#define SCAMPER_PPS_DEF       20
+#define SCAMPER_PPS_DEF       100
 #define SCAMPER_PPS_MAX       1000
 int scamper_pps_get(void);
 int scamper_pps_set(const int pps);
@@ -61,7 +61,7 @@ int scamper_option_dl(void);
 
 void scamper_exitwhendone(int on);
 
-#define MPER_VERSION "0.4.0"
+#define MPER_VERSION "0.4.1"
 #define CLIENT_PROTOCOL_MAJOR 1
 #define CLIENT_PROTOCOL_MINOR 0
 

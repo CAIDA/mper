@@ -2,8 +2,8 @@
 
                                 mper
 
-                               v0.4.0
-                            Sep 30, 2011
+                               v0.4.1
+                            Jun 27, 2012
 
 
 =============================================================================
@@ -51,10 +51,10 @@ a 'port' for mper to listen to for client connections.  Suppose you chose
 mper will listen for clients on the Unix domain socket '/tmp/mper.8746'.
 
 If you plan on doing a lot of measurements, you may want to change the
-max probing packet-per-second (pps) setting from the default of 20 pps
-to, for example, 100 pps:
+max probing packet-per-second (pps) setting from the default of 100 pps
+to, for example, 200 pps:
 
-   $ sudo /usr/local/bin/mper -D 8746 -p 100
+   $ sudo /usr/local/bin/mper -D 8746 -p 200
 
 If you only wish to send ICMP or UDP probes, then you're done.
 However, if you wish to send TCP probes, then you need to start up
