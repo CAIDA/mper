@@ -55,6 +55,7 @@
 extern int g_debug_match;  /* whether to write out probe-response info */
 extern int g_simulate;   /* don't actually probe--simulate a non-response */
 extern int g_use_paris;  /* use paris ping */
+extern int g_weak_match;
 
 /* ---------------------------------------------------------------------- */
 
@@ -911,7 +912,8 @@ static int match_icmp_response(scamper_task_t *task, scamper_icmp_resp_t *ir)
 	return 0;  /* response not for this process: don't log at all */
 
       if (ir->ir_inner_icmp_seq != state->seq ||
-	  (ir->ir_af == AF_INET && ir->ir_inner_ip_id != state->ipid))
+	  (!g_weak_match &&
+	   ir->ir_af == AF_INET && ir->ir_inner_ip_id != state->ipid))
 	retval = 0;
 
       if (g_debug_match) { DEBUG_MATCH_SETUP;

@@ -77,6 +77,7 @@ static uint32_t options = 0;
 #define OPT_SIMULATE    0x02000000 /* S */
 #define OPT_PARIS       0x04000000 /* K */
 #define OPT_CHECKSUM    0x10000000 /* k */
+#define OPT_WEAK_MATCH  0x80000000 /* Y */
 
 /*
  * parameters configurable by the command line:
@@ -97,6 +98,7 @@ static uint32_t options = 0;
  * use_tcp:     use a TCP server socket instead of a Unix domain socket
  * simulate:    don't actually probe--simulate a non-response for each probe
  * use_paris:   use 'paris ping' to avoid per-flow load balancing
+ * weak_match:  don't consider IP ID's when matching ICMP responses to probes
  */
 static char  *command      = NULL;
 static int    pps          = SCAMPER_PPS_DEF;
@@ -118,6 +120,7 @@ int g_interface   = -1;
 int g_debug_match = 0;  /* whether to write out probe-response info */
 int g_simulate    = 0;
 int g_use_paris   = 1;
+int g_weak_match  = 0;
 
 /*
  * parameters calculated by scamper at run time:
@@ -155,7 +158,7 @@ static void usage(uint32_t opt_mask)
     "               [-M monitorname] [-H holdtime]\n"
     "               [-F firewall] [-d debugfile] [-Z matchfile]\n"
     "               [-G gateway-address] [-I interface-name]\n"
-    "               [-D port] [-T] [-S] [-K] [-k default-checksum]\n");
+    "               [-D port] [-T] [-S] [-K] [-k default-checksum] [-Y]\n");
 
   if(opt_mask == 0) return;
 
@@ -218,6 +221,9 @@ static void usage(uint32_t opt_mask)
   if((opt_mask & OPT_WINDOW) != 0)
     usage_str('w', "limit the window of actively probing tasks");
 
+  if((opt_mask & OPT_WEAK_MATCH) != 0)
+    usage_str('Y', "don't consider IP ID's when matching ICMP responses to probes");
+
   if((opt_mask & OPT_MATCHFILE) != 0)
     usage_str('Z', "write probe-response matching info to the specified file");
 
@@ -241,7 +247,7 @@ static int check_options(int argc, char *argv[])
 {
   int   i;
   long  lo;
-  char *opts = "d:D:F:G:H:I:Kk:M:p:PSTvw:Z:?";
+  char *opts = "d:D:F:G:H:I:Kk:M:p:PSTvw:YZ:?";
   char *opt_daemon = NULL, *opt_holdtime = NULL, *opt_monitorname = NULL;
   char *opt_checksum = NULL, *opt_pps = NULL, *opt_window = NULL;
   char *opt_debugfile = NULL, *opt_matchfile = NULL, *opt_firewall = NULL;
@@ -322,6 +328,11 @@ static int check_options(int argc, char *argv[])
 	case 'w':
 	  options |= OPT_WINDOW;
 	  opt_window = optarg;
+	  break;
+
+	case 'Y':
+	  options |= OPT_WEAK_MATCH;
+	  g_weak_match = 1;
 	  break;
 
 	case 'Z':
