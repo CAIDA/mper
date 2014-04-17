@@ -61,7 +61,7 @@ int scamper_option_dl(void);
 
 void scamper_exitwhendone(int on);
 
-#define MPER_VERSION "0.4.1"
+#define MPER_VERSION "0.4.2"
 #define CLIENT_PROTOCOL_MAJOR 1
 #define CLIENT_PROTOCOL_MINOR 0
 
