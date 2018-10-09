@@ -1,3 +1,8 @@
+* 2014-04-16: v0.4.2 release
+  - implemented -Y to not use IP ID in ICMP probe-response matching;
+    use this as workaround if you have a middlebox that is altering the
+    IP ID field
+
 * 2012-06-27: v0.4.1 release
  - changed default pps to 100 (was 20)
 
