@@ -1,3 +1,7 @@
+* 2020-04-17: v0.4.3 release
+  - applied fix for change in byte order of fields in raw packets with
+    FreeBSD 11 (copied patch from scamper)
+
 * 2014-04-16: v0.4.2 release
   - implemented -Y to not use IP ID in ICMP probe-response matching;
     use this as workaround if you have a middlebox that is altering the

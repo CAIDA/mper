@@ -193,6 +193,9 @@ typedef unsigned short sa_family_t;
 #if defined(__OpenBSD__) && OpenBSD >= 199706
 #define IP_HDR_HTONS
 #endif
+#if defined(__FreeBSD__) && __FreeBSD_version >= 1100030
+#define IP_HDR_HTONS
+#endif
 
 #if defined(HAVE_STDINT_H)
 #include <stdint.h>
